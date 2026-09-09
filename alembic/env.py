@@ -8,6 +8,7 @@ from alembic import context
 from database import Base
 import os
 from dotenv import load_dotenv
+import models
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 
