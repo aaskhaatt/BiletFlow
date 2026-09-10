@@ -2,13 +2,9 @@ from schemas.user import UserCreate, UserLogin
 from sqlalchemy.orm import Session
 from repositories.user_repository import create_user, get_user_by_email
 from exceptions import UserAlreadyExistsError, UserNotFoundError, InvalidCredentialsError
+from security import hash_password, verify_password
 
 
-def hash_password(password):
-    return password
-
-def verify_password(password, password_hash):
-    return password == password_hash
 
 
 def register_user_service(user: UserCreate, db: Session):
