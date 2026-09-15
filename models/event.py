@@ -16,3 +16,4 @@ class Event(Base):
     status: Mapped[str] = mapped_column(nullable=False, default="draft")
 
     organizer: Mapped["OrganizerProfile"] = relationship("OrganizerProfile", back_populates="events")
+    ticket_types: Mapped[list["TicketType"]] = relationship("TicketType", back_populates="event", cascade="all, delete-orphan")

@@ -24,3 +24,9 @@ class EventAccessDeniedError(Exception):
 
 class InvalidEventTimeError(Exception):
     pass
+
+class TicketTypeNotFoundError(Exception):
+    pass
+
+class InvalidTicketSalesTimeError(Exception):
+    pass

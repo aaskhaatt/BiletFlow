@@ -11,7 +11,9 @@ ERRORS = {
     OrganizerNotApprovedError: (403, "Organizer Not Aproved"),
     EventNotFoundError: (404, "Event Not Found"),
     EventAccessDeniedError: (403, "Event Access Denied"),
-    InvalidEventTimeError: (400, "Invalid Event Time")
+    InvalidEventTimeError: (400, "Invalid Event Time"),
+    TicketTypeNotFoundError: (404, "Ticket Type Not Found"),
+    InvalidTicketSalesTimeError: (400, "Invalid Ticket Sales Time")
 }
 
 async def exception_handler(request: Request, exc):
