@@ -1,6 +1,6 @@
 from database import Base
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import ForeignKey, Numeric
+from sqlalchemy import ForeignKey, Numeric, false
 from datetime import datetime
 from decimal import Decimal
 
@@ -16,5 +16,6 @@ class TicketType(Base):
     quantity: Mapped[int] = mapped_column(nullable=False)
     sales_start: Mapped[datetime] = mapped_column(nullable=False)
     sales_end: Mapped[datetime] = mapped_column(nullable=False)
+    is_hidden: Mapped[bool] = mapped_column(nullable=False, default=False, server_default=false())
 
     event: Mapped["Event"] = relationship("Event", back_populates="ticket_types")

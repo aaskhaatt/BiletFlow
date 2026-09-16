@@ -34,3 +34,4 @@ class TicketTypeResponse(BaseModel):
     quantity: int
     sales_start: datetime
     sales_end: datetime
+    is_hidden: bool
