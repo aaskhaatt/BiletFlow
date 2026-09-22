@@ -1,12 +1,11 @@
 from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
-from decimal import Decimal
 
 
 class TicketTypeCreate(BaseModel):
     name: str
     description: str | None = None
-    price: Decimal = Field(ge=0)
+    price: int = Field(ge=0)
     quantity: int = Field(gt=0)
     sales_start: datetime
     sales_end: datetime
@@ -16,7 +15,7 @@ class TicketTypeCreate(BaseModel):
 class TicketTypeUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
-    price: Decimal | None = Field(default=None, ge=0)
+    price: int | None = Field(default=None, ge=0)
     quantity: int | None = Field(default=None, gt=0)
     sales_start: datetime | None = None
     sales_end: datetime | None = None
@@ -30,7 +29,7 @@ class TicketTypeResponse(BaseModel):
     event_id: int
     name: str
     description: str | None = None
-    price: Decimal
+    price: int
     quantity: int
     sales_start: datetime
     sales_end: datetime

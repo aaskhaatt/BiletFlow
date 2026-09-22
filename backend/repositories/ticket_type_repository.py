@@ -2,7 +2,6 @@ from models.ticket_type import TicketType
 from exceptions import TicketTypeNotFoundError
 from datetime import datetime
 from sqlalchemy.orm import Session
-from decimal import Decimal
 from sqlalchemy import select
 
 
@@ -16,7 +15,7 @@ def get_ticket_type_by_id(ticket_type_id: int, db: Session):
     return ticket_type
 
 
-def create_ticket_type(event_id: int, name: str, description: str | None, price: Decimal, quantity: int, sales_start: datetime, sales_end: datetime, db: Session):
+def create_ticket_type(event_id: int, name: str, description: str | None, price: int, quantity: int, sales_start: datetime, sales_end: datetime, db: Session):
     ticket_type = TicketType(
         event_id = event_id,
         name=name,
@@ -42,7 +41,7 @@ def get_ticket_types_by_event_id(event_id: int, db: Session) -> list[TicketType]
     return ticket_types
 
 
-def update_ticket_type(ticket_type: TicketType, name: str, description: str | None, price: Decimal, quantity: int, sales_start: datetime, sales_end: datetime, db: Session):
+def update_ticket_type(ticket_type: TicketType, name: str, description: str | None, price: int, quantity: int, sales_start: datetime, sales_end: datetime, db: Session):
     
     ticket_type.name = name
     ticket_type.description = description
