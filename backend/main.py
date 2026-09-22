@@ -3,7 +3,8 @@ from routers.auth import router as auth_router
 from routers.events import router as events_router
 from routers.organizers import router as organizers_router
 from routers.ticket_types import router as ticket_types_router
-from exception_handlers import ERRORS, exception_handler
+from fastapi.exceptions import RequestValidationError
+from exception_handlers import ERRORS, exception_handler, validation_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -19,6 +20,10 @@ app = FastAPI(
 for error in ERRORS:
     app.add_exception_handler(error, exception_handler)
 
+app.add_exception_handler(
+    RequestValidationError,
+    validation_exception_handler
+)
 
 app.include_router(auth_router)
 app.include_router(events_router)

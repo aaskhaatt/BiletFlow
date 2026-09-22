@@ -1,5 +1,6 @@
 from exceptions import *
 from fastapi import Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 ERRORS = {
@@ -19,4 +20,29 @@ ERRORS = {
 async def exception_handler(request: Request, exc):
     status, message = ERRORS[type(exc)]
 
-    return JSONResponse(status_code = status, content = {"detail": message})
+    return JSONResponse(status_code = status, 
+        content={
+            "error": type(exc).__name__,
+            "message": message,
+            "fields": None
+})
+
+
+async def validation_exception_handler(
+    request: Request,
+    exc: RequestValidationError
+):
+    fields = {}
+
+    for error in exc.errors():
+        field = error["loc"][-1]
+        fields[field] = error["msg"]
+
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": "VALIDATION_ERROR",
+            "message": "Invalid data",
+            "fields": fields
+        }
+    )
