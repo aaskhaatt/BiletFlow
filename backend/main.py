@@ -7,7 +7,14 @@ from exception_handlers import ERRORS, exception_handler
 from fastapi.middleware.cors import CORSMiddleware
 
 
-app = FastAPI()
+def custom_generate_unique_id(route):
+    return f"{route.tags[0]}-{route.name}"
+
+app = FastAPI(
+    generate_unique_id_function=custom_generate_unique_id
+)
+
+
 
 for error in ERRORS:
     app.add_exception_handler(error, exception_handler)

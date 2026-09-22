@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from schemas.user import UserCreate, UserResponse, UserLogin
+from schemas.token import TokenResponse
 from sqlalchemy.orm import Session
 from database import get_db
 from services.user_service import register_user_service, authenticate_user_service
@@ -15,7 +16,7 @@ def user_registration(user: UserCreate, db: Session = Depends(get_db)):
     return register_user_service(user, db)
 
 
-@router.post("/login")
+@router.post("/login", response_model=TokenResponse)
 def user_login(user: UserLogin, db: Session = Depends(get_db)):
     authenticated_user =  authenticate_user_service(user, db)
 
