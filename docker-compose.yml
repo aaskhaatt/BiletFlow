@@ -1,0 +1,29 @@
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: biletflow_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: biletflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+
+  api:
+    build:
+      context: ./backend
+    container_name: biletflow_api
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - postgres
+
+
+volumes:
+  postgres_data:
