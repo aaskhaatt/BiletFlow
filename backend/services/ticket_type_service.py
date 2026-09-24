@@ -37,7 +37,7 @@ def get_ticket_types_by_event_id_service(event_id: int, db: Session):
     event = get_event_by_id(event_id, db)
 
     if event.status != "published":
-        return EventNotFoundError()
+        raise EventNotFoundError()
 
     return get_ticket_types_by_event_id(event_id, db)
 
