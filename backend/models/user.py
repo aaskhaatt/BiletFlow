@@ -11,3 +11,4 @@ class User(Base):
     is_platform_admin: Mapped[bool] = mapped_column(nullable=False, default=False)
 
     organizer_profile: Mapped["OrganizerProfile | None"] = relationship("OrganizerProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    refresh_tokens: Mapped[list["RefreshToken"]] = relationship("RefreshToken", back_populates = "user", cascade="all, delete-orphan")

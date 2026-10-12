@@ -3,13 +3,15 @@ import os
 from jose import JWTError, jwt
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
+import hashlib
+import secrets
 
 load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
-
+REFRESH_TOKEN_EXPIRE_DAYS=int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS"))
 
 
 def hash_password(password: str) -> str:
@@ -42,3 +44,12 @@ def decode_access_token(token):
 
     except JWTError:
         return None
+
+
+def generate_refresh_token() -> str:
+    return secrets.token_urlsafe(64)
+
+
+def hash_refresh_token(token: str) -> str:
+    m = token.encode()
+    return hashlib.sha256(m).hexdigest()

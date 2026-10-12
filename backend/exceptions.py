@@ -30,3 +30,6 @@ class TicketTypeNotFoundError(Exception):
 
 class InvalidTicketSalesTimeError(Exception):
     pass
+
+class InvalidRefreshTokenError(Exception):
+    pass
