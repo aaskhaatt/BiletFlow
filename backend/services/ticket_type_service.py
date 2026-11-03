@@ -28,6 +28,7 @@ def create_ticket_type_service(user_id: int, event_id: int, ticket_type_data: Ti
         ticket_type_data.quantity,
         ticket_type_data.sales_start, 
         ticket_type_data.sales_end,
+        ticket_type_data.max_per_order,
         db
     )
 
@@ -58,11 +59,12 @@ def update_ticket_type_service(user_id: int, ticket_type_id: int, ticket_type_da
     quantity = ticket_type_data.quantity if ticket_type_data.quantity is not None else ticket_type.quantity
     sales_start = ticket_type_data.sales_start if ticket_type_data.sales_start is not None else ticket_type.sales_start
     sales_end = ticket_type_data.sales_end if ticket_type_data.sales_end is not None else ticket_type.sales_end
+    max_per_order = ticket_type_data.max_per_order if ticket_type_data.max_per_order is not None else ticket_type.max_per_order
 
     if sales_start >= sales_end:
         raise InvalidTicketSalesTimeError()
 
-    return update_ticket_type(ticket_type, name, description, price, quantity, sales_start, sales_end, db)
+    return update_ticket_type(ticket_type, name, description, price, quantity, sales_start, sales_end, max_per_order, db)
 
 
 def hide_ticket_type_service(user_id: int, ticket_type_id: int, db: Session):

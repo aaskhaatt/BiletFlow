@@ -1,5 +1,6 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
+from typing import Literal
 
 
 class EventCreate(BaseModel):
@@ -8,6 +9,13 @@ class EventCreate(BaseModel):
     description: str | None = None
     start_time: datetime
     end_time: datetime
+    category: str | None = None
+    venue_name: str | None = None
+    venue_address: str | None = None
+    capacity: int | None = Field(default=None, ge=1)
+    visibility: Literal["public", "unlisted", "private"] = "public"
+    registration_opens_at: datetime | None = None
+    registration_closes_at: datetime | None = None
 
 
 class EventUpdate(BaseModel):
@@ -16,6 +24,13 @@ class EventUpdate(BaseModel):
     description: str | None = None
     start_time: datetime | None = None
     end_time: datetime | None = None
+    category: str | None = None
+    venue_name: str | None = None
+    venue_address: str | None = None
+    capacity: int | None = Field(default=None, ge=1)
+    visibility: Literal["public", "unlisted", "private"] | None = None
+    registration_opens_at: datetime | None = None
+    registration_closes_at: datetime | None = None
 
 
 
@@ -29,3 +44,10 @@ class EventResponse(BaseModel):
     start_time: datetime
     end_time: datetime
     status: str
+    category: str | None = None
+    venue_name: str | None = None
+    venue_address: str | None = None
+    capacity: int | None = None
+    visibility: str
+    registration_opens_at: datetime | None = None
+    registration_closes_at: datetime | None = None

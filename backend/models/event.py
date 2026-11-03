@@ -14,6 +14,14 @@ class Event(Base):
     start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     status: Mapped[str] = mapped_column(nullable=False, default="draft")
+    category: Mapped[str | None] = mapped_column(nullable=True)
+    venue_name: Mapped[str | None] = mapped_column(nullable=True)
+    venue_address: Mapped[str | None] = mapped_column(nullable=True)
+    capacity: Mapped[int | None] = mapped_column(nullable=True)
+    visibility: Mapped[str] = mapped_column(nullable=False, default="public", server_default="public")
+    registration_opens_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    registration_closes_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
 
     organizer: Mapped["OrganizerProfile"] = relationship("OrganizerProfile", back_populates="events")
     ticket_types: Mapped[list["TicketType"]] = relationship("TicketType", back_populates="event", cascade="all, delete-orphan")

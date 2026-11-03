@@ -15,7 +15,9 @@ ERRORS = {
     InvalidEventTimeError: (400, "Invalid Event Time"),
     TicketTypeNotFoundError: (404, "Ticket Type Not Found"),
     InvalidTicketSalesTimeError: (400, "Invalid Ticket Sales Time"),
-    InvalidRefreshTokenError: (401, "Invalid Refresh Token")
+    InvalidRefreshTokenError: (401, "Invalid Refresh Token"),
+    InvalidEventStatusError: (409, "Invalid Event Status"),
+    EventNotReadyToPublishError: (400, "Event Not Ready To Publish")
 }
 
 async def exception_handler(request: Request, exc):

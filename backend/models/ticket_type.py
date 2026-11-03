@@ -16,5 +16,6 @@ class TicketType(Base):
     sales_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     sales_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     is_hidden: Mapped[bool] = mapped_column(nullable=False, default=False, server_default=false())
+    max_per_order: Mapped[int] = mapped_column(nullable=False, default=10, server_default="10")
 
     event: Mapped["Event"] = relationship("Event", back_populates="ticket_types")

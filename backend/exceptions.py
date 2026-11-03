@@ -33,3 +33,9 @@ class InvalidTicketSalesTimeError(Exception):
 
 class InvalidRefreshTokenError(Exception):
     pass
+
+class InvalidEventStatusError(Exception):
+    pass
+
+class EventNotReadyToPublishError(Exception):
+    pass

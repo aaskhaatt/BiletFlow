@@ -15,7 +15,7 @@ def get_ticket_type_by_id(ticket_type_id: int, db: Session):
     return ticket_type
 
 
-def create_ticket_type(event_id: int, name: str, description: str | None, price: int, quantity: int, sales_start: datetime, sales_end: datetime, db: Session):
+def create_ticket_type(event_id: int, name: str, description: str | None, price: int, quantity: int, sales_start: datetime, sales_end: datetime, max_per_order: int, db: Session):
     ticket_type = TicketType(
         event_id = event_id,
         name=name,
@@ -23,7 +23,8 @@ def create_ticket_type(event_id: int, name: str, description: str | None, price:
         price = price,
         quantity = quantity,
         sales_start = sales_start,
-        sales_end = sales_end
+        sales_end = sales_end,
+        max_per_order = max_per_order
     )
 
     db.add(ticket_type)
@@ -41,7 +42,7 @@ def get_ticket_types_by_event_id(event_id: int, db: Session) -> list[TicketType]
     return ticket_types
 
 
-def update_ticket_type(ticket_type: TicketType, name: str, description: str | None, price: int, quantity: int, sales_start: datetime, sales_end: datetime, db: Session):
+def update_ticket_type(ticket_type: TicketType, name: str, description: str | None, price: int, quantity: int, sales_start: datetime, sales_end: datetime, max_per_order: int, db: Session):
     
     ticket_type.name = name
     ticket_type.description = description
@@ -49,6 +50,7 @@ def update_ticket_type(ticket_type: TicketType, name: str, description: str | No
     ticket_type.quantity = quantity
     ticket_type.sales_start = sales_start
     ticket_type.sales_end = sales_end
+    ticket_type.max_per_order = max_per_order
 
     db.commit()
     db.refresh(ticket_type)
