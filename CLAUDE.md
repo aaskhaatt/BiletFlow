@@ -48,6 +48,8 @@ These are end-to-end tests in `backend/tests/e2e/`, one `test_<feature>.py` per 
 
 The app crashes at startup if any of these is missing.
 
+Optional, with defaults: `ORDER_HOLD_MINUTES` (10) is how long a paid checkout holds its tickets. `ORDER_SWEEP_INTERVAL_SECONDS` (60) is how often the background sweeper releases expired holds; tests set it to 1.
+
 ## Project structure
 
 ```
@@ -57,6 +59,7 @@ backend/
   dependencies.py       get_current_user, require_platform_admin
   security.py           password hashing, JWT, refresh token and ticket code generation
   qr.py                 QR code PNG generation (reused by PDF tickets later)
+  background.py         sweeper that releases expired checkout holds; started by the lifespan in main.py
   exceptions.py         domain exceptions (plain Exception subclasses)
   exception_handlers.py maps domain exceptions to HTTP status + JSON error body
   models/               SQLAlchemy models (must be imported in models/__init__.py)
@@ -137,7 +140,14 @@ Done:
   - Checklist: `GET /events/{id}/paid-sales`, `POST .../accept-terms`, `POST .../pay-fee` (`simulate_outcome: success|failure`), `POST .../activate`.
   - Organizer-level steps: `GET /organizers/me`, `POST /organizers/me/verification`, `PUT /organizers/me/payout-account`. Only the IBAN's last 4 characters are stored.
   - Admin: `GET /admin/paid-sales`, `POST /admin/events/{id}/paid-sales/suspend|reinstate`, `GET /admin/settings`, `PUT /admin/settings/activation-fee`.
-  - Paid ticket types can't be ordered unless the event's activation is `active`; checkout itself is Feature 5.
+  - Paid ticket types can't be ordered unless the event's activation is `active`.
+- Paid checkout (Feature 5):
+  - `POST /events/{id}/orders` with any paid item creates a `pending` order that holds its tickets until `expires_at` (now + 10 min). It has **no tickets** yet.
+  - `POST /orders/{id}/pay` (`simulate_outcome`) locks the order. A decline (402) keeps it pending for retry; success confirms it and issues the tickets.
+  - Expired holds are released (inventory decremented, status `expired`) by an atomic claim, both before every new order for that event and by the background sweeper.
+  - A 3% processing fee is stored per order and deducted from the organizer payout.
+  - `GET /events/{id}/sales` gives gross, fees, refunds, estimated payout, and per-ticket-type sold, reserved and available counts.
+  - `sold_count` on ticket types counts sold **plus** held tickets.
   - `payments` table: all payments are `provider = "simulated"`, `is_simulated = true`, with `SIM-` references. Failed attempts are committed before raising so they stay on record.
 - All repositories flush and all services commit (see Conventions → Transactions)
 

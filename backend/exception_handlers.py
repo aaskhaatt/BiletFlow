@@ -20,7 +20,6 @@ ERRORS = {
     EventNotReadyToPublishError: (400, "Event Not Ready To Publish"),
     RegistrationClosedError: (409, "Registration Is Not Open"),
     TicketTypeNotAvailableError: (409, "Ticket Type Not Available"),
-    PaidTicketsNotAvailableError: (409, "Paid Tickets Are Not Available Yet"),
     InvalidOrderQuantityError: (400, "Invalid Order Quantity"),
     TicketTypeSoldOutError: (409, "Ticket Type Sold Out"),
     EventSoldOutError: (409, "Event Sold Out"),
@@ -36,7 +35,9 @@ ERRORS = {
     ActivationFeeAlreadyPaidError: (409, "Activation Fee Already Paid"),
     InvalidActivationStatusError: (409, "Invalid Paid Sales Status"),
     PaymentFailedError: (402, "Payment Failed"),
-    PaidSalesNotFoundError: (404, "Paid Sales Activation Not Found")
+    PaidSalesNotFoundError: (404, "Paid Sales Activation Not Found"),
+    OrderNotPayableError: (409, "Order Can Not Be Paid"),
+    OrderExpiredError: (409, "Checkout Time Expired")
 }
 
 async def exception_handler(request: Request, exc):

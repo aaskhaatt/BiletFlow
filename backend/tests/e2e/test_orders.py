@@ -32,7 +32,7 @@ def main() -> bool:
         t.check("same ticket type twice in one order", s == 400, b.get("error"))
         vip = t.make_ticket_type(org, eid, name="VIP", price=5000)
         s, b = t.order(alice, eid, [(vip, 1)])
-        t.check("paid ticket type (Feature 5)", s == 409, b.get("error"))
+        t.check("paid ticket type without activated paid sales", s == 409 and b["error"] == "PaidSalesNotActiveError", b.get("error"))
         late = t.make_ticket_type(org, eid, name="Late", sales_start=NOW + timedelta(days=2))
         s, b = t.order(alice, eid, [(late, 1)])
         t.check("sales window not open yet", s == 409, b.get("error"))

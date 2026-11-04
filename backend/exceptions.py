@@ -46,9 +46,6 @@ class RegistrationClosedError(Exception):
 class TicketTypeNotAvailableError(Exception):
     pass
 
-class PaidTicketsNotAvailableError(Exception):
-    pass
-
 class InvalidOrderQuantityError(Exception):
     pass
 
@@ -95,4 +92,10 @@ class PaymentFailedError(Exception):
     pass
 
 class PaidSalesNotFoundError(Exception):
+    pass
+
+class OrderNotPayableError(Exception):
+    pass
+
+class OrderExpiredError(Exception):
     pass

@@ -1,24 +1,79 @@
-from datetime import datetime, timezone
+import os
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from models.user import User
 from schemas.order import OrderCreate
-from repositories.event_repository import get_event_by_id, reserve_event_capacity
-from repositories.ticket_type_repository import get_ticket_type_by_id, reserve_ticket_type_inventory
-from repositories.order_repository import create_order, create_order_item, get_order_by_id, get_orders_by_user_id
+from repositories.event_repository import get_event_by_id, reserve_event_capacity, release_event_capacity
+from repositories.ticket_type_repository import get_ticket_type_by_id, reserve_ticket_type_inventory, release_ticket_type_inventory
+from repositories.order_repository import (create_order, create_order_item, get_order_by_id, get_orders_by_user_id, lock_order,
+                                           get_order_items, claim_overdue_orders, get_sales_totals, get_ticket_type_sales)
 from repositories.ticket_repository import create_ticket, get_attendees_by_event_id
 from repositories.paid_sales_repository import is_paid_sales_active
 from services.audit_service import log_action
 from services.organizer_service import ensure_organizer_approved_service
+from services.event_service import ensure_event_owner_service
+from services.payment_service import simulate_payment, SimulatedOutcome
 from security import generate_ticket_code
 from exceptions import (EventNotFoundError, EventAccessDeniedError, RegistrationClosedError, TicketTypeNotFoundError,
-                        TicketTypeNotAvailableError, PaidTicketsNotAvailableError, InvalidOrderQuantityError,
-                        TicketTypeSoldOutError, EventSoldOutError, OrderNotFoundError, PaidSalesNotActiveError)
+                        TicketTypeNotAvailableError, InvalidOrderQuantityError, TicketTypeSoldOutError, EventSoldOutError,
+                        OrderNotFoundError, PaidSalesNotActiveError, OrderNotPayableError, OrderExpiredError, PaymentFailedError)
+
+# how long a paid checkout keeps its tickets reserved while the attendee pays
+ORDER_HOLD_MINUTES = int(os.getenv("ORDER_HOLD_MINUTES", "10"))
+# deducted from the organizer's payout; the attendee pays exactly the ticket prices
+PROCESSING_FEE_PERCENT = 3
 
 
 
-def create_free_order_service(user: User, event_id: int, order_data: OrderCreate, db: Session):
+def calculate_processing_fee(total_amount: int) -> int:
+    # 3%, rounded to the nearest whole tenge, with integer math only (no floats for money)
+    return (total_amount * PROCESSING_FEE_PERCENT + 50) // 100
+
+
+
+def _issue_tickets(order, db: Session):
+    # one ticket per seat; only ever called for confirmed orders (free, or paid successfully)
+    for item in get_order_items(order.id, db):
+        for _ in range(item.quantity):
+            create_ticket(generate_ticket_code(), order.id, item.id, item.ticket_type_id, order.event_id, order.buyer_name, db)
+
+
+
+def _release_order_inventory(order_id: int, db: Session):
+    # gives an expired order's held tickets back to the ticket types and the event
+    order = get_order_by_id(order_id, db)
+    items = get_order_items(order_id, db)
+
+    for item in items:
+        release_ticket_type_inventory(item.ticket_type_id, item.quantity, db)
+
+    total_quantity = sum(item.quantity for item in items)
+    release_event_capacity(order.event_id, total_quantity, db)
+    log_action(db, None, "order.expired", "order", order.id,
+               f"Checkout hold expired; released {total_quantity} ticket(s) of order #{order.id}", event_id=order.event_id)
+
+
+
+def expire_overdue_orders_service(db: Session, event_id: int | None = None) -> int:
+    # claim (pending -> expired) and release in one transaction; used by the sweeper and before every new order
+    expired_order_ids = claim_overdue_orders(event_id, db)
+
+    for order_id in expired_order_ids:
+        _release_order_inventory(order_id, db)
+
+    db.commit()
+
+    return len(expired_order_ids)
+
+
+
+def create_order_service(user: User, event_id: int, order_data: OrderCreate, db: Session):
     now = datetime.now(timezone.utc)
     event = get_event_by_id(event_id, db)
+
+    # 0. give abandoned holds back first, in their OWN commit: if this order then fails (e.g. sold out),
+    #    its rollback must not undo the release
+    expire_overdue_orders_service(db, event_id=event.id)
 
     # 1. the event must be open for registration
     # drafts and private events answer 404, the same as the public event page
@@ -50,12 +105,9 @@ def create_free_order_service(user: User, event_id: int, order_data: OrderCreate
         if not (ticket_type.sales_start <= now <= ticket_type.sales_end):
             raise TicketTypeNotAvailableError()
 
-        if ticket_type.price > 0:
-            # paid tickets need activated (and not suspended) paid sales for this event (SRS 4.5)...
-            if not is_paid_sales_active(event.id, db):
-                raise PaidSalesNotActiveError()
-            # ...and the paid checkout itself comes in Feature 5
-            raise PaidTicketsNotAvailableError()
+        # paid tickets need activated (and not suspended) paid sales for this event (SRS 4.5)
+        if ticket_type.price > 0 and not is_paid_sales_active(event.id, db):
+            raise PaidSalesNotActiveError()
 
         if item.quantity > ticket_type.max_per_order:
             raise InvalidOrderQuantityError()
@@ -72,18 +124,80 @@ def create_free_order_service(user: User, event_id: int, order_data: OrderCreate
     if reserve_event_capacity(event.id, total_quantity, db) is None:
         raise EventSoldOutError()
 
-    # 4. create the order, its items and one ticket per seat
-    order = create_order(user.id, event.id, "confirmed", 0, order_data.buyer_name, user.email, db)
+    # 4. free orders are confirmed right away; paid orders wait for payment with a time limit
+    total_amount = sum(ticket_type.price * quantity for ticket_type, quantity in requested)
+    is_free = total_amount == 0
+    order = create_order(
+        user.id, event.id,
+        status = "confirmed" if is_free else "pending",
+        total_amount = total_amount,
+        processing_fee = calculate_processing_fee(total_amount),
+        expires_at = None if is_free else now + timedelta(minutes=ORDER_HOLD_MINUTES),
+        buyer_name = order_data.buyer_name,
+        buyer_email = user.email,
+        db = db
+    )
 
     for ticket_type, quantity in requested:
-        order_item = create_order_item(order.id, ticket_type.id, quantity, ticket_type.price, db)
+        create_order_item(order.id, ticket_type.id, quantity, ticket_type.price, db)
 
-        for _ in range(quantity):
-            create_ticket(generate_ticket_code(), order.id, order_item.id, ticket_type.id, event.id, order_data.buyer_name, db)
+    # SRS 4.6: tickets only exist after payment, so a paid order gets none yet
+    if is_free:
+        _issue_tickets(order, db)
+        description = f"Registered {total_quantity} free ticket(s), order #{order.id}"
+    else:
+        description = f"Started checkout for {total_quantity} ticket(s), {total_amount} KZT, order #{order.id}"
 
     # 5. log, then ONE commit: reservation, order, items, tickets and log are saved together or not at all
-    log_action(db, user.id, "order.created", "order", order.id,
-               f"Registered {total_quantity} free ticket(s), order #{order.id}", event_id=event.id)
+    log_action(db, user.id, "order.created", "order", order.id, description, event_id=event.id)
+
+    db.commit()
+    db.refresh(order)
+
+    return order
+
+
+
+def pay_order_service(user_id: int, order_id: int, outcome: SimulatedOutcome, db: Session):
+    now = datetime.now(timezone.utc)
+
+    # lock the order for the whole payment: a double-clicked "Pay" waits here, then sees it's already paid
+    order = lock_order(order_id, db)
+
+    if order.user_id != user_id:
+        raise OrderNotFoundError()
+
+    if order.status == "expired":
+        raise OrderExpiredError()
+
+    if order.status != "pending":
+        raise OrderNotPayableError()
+
+    if order.expires_at <= now:
+        # the hold ran out but the sweeper hasn't reached it yet: expire it here, keep that, then refuse
+        order.status = "expired"
+        _release_order_inventory(order.id, db)
+        db.commit()
+        raise OrderExpiredError()
+
+    # an admin may have suspended paid sales while the attendee was paying
+    if not is_paid_sales_active(order.event_id, db):
+        raise PaidSalesNotActiveError()
+
+    payment = simulate_payment("order", order.total_amount, outcome, user_id, order.event_id, db, order_id=order.id)
+
+    if payment.status == "failed":
+        log_action(db, user_id, "order.payment_failed", "payment", payment.id,
+                   f"Simulated payment of {order.total_amount} KZT failed for order #{order.id}", event_id=order.event_id)
+        # commit BEFORE raising so the failed attempt stays on record; the order stays pending and can be retried
+        db.commit()
+        raise PaymentFailedError()
+
+    order.status = "confirmed"
+    order.paid_at = now
+    _issue_tickets(order, db)
+    log_action(db, user_id, "order.paid", "payment", payment.id,
+               f"Paid {order.total_amount} KZT for order #{order.id} ({payment.provider_reference})", event_id=order.event_id)
 
     db.commit()
     db.refresh(order)
@@ -116,3 +230,33 @@ def get_event_attendees_service(user_id: int, event_id: int, db: Session):
         raise EventAccessDeniedError()
 
     return get_attendees_by_event_id(event_id, db)
+
+
+
+def get_event_sales_service(user_id: int, event_id: int, db: Session):
+    # SRS 4.6: organizers see gross sales, fees, refunds and estimated payouts (all simulated money)
+    event = ensure_event_owner_service(user_id, event_id, db)
+    totals = get_sales_totals(event.id, db)
+
+    return {
+        "event_id": event.id,
+        "currency": "KZT",
+        "is_simulated": True,
+        "gross_sales": totals.gross_sales,
+        "processing_fees": totals.processing_fees,
+        "refunds": totals.refunds,
+        "estimated_payout": totals.gross_sales - totals.processing_fees - totals.refunds,
+        "paid_orders": totals.paid_orders,
+        "ticket_types": [
+            {
+                "ticket_type_id": row.ticket_type_id,
+                "name": row.name,
+                "price": row.price,
+                "quantity": row.quantity,
+                "sold": row.sold,
+                "reserved": row.reserved,
+                "available": row.quantity - row.sold_count,
+            }
+            for row in get_ticket_type_sales(event.id, db)
+        ],
+    }

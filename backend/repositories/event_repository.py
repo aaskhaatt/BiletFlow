@@ -101,3 +101,12 @@ def reserve_event_capacity(event_id: int, quantity: int, db: Session) -> int | N
     )
 
     return db.execute(stmt).scalar()
+
+
+def release_event_capacity(event_id: int, quantity: int, db: Session):
+    stmt = (
+        update(Event)
+        .where(Event.id == event_id, Event.tickets_sold >= quantity)
+        .values(tickets_sold=Event.tickets_sold - quantity)
+    )
+    db.execute(stmt)

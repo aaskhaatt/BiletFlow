@@ -56,6 +56,8 @@ class E2E:
         self.server = subprocess.Popen(
             [sys.executable, "-m", "uvicorn", "main:app", "--port", str(PORT), "--log-level", "warning"],
             cwd=BACKEND, stdout=subprocess.DEVNULL, stderr=self._log,
+            # release expired checkout holds every second instead of every minute
+            env={**os.environ, "ORDER_SWEEP_INTERVAL_SECONDS": "1"},
         )
         for _ in range(100):
             try:
@@ -167,3 +169,14 @@ class E2E:
     def db_rows(self, sql: str, **params):
         with engine.connect() as c:
             return c.execute(text(sql), params).all()
+
+    def activate_paid_sales(self, org_token: str, event_id: int):
+        """Runs the whole Feature 4 checklist so the event can sell paid tickets."""
+        self.call("POST", "/organizers/me/verification", {"legal_name": "E2E Organizer", "contact_phone": "+77011234567"}, org_token)
+        self.call("PUT", "/organizers/me/payout-account",
+                  {"holder_name": "E2E Organizer", "bank_name": "Halyk Bank", "iban": "KZ86125KZT5004100100"}, org_token)
+        self.call("POST", f"/events/{event_id}/paid-sales/accept-terms", token=org_token)
+        self.call("POST", f"/events/{event_id}/paid-sales/pay-fee", {}, org_token)
+        status, body = self.call("POST", f"/events/{event_id}/paid-sales/activate", token=org_token)
+        assert status == 200, f"paid sales activation failed: {status} {body}"
+

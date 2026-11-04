@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
+from typing import Literal
 
 
 class OrderItemCreate(BaseModel):
@@ -45,6 +46,9 @@ class OrderResponse(BaseModel):
     buyer_name: str
     buyer_email: str
     created_at: datetime
+    # pending orders must be paid before this moment, or their tickets go back on sale
+    expires_at: datetime | None
+    paid_at: datetime | None
     items: list[OrderItemResponse]
     tickets: list[TicketResponse]
 
@@ -59,3 +63,30 @@ class AttendeeResponse(BaseModel):
     order_id: int
     buyer_email: str
     created_at: datetime
+
+
+class PayOrderRequest(BaseModel):
+    # simulation only: lets the demo show both a successful and a declined payment
+    simulate_outcome: Literal["success", "failure"] = "success"
+
+
+class TicketTypeSales(BaseModel):
+    ticket_type_id: int
+    name: str
+    price: int
+    quantity: int
+    sold: int
+    reserved: int
+    available: int
+
+
+class SalesSummaryResponse(BaseModel):
+    event_id: int
+    currency: str
+    is_simulated: bool
+    gross_sales: int
+    processing_fees: int
+    refunds: int
+    estimated_payout: int
+    paid_orders: int
+    ticket_types: list[TicketTypeSales]

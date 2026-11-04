@@ -83,3 +83,13 @@ def event_has_paid_ticket_type(event_id: int, db: Session) -> bool:
     stmt = select(TicketType.id).where(TicketType.event_id == event_id, TicketType.price > 0).limit(1)
 
     return db.scalars(stmt).first() is not None
+
+
+def release_ticket_type_inventory(ticket_type_id: int, quantity: int, db: Session):
+    # gives held tickets back when a pending order expires; never goes below zero
+    stmt = (
+        update(TicketType)
+        .where(TicketType.id == ticket_type_id, TicketType.sold_count >= quantity)
+        .values(sold_count=TicketType.sold_count - quantity)
+    )
+    db.execute(stmt)

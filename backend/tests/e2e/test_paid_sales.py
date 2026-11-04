@@ -75,7 +75,7 @@ def main() -> bool:
         s, st = t.call("POST", f"/events/{eid}/paid-sales/activate", token=org)
         t.check("activate", s == 200 and st["status"] == "active" and st["activated_at"], st.get("status"))
         s, b = t.order(alice, eid, [(vip, 1)])
-        t.check("paid tickets unlocked (checkout itself is Feature 5)", s == 409 and b["error"] == "PaidTicketsNotAvailableError", b.get("error"))
+        t.check("paid tickets unlocked: order waits for payment", s == 201 and b["status"] == "pending" and b["tickets"] == [], b.get("status"))
 
         # activation is per event
         other = t.make_event(org)

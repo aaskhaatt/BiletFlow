@@ -1,4 +1,7 @@
+import asyncio
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from background import sweep_expired_orders_forever
 from routers.auth import router as auth_router
 from routers.events import router as events_router
 from routers.organizers import router as organizers_router
@@ -17,8 +20,17 @@ from fastapi.middleware.cors import CORSMiddleware
 def custom_generate_unique_id(route):
     return f"{route.tags[0]}-{route.name}"
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # code before `yield` runs when the server starts, code after it when the server stops
+    sweeper = asyncio.create_task(sweep_expired_orders_forever())
+    yield
+    sweeper.cancel()
+
+
 app = FastAPI(
-    generate_unique_id_function=custom_generate_unique_id
+    generate_unique_id_function=custom_generate_unique_id,
+    lifespan=lifespan
 )
 
 
