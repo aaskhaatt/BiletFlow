@@ -21,6 +21,8 @@ class Event(Base):
     visibility: Mapped[str] = mapped_column(nullable=False, default="public", server_default="public")
     registration_opens_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     registration_closes_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # tickets taken across all ticket types, checked against capacity by the atomic reserve query
+    tickets_sold: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
 
 
     organizer: Mapped["OrganizerProfile"] = relationship("OrganizerProfile", back_populates="events")

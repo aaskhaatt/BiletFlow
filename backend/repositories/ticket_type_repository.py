@@ -2,7 +2,7 @@ from models.ticket_type import TicketType
 from exceptions import TicketTypeNotFoundError
 from datetime import datetime
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 
 
@@ -63,3 +63,17 @@ def update_ticket_type_visibility(ticket_type: TicketType, is_hidden: bool, db: 
     db.flush()
     
     return ticket_type
+
+
+def reserve_ticket_type_inventory(ticket_type_id: int, quantity: int, db: Session) -> int | None:
+    # ONE statement checks AND reserves, so two buyers can never both take the last ticket.
+    # Postgres locks the row; a second concurrent UPDATE waits, then re-checks the WHERE with the new value.
+    stmt = (
+        update(TicketType)
+        .where(TicketType.id == ticket_type_id, TicketType.sold_count + quantity <= TicketType.quantity)
+        .values(sold_count=TicketType.sold_count + quantity)
+        .returning(TicketType.sold_count)
+    )
+
+    # None means no row matched: not enough tickets left
+    return db.execute(stmt).scalar()

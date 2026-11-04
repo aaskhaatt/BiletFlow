@@ -39,3 +39,30 @@ class InvalidEventStatusError(Exception):
 
 class EventNotReadyToPublishError(Exception):
     pass
+
+class RegistrationClosedError(Exception):
+    pass
+
+class TicketTypeNotAvailableError(Exception):
+    pass
+
+class PaidTicketsNotAvailableError(Exception):
+    pass
+
+class InvalidOrderQuantityError(Exception):
+    pass
+
+class TicketTypeSoldOutError(Exception):
+    pass
+
+class EventSoldOutError(Exception):
+    pass
+
+class OrderNotFoundError(Exception):
+    pass
+
+class TicketNotFoundError(Exception):
+    pass
+
+class QuantityBelowSoldError(Exception):
+    pass

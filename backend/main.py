@@ -3,6 +3,8 @@ from routers.auth import router as auth_router
 from routers.events import router as events_router
 from routers.organizers import router as organizers_router
 from routers.ticket_types import router as ticket_types_router
+from routers.orders import router as orders_router
+from routers.tickets import router as tickets_router
 from fastapi.exceptions import RequestValidationError
 from exception_handlers import ERRORS, exception_handler, validation_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,6 +31,8 @@ app.include_router(auth_router)
 app.include_router(events_router)
 app.include_router(organizers_router)
 app.include_router(ticket_types_router)
+app.include_router(orders_router)
+app.include_router(tickets_router)
 
 app.add_middleware(
     CORSMiddleware,

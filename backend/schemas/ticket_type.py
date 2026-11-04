@@ -37,3 +37,4 @@ class TicketTypeResponse(BaseModel):
     sales_end: datetime
     is_hidden: bool
     max_per_order: int
+    sold_count: int

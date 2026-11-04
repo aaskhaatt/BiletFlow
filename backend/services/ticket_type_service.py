@@ -4,7 +4,7 @@ from repositories.ticket_type_repository import create_ticket_type, get_ticket_t
 from services.organizer_service import ensure_organizer_approved_service
 from services.audit_service import log_action
 from repositories.event_repository import get_event_by_id
-from exceptions import InvalidTicketSalesTimeError, EventAccessDeniedError, EventNotFoundError
+from exceptions import InvalidTicketSalesTimeError, EventAccessDeniedError, EventNotFoundError, QuantityBelowSoldError
 from models.ticket_type import TicketType
 
 
@@ -72,6 +72,9 @@ def update_ticket_type_service(user_id: int, ticket_type_id: int, ticket_type_da
 
     if sales_start >= sales_end:
         raise InvalidTicketSalesTimeError()
+
+    if quantity < ticket_type.sold_count:
+        raise QuantityBelowSoldError()
 
     # collect the changes before update_ticket_type overwrites the old values
     changes = []

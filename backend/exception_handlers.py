@@ -17,7 +17,16 @@ ERRORS = {
     InvalidTicketSalesTimeError: (400, "Invalid Ticket Sales Time"),
     InvalidRefreshTokenError: (401, "Invalid Refresh Token"),
     InvalidEventStatusError: (409, "Invalid Event Status"),
-    EventNotReadyToPublishError: (400, "Event Not Ready To Publish")
+    EventNotReadyToPublishError: (400, "Event Not Ready To Publish"),
+    RegistrationClosedError: (409, "Registration Is Not Open"),
+    TicketTypeNotAvailableError: (409, "Ticket Type Not Available"),
+    PaidTicketsNotAvailableError: (409, "Paid Tickets Are Not Available Yet"),
+    InvalidOrderQuantityError: (400, "Invalid Order Quantity"),
+    TicketTypeSoldOutError: (409, "Ticket Type Sold Out"),
+    EventSoldOutError: (409, "Event Sold Out"),
+    OrderNotFoundError: (404, "Order Not Found"),
+    TicketNotFoundError: (404, "Ticket Not Found"),
+    QuantityBelowSoldError: (409, "Quantity Is Below Tickets Already Sold")
 }
 
 async def exception_handler(request: Request, exc):

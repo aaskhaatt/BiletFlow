@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from models import Event
 from exceptions import EventNotFoundError
 from datetime import datetime
-from sqlalchemy import select
+from sqlalchemy import select, update, or_
 
 
 
@@ -89,3 +89,15 @@ def update_event_status(event: Event, status: str, db: Session):
     db.flush()
 
     return event
+
+
+def reserve_event_capacity(event_id: int, quantity: int, db: Session) -> int | None:
+    # same idea as reserve_ticket_type_inventory, for the event-wide capacity (None = unlimited)
+    stmt = (
+        update(Event)
+        .where(Event.id == event_id, or_(Event.capacity.is_(None), Event.tickets_sold + quantity <= Event.capacity))
+        .values(tickets_sold=Event.tickets_sold + quantity)
+        .returning(Event.tickets_sold)
+    )
+
+    return db.execute(stmt).scalar()

@@ -4,3 +4,5 @@ from .event import Event
 from .ticket_type import TicketType
 from .refresh_token import RefreshToken
 from .audit_log import AuditLog
+from .order import Order, OrderItem
+from .ticket import Ticket

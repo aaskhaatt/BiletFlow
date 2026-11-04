@@ -3,7 +3,7 @@ from schemas.event import EventCreate, EventUpdate
 from services.organizer_service import ensure_organizer_approved_service
 from services.audit_service import log_action
 from repositories.event_repository import create_event, update_event, get_event_by_id, update_event_status, get_events_by_organizer_id, get_published_events
-from exceptions import InvalidEventTimeError, EventAccessDeniedError, InvalidEventStatusError, EventNotReadyToPublishError, EventNotFoundError
+from exceptions import InvalidEventTimeError, EventAccessDeniedError, InvalidEventStatusError, EventNotReadyToPublishError, EventNotFoundError, QuantityBelowSoldError
 
 
 
@@ -60,6 +60,9 @@ def update_event_service(user_id: int, event_id: int, event_data: EventUpdate, d
     registration_closes_at = event_data.registration_closes_at if event_data.registration_closes_at is not None else event.registration_closes_at
 
     validate_event_times(start_time, end_time, registration_opens_at, registration_closes_at)
+
+    if capacity is not None and capacity < event.tickets_sold:
+        raise QuantityBelowSoldError()
 
     # collect the changes before update_event overwrites the old values
     changes = []

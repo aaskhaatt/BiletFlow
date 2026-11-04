@@ -53,3 +53,7 @@ def generate_refresh_token() -> str:
 def hash_refresh_token(token: str) -> str:
     m = token.encode()
     return hashlib.sha256(m).hexdigest()
+
+
+def generate_ticket_code() -> str:
+    return "T-" + secrets.token_urlsafe(16)

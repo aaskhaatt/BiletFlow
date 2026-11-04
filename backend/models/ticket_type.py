@@ -17,5 +17,7 @@ class TicketType(Base):
     sales_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     is_hidden: Mapped[bool] = mapped_column(nullable=False, default=False, server_default=false())
     max_per_order: Mapped[int] = mapped_column(nullable=False, default=10, server_default="10")
+    # how many of this type are taken; changed only by the atomic reserve query
+    sold_count: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
 
     event: Mapped["Event"] = relationship("Event", back_populates="ticket_types")
