@@ -167,3 +167,13 @@ def get_public_event_service(event_id: int, db: Session):
         raise EventNotFoundError()
 
     return event
+
+
+def ensure_event_owner_service(user_id: int, event_id: int, db: Session):
+    organizer = ensure_organizer_approved_service(user_id, db)
+    event = get_event_by_id(event_id, db)
+
+    if organizer.id != event.organizer_id:
+        raise EventAccessDeniedError()
+
+    return event

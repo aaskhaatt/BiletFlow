@@ -66,3 +66,15 @@ class TicketNotFoundError(Exception):
 
 class QuantityBelowSoldError(Exception):
     pass
+
+class StaffAlreadyAssignedError(Exception):
+    pass
+
+class StaffAssignmentNotFoundError(Exception):
+    pass
+
+class NotEventStaffError(Exception):
+    pass
+
+class TicketNotCheckedInError(Exception):
+    pass

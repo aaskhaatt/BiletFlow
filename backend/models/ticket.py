@@ -19,6 +19,8 @@ class Ticket(Base):
     # valid / checked_in / cancelled / refunded
     status: Mapped[str] = mapped_column(nullable=False, default="valid", server_default="valid")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    # set when scanned in, cleared on undo; lets the scanner say "already used at 19:42"
+    checked_in_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     order: Mapped["Order"] = relationship("Order", back_populates="tickets")
     ticket_type: Mapped["TicketType"] = relationship("TicketType")

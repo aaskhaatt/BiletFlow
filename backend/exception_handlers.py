@@ -26,7 +26,11 @@ ERRORS = {
     EventSoldOutError: (409, "Event Sold Out"),
     OrderNotFoundError: (404, "Order Not Found"),
     TicketNotFoundError: (404, "Ticket Not Found"),
-    QuantityBelowSoldError: (409, "Quantity Is Below Tickets Already Sold")
+    QuantityBelowSoldError: (409, "Quantity Is Below Tickets Already Sold"),
+    StaffAlreadyAssignedError: (409, "User Is Already Event Staff"),
+    StaffAssignmentNotFoundError: (404, "Staff Assignment Not Found"),
+    NotEventStaffError: (403, "Not Staff For This Event"),
+    TicketNotCheckedInError: (409, "Ticket Is Not Checked In")
 }
 
 async def exception_handler(request: Request, exc):

@@ -32,6 +32,7 @@ class TicketResponse(BaseModel):
     attendee_name: str
     status: str
     created_at: datetime
+    checked_in_at: datetime | None
 
 
 class OrderResponse(BaseModel):
