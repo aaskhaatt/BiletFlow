@@ -30,6 +30,8 @@ def create_event_service(user_id: int, event_data: EventCreate, db: Session):
                         event_data.end_time, event_data.category, event_data.venue_name, event_data.venue_address,
                         event_data.capacity, event_data.visibility, event_data.registration_opens_at, event_data.registration_closes_at, db)
 
+    event.refund_policy = event_data.refund_policy
+
     # event.id already exists here: the repository's flush() ran the INSERT
     log_action(db, user_id, "event.created", "event", event.id, f'Created event "{event.title}"', event_id=event.id)
 
@@ -58,6 +60,7 @@ def update_event_service(user_id: int, event_id: int, event_data: EventUpdate, d
     visibility = event_data.visibility if event_data.visibility is not None else event.visibility
     registration_opens_at =event_data.registration_opens_at if event_data.registration_opens_at is not None else event.registration_opens_at
     registration_closes_at = event_data.registration_closes_at if event_data.registration_closes_at is not None else event.registration_closes_at
+    refund_policy = event_data.refund_policy if event_data.refund_policy is not None else event.refund_policy
 
     validate_event_times(start_time, end_time, registration_opens_at, registration_closes_at)
 
@@ -74,6 +77,7 @@ def update_event_service(user_id: int, event_id: int, event_data: EventUpdate, d
         changes.append(f"visibility {event.visibility} -> {visibility}")
 
     update_event(event, title, description, start_time, end_time, category, venue_name, venue_address, capacity, visibility, registration_opens_at, registration_closes_at, db)
+    event.refund_policy = refund_policy
 
     description_text = f'Updated event "{title}"'
     if changes:
@@ -108,26 +112,6 @@ def publish_event_service(user_id: int, event_id: int, db: Session):
     db.refresh(event)
 
     return event
-
-
-def cancel_event_service(user_id: int, event_id: int, db: Session):
-    organizer = ensure_organizer_approved_service(user_id, db)
-    event = get_event_by_id(event_id, db)
-
-    if organizer.id != event.organizer_id:
-        raise EventAccessDeniedError()
-
-    if event.status == "cancelled":
-        raise InvalidEventStatusError()
-
-    update_event_status(event, "cancelled", db)
-    log_action(db, user_id, "event.cancelled", "event", event.id, f'Cancelled event "{event.title}"', event_id=event.id)
-
-    db.commit()
-    db.refresh(event)
-
-    return event
-
 
 
 def unpublish_event_service(user_id: int, event_id: int, db: Session):

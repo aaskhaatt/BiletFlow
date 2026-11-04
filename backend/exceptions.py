@@ -99,3 +99,9 @@ class OrderNotPayableError(Exception):
 
 class OrderExpiredError(Exception):
     pass
+
+class OrderNotCancellableError(Exception):
+    pass
+
+class OrderNotRefundableError(Exception):
+    pass

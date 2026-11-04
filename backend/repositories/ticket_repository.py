@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, update
 from models import Ticket, TicketType, Order
 from exceptions import TicketNotFoundError
 
@@ -50,3 +50,14 @@ def get_attendees_by_event_id(event_id: int, db: Session):
     )
 
     return db.execute(stmt).all()
+
+
+def set_order_tickets_status(order_id: int, status: str, db: Session) -> int:
+    # "valid" and "checked_in" tickets become cancelled/refunded; the scanner then rejects them
+    stmt = (
+        update(Ticket)
+        .where(Ticket.order_id == order_id, Ticket.status.in_(["valid", "checked_in"]))
+        .values(status=status)
+    )
+
+    return db.execute(stmt).rowcount

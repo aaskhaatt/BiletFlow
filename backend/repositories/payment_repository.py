@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 from models import Payment
 
 
@@ -20,3 +21,9 @@ def create_payment(purpose: str, amount: int, status: str, provider_reference: s
     db.flush()
 
     return payment
+
+
+def get_succeeded_payment_for_order(order_id: int, db: Session) -> Payment | None:
+    stmt = select(Payment).where(Payment.order_id == order_id, Payment.status == "succeeded")
+
+    return db.scalars(stmt).first()

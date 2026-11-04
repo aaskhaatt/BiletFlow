@@ -16,6 +16,7 @@ class EventCreate(BaseModel):
     visibility: Literal["public", "unlisted", "private"] = "public"
     registration_opens_at: datetime | None = None
     registration_closes_at: datetime | None = None
+    refund_policy: str | None = Field(default=None, max_length=2000)
 
 
 class EventUpdate(BaseModel):
@@ -31,6 +32,7 @@ class EventUpdate(BaseModel):
     visibility: Literal["public", "unlisted", "private"] | None = None
     registration_opens_at: datetime | None = None
     registration_closes_at: datetime | None = None
+    refund_policy: str | None = Field(default=None, max_length=2000)
 
 
 
@@ -51,3 +53,4 @@ class EventResponse(BaseModel):
     visibility: str
     registration_opens_at: datetime | None = None
     registration_closes_at: datetime | None = None
+    refund_policy: str | None = None

@@ -99,6 +99,10 @@ backend/
   2. When something must happen in between (charging a payment): lock the row with `SELECT ... FOR UPDATE` **plus `.execution_options(populate_existing=True)`**. Without it, SQLAlchemy may return a stale cached copy after waiting for the lock.
   3. To create-if-missing: `INSERT ... ON CONFLICT DO NOTHING`.
   4. Unique constraints are the final guarantee; catch `IntegrityError` for a friendly 409.
+  5. **Lock order rule.** A transaction that locks or updates several of these rows does it in this order: **event → its orders → ticket types**.
+     - `lock_event` comes first, inventory release does the event before ticket types, and reservations do the event capacity before ticket types.
+     - Locking in different orders in different code paths causes deadlocks under concurrency.
+     - That's why `pay_order_service` only refuses an overdue order and leaves the release to the sweeper.
 
 **OpenAPI operation IDs** are generated as `{first tag}-{function name}` (see `main.py`). The frontend generates its API client from these, so **renaming an endpoint function or tag is a breaking change** for the frontend.
 
@@ -148,6 +152,13 @@ Done:
   - A 3% processing fee is stored per order and deducted from the organizer payout.
   - `GET /events/{id}/sales` gives gross, fees, refunds, estimated payout, and per-ticket-type sold, reserved and available counts.
   - `sold_count` on ticket types counts sold **plus** held tickets.
+- Cancellations + refunds (Feature 6, `services/cancellation_service.py`):
+  - `POST /orders/{id}/cancel`: the buyer or the organizer cancels a pending checkout or a free registration.
+  - `POST /orders/{id}/refund` (`reason`): the organizer only; full simulated refund of a paid order, stored in `refunds` (`SIM-R-`). Fees are not charged on refunded orders.
+  - Cancelled and refunded orders invalidate their tickets (the scanner rejects them) and put the seats back on sale.
+  - `PATCH /events/{id}/cancel` now cascades in one transaction: paid orders are refunded, free and pending orders cancelled.
+  - Events have an optional `refund_policy` text.
+  - **Phase 1 (core ticketing) is complete.**
   - `payments` table: all payments are `provider = "simulated"`, `is_simulated = true`, with `SIM-` references. Failed attempts are committed before raising so they stay on record.
 - All repositories flush and all services commit (see Conventions → Transactions)
 

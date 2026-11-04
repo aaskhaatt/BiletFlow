@@ -4,7 +4,8 @@ from database import get_db
 from sqlalchemy.orm import Session
 from models.user import User
 from dependencies import get_current_user
-from services.event_service import create_event_service, get_published_events_service, get_my_events_service, update_event_service, publish_event_service, cancel_event_service, unpublish_event_service, get_public_event_service
+from services.event_service import create_event_service, get_published_events_service, get_my_events_service, update_event_service, publish_event_service, unpublish_event_service, get_public_event_service
+from services.cancellation_service import cancel_event_service
 
 router = APIRouter(prefix="/events", tags=["events"])
 

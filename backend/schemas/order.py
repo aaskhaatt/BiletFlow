@@ -49,6 +49,8 @@ class OrderResponse(BaseModel):
     # pending orders must be paid before this moment, or their tickets go back on sale
     expires_at: datetime | None
     paid_at: datetime | None
+    cancelled_at: datetime | None
+    refunded_at: datetime | None
     items: list[OrderItemResponse]
     tickets: list[TicketResponse]
 
@@ -90,3 +92,11 @@ class SalesSummaryResponse(BaseModel):
     estimated_payout: int
     paid_orders: int
     ticket_types: list[TicketTypeSales]
+
+
+class CancelOrderRequest(BaseModel):
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class RefundOrderRequest(BaseModel):
+    reason: str = Field(min_length=3, max_length=500)

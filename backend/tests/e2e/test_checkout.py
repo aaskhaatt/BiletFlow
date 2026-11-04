@@ -75,7 +75,11 @@ def main() -> bool:
         expire_now(dave_order["id"])
         s, b = t.call("POST", f"/orders/{dave_order['id']}/pay", {}, dave)
         t.check("paying after the hold ran out is refused", s == 409 and b["error"] == "OrderExpiredError", b.get("error"))
-        t.check("...and the ticket is back on sale", sold(early) == 0, f"sold_count={sold(early)}")
+        for _ in range(30):
+            if sold(early) == 0:
+                break
+            time.sleep(0.1)
+        t.check("...and the sweeper puts the ticket back on sale", sold(early) == 0, f"sold_count={sold(early)}")
         statuses = [t.db_value("select status from orders where id = :i", i=i) for i in (carol_order["id"], dave_order["id"])]
         t.check("no tickets were ever created for expired orders", statuses == ["expired", "expired"] and
                 t.db_value("select count(*) from tickets where ticket_type_id = :i", i=early) == 0, str(statuses))

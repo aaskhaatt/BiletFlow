@@ -95,7 +95,9 @@ def reserve_event_capacity(event_id: int, quantity: int, db: Session) -> int | N
     # same idea as reserve_ticket_type_inventory, for the event-wide capacity (None = unlimited)
     stmt = (
         update(Event)
-        .where(Event.id == event_id, or_(Event.capacity.is_(None), Event.tickets_sold + quantity <= Event.capacity))
+        # status check: a buyer waiting behind an event cancellation must not get in once it's cancelled
+        .where(Event.id == event_id, Event.status == "published",
+               or_(Event.capacity.is_(None), Event.tickets_sold + quantity <= Event.capacity))
         .values(tickets_sold=Event.tickets_sold + quantity)
         .returning(Event.tickets_sold)
     )
@@ -110,3 +112,15 @@ def release_event_capacity(event_id: int, quantity: int, db: Session):
         .values(tickets_sold=Event.tickets_sold - quantity)
     )
     db.execute(stmt)
+
+
+def lock_event(event_id: int, db: Session) -> Event:
+    # LOCK ORDER RULE: whenever a transaction locks several of these, it locks the EVENT first,
+    # then its ORDERS, then TICKET TYPES. Same order everywhere = no deadlocks (see CLAUDE.md).
+    stmt = select(Event).where(Event.id == event_id).with_for_update().execution_options(populate_existing=True)
+    event = db.scalars(stmt).first()
+
+    if event is None:
+        raise EventNotFoundError()
+
+    return event

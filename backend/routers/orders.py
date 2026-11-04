@@ -3,7 +3,9 @@ from sqlalchemy.orm import Session
 from database import get_db
 from dependencies import get_current_user
 from models.user import User
-from schemas.order import OrderCreate, OrderResponse, AttendeeResponse, PayOrderRequest, SalesSummaryResponse
+from schemas.order import (OrderCreate, OrderResponse, AttendeeResponse, PayOrderRequest, SalesSummaryResponse,
+                           CancelOrderRequest, RefundOrderRequest)
+from services.cancellation_service import cancel_order_service, refund_order_service
 from services.order_service import (create_order_service, pay_order_service, get_my_orders_service, get_order_service,
                                     get_event_attendees_service, get_event_sales_service)
 
@@ -40,3 +42,15 @@ def pay_order(order_id: int, data: PayOrderRequest, current_user: User = Depends
 @router.get("/events/{event_id}/sales", response_model=SalesSummaryResponse)
 def get_event_sales(event_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return get_event_sales_service(current_user.id, event_id, db)
+
+
+# the buyer cancels their pending checkout or free registration; the organizer may cancel any of those
+@router.post("/orders/{order_id}/cancel", response_model=OrderResponse)
+def cancel_order(order_id: int, data: CancelOrderRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return cancel_order_service(current_user.id, order_id, data.reason, db)
+
+
+# only the event's organizer; full refund of a paid order (simulated)
+@router.post("/orders/{order_id}/refund", response_model=OrderResponse)
+def refund_order(order_id: int, data: RefundOrderRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return refund_order_service(current_user.id, order_id, data.reason, db)

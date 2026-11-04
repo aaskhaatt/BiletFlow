@@ -21,6 +21,8 @@ class Order(Base):
     # paid orders hold their tickets until this moment; after it, the hold is released
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    refunded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # snapshots: the order must not change when the user edits their profile later
     buyer_name: Mapped[str] = mapped_column(nullable=False)
     buyer_email: Mapped[str] = mapped_column(nullable=False)

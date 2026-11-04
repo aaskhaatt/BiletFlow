@@ -37,7 +37,9 @@ ERRORS = {
     PaymentFailedError: (402, "Payment Failed"),
     PaidSalesNotFoundError: (404, "Paid Sales Activation Not Found"),
     OrderNotPayableError: (409, "Order Can Not Be Paid"),
-    OrderExpiredError: (409, "Checkout Time Expired")
+    OrderExpiredError: (409, "Checkout Time Expired"),
+    OrderNotCancellableError: (409, "Order Can Not Be Cancelled"),
+    OrderNotRefundableError: (409, "Order Can Not Be Refunded")
 }
 
 async def exception_handler(request: Request, exc):

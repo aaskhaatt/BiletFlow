@@ -3,10 +3,11 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from models.user import User
 from schemas.order import OrderCreate
-from repositories.event_repository import get_event_by_id, reserve_event_capacity, release_event_capacity
+from repositories.event_repository import get_event_by_id, reserve_event_capacity, release_event_capacity, lock_event
 from repositories.ticket_type_repository import get_ticket_type_by_id, reserve_ticket_type_inventory, release_ticket_type_inventory
 from repositories.order_repository import (create_order, create_order_item, get_order_by_id, get_orders_by_user_id, lock_order,
-                                           get_order_items, claim_overdue_orders, get_sales_totals, get_ticket_type_sales)
+                                           get_order_items, claim_overdue_orders, get_sales_totals, get_ticket_type_sales,
+                                           get_events_with_overdue_orders)
 from repositories.ticket_repository import create_ticket, get_attendees_by_event_id
 from repositories.paid_sales_repository import is_paid_sales_active
 from services.audit_service import log_action
@@ -39,31 +40,39 @@ def _issue_tickets(order, db: Session):
 
 
 
-def _release_order_inventory(order_id: int, db: Session):
-    # gives an expired order's held tickets back to the ticket types and the event
+def release_order_inventory(order_id: int, db: Session) -> int:
+    # gives an order's tickets back on sale (expired, cancelled or refunded orders); returns how many.
+    # lock order rule: EVENT first, then TICKET TYPES
     order = get_order_by_id(order_id, db)
     items = get_order_items(order_id, db)
+    total_quantity = sum(item.quantity for item in items)
 
+    release_event_capacity(order.event_id, total_quantity, db)
     for item in items:
         release_ticket_type_inventory(item.ticket_type_id, item.quantity, db)
 
-    total_quantity = sum(item.quantity for item in items)
-    release_event_capacity(order.event_id, total_quantity, db)
-    log_action(db, None, "order.expired", "order", order.id,
-               f"Checkout hold expired; released {total_quantity} ticket(s) of order #{order.id}", event_id=order.event_id)
+    return total_quantity
 
 
 
 def expire_overdue_orders_service(db: Session, event_id: int | None = None) -> int:
-    # claim (pending -> expired) and release in one transaction; used by the sweeper and before every new order
-    expired_order_ids = claim_overdue_orders(event_id, db)
+    # used by the background sweeper (all events) and before every new order (one event)
+    expired = 0
 
-    for order_id in expired_order_ids:
-        _release_order_inventory(order_id, db)
+    for overdue_event_id in get_events_with_overdue_orders(event_id, db):
+        # lock order rule: event, then its orders (the claim), then ticket types (the release)
+        lock_event(overdue_event_id, db)
 
-    db.commit()
+        # claim (pending -> expired) and release in one transaction, so each hold is released exactly once
+        for order_id in claim_overdue_orders(overdue_event_id, db):
+            released = release_order_inventory(order_id, db)
+            log_action(db, None, "order.expired", "order", order_id,
+                       f"Checkout hold expired; released {released} ticket(s) of order #{order_id}", event_id=overdue_event_id)
+            expired += 1
 
-    return len(expired_order_ids)
+        db.commit()
+
+    return expired
 
 
 
@@ -114,15 +123,19 @@ def create_order_service(user: User, event_id: int, order_data: OrderCreate, db:
 
         requested.append((ticket_type, item.quantity))
 
-    # 3. reserve inventory atomically
+    # 3. reserve inventory atomically: the EVENT first, then TICKET TYPES (lock order rule)
     # if anything below raises, nothing was committed, so get_db rolls these reservations back too
+    total_quantity = sum(quantity for _, quantity in requested)
+    if reserve_event_capacity(event.id, total_quantity, db) is None:
+        # either full, or the event was cancelled while we waited for its lock: re-read it to know which
+        db.refresh(event)
+        if event.status != "published":
+            raise EventNotFoundError()
+        raise EventSoldOutError()
+
     for ticket_type, quantity in requested:
         if reserve_ticket_type_inventory(ticket_type.id, quantity, db) is None:
             raise TicketTypeSoldOutError()
-
-    total_quantity = sum(quantity for _, quantity in requested)
-    if reserve_event_capacity(event.id, total_quantity, db) is None:
-        raise EventSoldOutError()
 
     # 4. free orders are confirmed right away; paid orders wait for payment with a time limit
     total_amount = sum(ticket_type.price * quantity for ticket_type, quantity in requested)
@@ -174,10 +187,8 @@ def pay_order_service(user_id: int, order_id: int, outcome: SimulatedOutcome, db
         raise OrderNotPayableError()
 
     if order.expires_at <= now:
-        # the hold ran out but the sweeper hasn't reached it yet: expire it here, keep that, then refuse
-        order.status = "expired"
-        _release_order_inventory(order.id, db)
-        db.commit()
+        # the hold ran out but the sweeper hasn't reached it yet. We only refuse: releasing here would lock
+        # the event AFTER the order (wrong lock order). The sweeper, or the next buyer's step 0, releases it.
         raise OrderExpiredError()
 
     # an admin may have suspended paid sales while the attendee was paying

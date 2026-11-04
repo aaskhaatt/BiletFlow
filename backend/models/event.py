@@ -23,6 +23,8 @@ class Event(Base):
     registration_closes_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # tickets taken across all ticket types, checked against capacity by the atomic reserve query
     tickets_sold: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
+    # free text shown to attendees, e.g. "Full refund up to 7 days before the event" (SRS 4.9)
+    refund_policy: Mapped[str | None] = mapped_column(nullable=True)
 
 
     organizer: Mapped["OrganizerProfile"] = relationship("OrganizerProfile", back_populates="events")

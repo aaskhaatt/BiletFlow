@@ -97,7 +97,8 @@ def get_sales_totals(event_id: int, db: Session):
     collected = Order.status.in_(["confirmed", "refunded"])
     stmt = select(
         func.coalesce(func.sum(case((collected, Order.total_amount), else_=0)), 0).label("gross_sales"),
-        func.coalesce(func.sum(case((collected, Order.processing_fee), else_=0)), 0).label("processing_fees"),
+        # fees only on orders that stay paid: a refund returns the processing fee as well
+        func.coalesce(func.sum(case((Order.status == "confirmed", Order.processing_fee), else_=0)), 0).label("processing_fees"),
         func.coalesce(func.sum(case((Order.status == "refunded", Order.total_amount), else_=0)), 0).label("refunds"),
         func.count().filter(Order.status == "confirmed", Order.total_amount > 0).label("paid_orders"),
     ).where(Order.event_id == event_id)
@@ -120,3 +121,24 @@ def get_ticket_type_sales(event_id: int, db: Session):
     )
 
     return db.execute(stmt).all()
+
+
+def lock_open_orders_for_event(event_id: int, db: Session) -> list[Order]:
+    # used by event cancellation; a payment in progress holds its order's lock, so we wait for it to finish
+    stmt = (
+        select(Order)
+        .where(Order.event_id == event_id, Order.status.in_(["pending", "confirmed"]))
+        .order_by(Order.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+
+    return list(db.scalars(stmt).all())
+
+
+def get_events_with_overdue_orders(event_id: int | None, db: Session) -> list[int]:
+    stmt = select(Order.event_id).where(Order.status == "pending", Order.expires_at < func.now()).distinct()
+    if event_id is not None:
+        stmt = stmt.where(Order.event_id == event_id)
+
+    return list(db.scalars(stmt).all())
