@@ -4,3 +4,5 @@ __pycache__/
 
 *.pyc
 .env
+# end-to-end test server output
+backend/tests/e2e/server.log

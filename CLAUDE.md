@@ -27,6 +27,15 @@ uvicorn main:app --reload                # API on http://localhost:8000, docs at
 
 Full stack in Docker: `docker compose up --build` (from the repo root).
 
+### Tests
+
+```bash
+python tests/run_all.py            # from backend/, venv active, Postgres running
+python tests/run_all.py orders     # only test files whose name contains "orders"
+```
+
+These are end-to-end tests in `backend/tests/e2e/`, one `test_<feature>.py` per feature, using only the standard library. Each starts its own API server on port 8011 (override with `E2E_PORT`), calls it over HTTP, and deletes every user and event it created. They run against the database in `backend/.env`. Server errors during a run go to `tests/e2e/server.log`. **Every new feature adds a test file, and all tests must pass before committing.**
+
 ### Environment variables (`backend/.env`, not committed)
 
 | Variable | Purpose |
@@ -46,7 +55,8 @@ backend/
   main.py               app setup: routers, exception handlers, CORS
   database.py           engine, SessionLocal, Base, get_db dependency
   dependencies.py       get_current_user, require_platform_admin
-  security.py           password hashing, JWT, refresh token generation
+  security.py           password hashing, JWT, refresh token and ticket code generation
+  qr.py                 QR code PNG generation (reused by PDF tickets later)
   exceptions.py         domain exceptions (plain Exception subclasses)
   exception_handlers.py maps domain exceptions to HTTP status + JSON error body
   models/               SQLAlchemy models (must be imported in models/__init__.py)
@@ -55,6 +65,8 @@ backend/
   services/             business rules, permission checks
   routers/              HTTP endpoints, thin: parse input, call service
   alembic/versions/     migrations
+  tests/run_all.py      runs every end-to-end test
+  tests/e2e/            helpers.py (shared test tools) + one test_<feature>.py per feature
 ```
 
 ## Conventions
@@ -70,12 +82,15 @@ backend/
 
 **Authorization.**
 - Use `Depends(get_current_user)` for signed-in users and `Depends(require_platform_admin)` for admins.
-- Organizer actions start with `ensure_organizer_approved_service(user_id, db)`. Then compare `organizer.id` with the resource's `organizer_id` and raise `EventAccessDeniedError` on mismatch.
+- Organizer actions start with `ensure_organizer_approved_service(user_id, db)`. Then compare `organizer.id` with the resource's `organizer_id` and raise `EventAccessDeniedError` on mismatch. New code uses `ensure_event_owner_service(user_id, event_id, db)` from `event_service.py`, which does both and returns the event.
+- Scanning endpoints use `ensure_can_scan_service` (assigned staff or the event's organizer, otherwise 403).
 
 **Data.**
 - Money is an **integer number of KZT** (no floats, no decimals).
 - All datetimes are timezone-aware: `DateTime(timezone=True)`, created with `datetime.now(timezone.utc)`.
-- Statuses are plain strings. Event: `draft` / `published` / `cancelled`. Organizer profile: `pending` / `approved`.
+- Statuses are plain strings. Event: `draft` / `published` / `cancelled`. Organizer profile: `pending` / `approved`. Order: `pending` (F5) / `confirmed` / `cancelled` / `refunded` / `expired` (F5). Ticket: `valid` / `checked_in` / `cancelled` / `refunded`.
+- **Inventory** changes only through the atomic reserve queries (`reserve_ticket_type_inventory`, `reserve_event_capacity`): one `UPDATE ... WHERE sold + n <= limit RETURNING`. Never check availability in Python and then write, because that double-sells under concurrency.
+- Orders copy `unit_price`, `buyer_name` and `buyer_email` at purchase time (snapshots), so later edits never rewrite history.
 
 **OpenAPI operation IDs** are generated as `{first tag}-{function name}` (see `main.py`). The frontend generates its API client from these, so **renaming an endpoint function or tag is a breaking change** for the frontend.
 
@@ -83,7 +98,16 @@ backend/
 - After changing a model, run `alembic revision --autogenerate -m "describe change"` and **read the generated file before applying it**.
 - Never edit a migration that has already been applied or pushed; add a new one.
 
-**Transactions.** Repositories currently call `db.commit()` themselves. For multi-step operations that must succeed or fail together (token rotation, checkout, refunds), the plan is for the service to own the commit.
+**Transactions.**
+- Repositories only `add` or change objects, then `db.flush()`. **They never commit.** `flush()` sends the SQL (so new rows get their `id`), but it can still be rolled back.
+- The service commits **once**, after all the steps of an action (the change plus its audit log): `db.commit()`, then `db.refresh(obj)`, then `return obj`.
+- A service that forgets to commit loses its changes silently. `get_db` rolls back anything uncommitted when the request ends, while the response still looks successful.
+
+**Audit log.**
+- Every state-changing organizer or admin action calls `log_action(db, actor_user_id, action, entity_type, entity_id, description, event_id=...)` from `services/audit_service.py`, **before** the commit.
+- `action` is `<entity>.<past-tense verb>` (`event.published`, `ticket_type.updated`, later `order.refunded`).
+- For updates, collect "old -> new" for important fields (price, capacity) **before** calling the repository, then put them in the description.
+- Audit rows are never updated or deleted by the app.
 
 ## Status (update as features land)
 
@@ -95,6 +119,16 @@ Done:
 - Ticket types: create, list, update, hide and unhide, `max_per_order` (default 10)
 - Unified error format, CORS for `http://localhost:5173`
 - Refresh tokens: stored as SHA-256 hashes, rotated on every refresh with an atomic `DELETE ... RETURNING`; logout always succeeds
+- Audit log (`audit_logs` table): event and ticket-type actions are logged in the same transaction as the change. There's no read endpoint yet; the timeline API is Feature 12.
+- Orders + free registration: `POST /events/{id}/orders`, `GET /orders/me`, `GET /orders/{id}`, `GET /events/{id}/attendees`. Tickets have random `T-` codes. Concurrency-tested: 20 simultaneous buyers for 5 tickets give exactly 5 tickets.
+- Ticket QR image: `GET /tickets/{id}/qr` returns a PNG for the ticket's owner (`qr.py`, using `qrcode` + `pypng`, error correction "Q" for paper tickets)
+- Staff + check-in (Feature 3):
+  - Staff management: `POST/GET /events/{id}/staff`, `DELETE /events/{id}/staff/{user_id}`, `GET /staff/events`.
+  - Scanning: `POST /events/{id}/check-in` always returns 200 with a `result` (`checked_in`, `already_checked_in`, `invalid`, `wrong_event`, `cancelled`, `refunded`, `event_cancelled`).
+  - Also `POST .../check-in/undo`, `GET .../check-in/search?q=` and `GET .../check-in/stats`.
+  - Rules: only `T-` codes can admit anyone; check-in and undo are atomic `UPDATE ... WHERE status = ...`; every scan and undo is stored in `check_in_records` and the audit log.
+  - Assigned staff and the event's organizer may scan.
+- All repositories flush and all services commit (see Conventions → Transactions)
 
 Roadmap (build in this order; each feature must work end to end before the next):
 
@@ -121,11 +155,11 @@ Phase 3, bonus (only after Phases 1–2): assigned seating, calendar .ics export
 
 Known issues / polish later (features come first; fix these near the end):
 - Ticket-type URLs are inconsistent: `/events/{id}/ticket-type` (singular), `/ticket-types/{id}` and `/ticket_types/{id}/hide` (underscore). Fix together with the frontend developer.
-- No automated tests yet.
+- Tests run against the development database. A separate test database would be safer.
 - No `.env.example`.
 - `AccessTokenResponse` in `schemas/token.py` is unused.
 - Expired refresh tokens are only deleted when someone tries to use them; there's no cleanup job.
-- Other repositories still commit themselves; only the refresh-token repository uses `flush()` with the service committing.
+- Organizer approval isn't audit-logged yet, because `approve_organizer_service` doesn't receive the admin's user id.
 - Update endpoints use "value if not None else old value", so a field can never be cleared back to null (e.g. removing a category). Fix with `model_dump(exclude_unset=True)`.
 - Private events can't be reached by anyone except the organizer yet; invite links are a later feature.
 - Endpoint function names are inconsistent (`user_login` vs `refresh_token_router`). Renaming changes operation IDs, so coordinate with the frontend.
