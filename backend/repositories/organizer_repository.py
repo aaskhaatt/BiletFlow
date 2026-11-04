@@ -32,3 +32,12 @@ def update_organizer_status(organizer: OrganizerProfile, status: str, db: Sessio
 
     db.flush()
     return organizer
+
+
+def update_organizer_identity(organizer: OrganizerProfile, legal_name: str, contact_phone: str, verified_at, db: Session):
+    organizer.legal_name = legal_name
+    organizer.contact_phone = contact_phone
+    organizer.identity_verified_at = verified_at
+
+    db.flush()
+    return organizer

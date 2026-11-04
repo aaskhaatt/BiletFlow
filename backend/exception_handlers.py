@@ -30,7 +30,13 @@ ERRORS = {
     StaffAlreadyAssignedError: (409, "User Is Already Event Staff"),
     StaffAssignmentNotFoundError: (404, "Staff Assignment Not Found"),
     NotEventStaffError: (403, "Not Staff For This Event"),
-    TicketNotCheckedInError: (409, "Ticket Is Not Checked In")
+    TicketNotCheckedInError: (409, "Ticket Is Not Checked In"),
+    PaidSalesNotActiveError: (409, "Paid Sales Are Not Active For This Event"),
+    ActivationRequirementsNotMetError: (409, "Activation Checklist Is Not Complete"),
+    ActivationFeeAlreadyPaidError: (409, "Activation Fee Already Paid"),
+    InvalidActivationStatusError: (409, "Invalid Paid Sales Status"),
+    PaymentFailedError: (402, "Payment Failed"),
+    PaidSalesNotFoundError: (404, "Paid Sales Activation Not Found")
 }
 
 async def exception_handler(request: Request, exc):

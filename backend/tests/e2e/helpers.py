@@ -42,7 +42,12 @@ class E2E:
         self.results: list[bool] = []
         self.emails: list[str] = []
         self.event_ids: list[int] = []
+        self.cleanups: list = []
         self.server = None
+
+    def on_cleanup(self, action):
+        """Registers a function to run at the end, e.g. restoring a platform setting the test changed."""
+        self.cleanups.append(action)
 
     # --- server lifecycle -------------------------------------------------------------------
 
@@ -65,6 +70,8 @@ class E2E:
 
     def __exit__(self, exc_type, exc, tb):
         try:
+            for action in reversed(self.cleanups):
+                action()
             with engine.begin() as c:
                 if self.event_ids:
                     # audit rows only lose their event link (SET NULL), so delete them explicitly
@@ -112,7 +119,7 @@ class E2E:
 
     # --- test data --------------------------------------------------------------------------
 
-    def new_user(self, organizer: bool = False):
+    def new_user(self, organizer: bool = False, admin: bool = False):
         """Registers and logs in a fresh user. Returns (access_token, email)."""
         email = f"e2e-{secrets.token_hex(4)}@example.com"
         self.emails.append(email)
@@ -127,6 +134,9 @@ class E2E:
             with engine.begin() as c:
                 c.execute(text("update organizer_profiles set status = 'approved' "
                                "where user_id = (select id from users where email = :e)"), {"e": email})
+        if admin:
+            with engine.begin() as c:
+                c.execute(text("update users set is_platform_admin = true where email = :e"), {"e": email})
         return token, email
 
     def make_event(self, org_token: str, publish: bool = True, **fields) -> int:

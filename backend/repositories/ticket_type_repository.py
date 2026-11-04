@@ -77,3 +77,9 @@ def reserve_ticket_type_inventory(ticket_type_id: int, quantity: int, db: Sessio
 
     # None means no row matched: not enough tickets left
     return db.execute(stmt).scalar()
+
+
+def event_has_paid_ticket_type(event_id: int, db: Session) -> bool:
+    stmt = select(TicketType.id).where(TicketType.event_id == event_id, TicketType.price > 0).limit(1)
+
+    return db.scalars(stmt).first() is not None

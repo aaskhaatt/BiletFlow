@@ -91,6 +91,11 @@ backend/
 - Statuses are plain strings. Event: `draft` / `published` / `cancelled`. Organizer profile: `pending` / `approved`. Order: `pending` (F5) / `confirmed` / `cancelled` / `refunded` / `expired` (F5). Ticket: `valid` / `checked_in` / `cancelled` / `refunded`.
 - **Inventory** changes only through the atomic reserve queries (`reserve_ticket_type_inventory`, `reserve_event_capacity`): one `UPDATE ... WHERE sold + n <= limit RETURNING`. Never check availability in Python and then write, because that double-sells under concurrency.
 - Orders copy `unit_price`, `buyer_name` and `buyer_email` at purchase time (snapshots), so later edits never rewrite history.
+- **Concurrency patterns.**
+  1. When check and change fit in one statement: an atomic `UPDATE ... WHERE <condition> RETURNING` (inventory, check-in, refresh tokens).
+  2. When something must happen in between (charging a payment): lock the row with `SELECT ... FOR UPDATE` **plus `.execution_options(populate_existing=True)`**. Without it, SQLAlchemy may return a stale cached copy after waiting for the lock.
+  3. To create-if-missing: `INSERT ... ON CONFLICT DO NOTHING`.
+  4. Unique constraints are the final guarantee; catch `IntegrityError` for a friendly 409.
 
 **OpenAPI operation IDs** are generated as `{first tag}-{function name}` (see `main.py`). The frontend generates its API client from these, so **renaming an endpoint function or tag is a breaking change** for the frontend.
 
@@ -128,6 +133,12 @@ Done:
   - Also `POST .../check-in/undo`, `GET .../check-in/search?q=` and `GET .../check-in/stats`.
   - Rules: only `T-` codes can admit anyone; check-in and undo are atomic `UPDATE ... WHERE status = ...`; every scan and undo is stored in `check_in_records` and the audit log.
   - Assigned staff and the event's organizer may scan.
+- Paid sales activation (Feature 4, simulated):
+  - Checklist: `GET /events/{id}/paid-sales`, `POST .../accept-terms`, `POST .../pay-fee` (`simulate_outcome: success|failure`), `POST .../activate`.
+  - Organizer-level steps: `GET /organizers/me`, `POST /organizers/me/verification`, `PUT /organizers/me/payout-account`. Only the IBAN's last 4 characters are stored.
+  - Admin: `GET /admin/paid-sales`, `POST /admin/events/{id}/paid-sales/suspend|reinstate`, `GET /admin/settings`, `PUT /admin/settings/activation-fee`.
+  - Paid ticket types can't be ordered unless the event's activation is `active`; checkout itself is Feature 5.
+  - `payments` table: all payments are `provider = "simulated"`, `is_simulated = true`, with `SIM-` references. Failed attempts are committed before raising so they stay on record.
 - All repositories flush and all services commit (see Conventions → Transactions)
 
 Roadmap (build in this order; each feature must work end to end before the next):

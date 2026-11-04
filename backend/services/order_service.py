@@ -6,12 +6,13 @@ from repositories.event_repository import get_event_by_id, reserve_event_capacit
 from repositories.ticket_type_repository import get_ticket_type_by_id, reserve_ticket_type_inventory
 from repositories.order_repository import create_order, create_order_item, get_order_by_id, get_orders_by_user_id
 from repositories.ticket_repository import create_ticket, get_attendees_by_event_id
+from repositories.paid_sales_repository import is_paid_sales_active
 from services.audit_service import log_action
 from services.organizer_service import ensure_organizer_approved_service
 from security import generate_ticket_code
 from exceptions import (EventNotFoundError, EventAccessDeniedError, RegistrationClosedError, TicketTypeNotFoundError,
                         TicketTypeNotAvailableError, PaidTicketsNotAvailableError, InvalidOrderQuantityError,
-                        TicketTypeSoldOutError, EventSoldOutError, OrderNotFoundError)
+                        TicketTypeSoldOutError, EventSoldOutError, OrderNotFoundError, PaidSalesNotActiveError)
 
 
 
@@ -49,8 +50,11 @@ def create_free_order_service(user: User, event_id: int, order_data: OrderCreate
         if not (ticket_type.sales_start <= now <= ticket_type.sales_end):
             raise TicketTypeNotAvailableError()
 
-        # paid checkout is Feature 5; until then only free tickets can be ordered
         if ticket_type.price > 0:
+            # paid tickets need activated (and not suspended) paid sales for this event (SRS 4.5)...
+            if not is_paid_sales_active(event.id, db):
+                raise PaidSalesNotActiveError()
+            # ...and the paid checkout itself comes in Feature 5
             raise PaidTicketsNotAvailableError()
 
         if item.quantity > ticket_type.max_per_order:

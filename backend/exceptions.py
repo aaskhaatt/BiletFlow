@@ -78,3 +78,21 @@ class NotEventStaffError(Exception):
 
 class TicketNotCheckedInError(Exception):
     pass
+
+class PaidSalesNotActiveError(Exception):
+    pass
+
+class ActivationRequirementsNotMetError(Exception):
+    pass
+
+class ActivationFeeAlreadyPaidError(Exception):
+    pass
+
+class InvalidActivationStatusError(Exception):
+    pass
+
+class PaymentFailedError(Exception):
+    pass
+
+class PaidSalesNotFoundError(Exception):
+    pass
