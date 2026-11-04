@@ -9,7 +9,11 @@ def apply_for_organizer_service(user_id: int, db: Session):
         get_organizer_by_user_id(user_id, db)
 
     except OrganizerNotFoundError:
-        return create_organizer_profile(user_id, db)
+        organizer = create_organizer_profile(user_id, db)
+        db.commit()
+        db.refresh(organizer)
+
+        return organizer
 
     raise OrganizerProfileAlreadyExistsError()
 
@@ -20,7 +24,11 @@ def approve_organizer_service(user_id: int, db: Session):
     if organizer.status == "approved":
         return organizer
     
-    return update_organizer_status(organizer, "approved", db)
+    update_organizer_status(organizer, "approved", db)
+    db.commit()
+    db.refresh(organizer)
+
+    return organizer
 
 
 

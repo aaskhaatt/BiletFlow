@@ -37,8 +37,7 @@ def create_event(organizer_id: int, title: str, description: str | None, start_t
     )
 
     db.add(new_event)
-    db.commit()
-    db.refresh(new_event)
+    db.flush()
 
     return new_event
 
@@ -60,8 +59,7 @@ def update_event(event: Event, title: str, description: str | None, start_time: 
     event.registration_opens_at = registration_opens_at
     event.registration_closes_at = registration_closes_at
 
-    db.commit()
-    db.refresh(event)
+    db.flush()
 
     return event
 
@@ -88,7 +86,6 @@ def update_event_status(event: Event, status: str, db: Session):
 
     event.status = status
 
-    db.commit()
-    db.refresh(event)
+    db.flush()
 
     return event

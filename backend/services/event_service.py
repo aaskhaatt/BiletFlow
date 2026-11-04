@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from schemas.event import EventCreate, EventUpdate
 from services.organizer_service import ensure_organizer_approved_service
+from services.audit_service import log_action
 from repositories.event_repository import create_event, update_event, get_event_by_id, update_event_status, get_events_by_organizer_id, get_published_events
 from exceptions import InvalidEventTimeError, EventAccessDeniedError, InvalidEventStatusError, EventNotReadyToPublishError, EventNotFoundError
 
@@ -25,9 +26,17 @@ def create_event_service(user_id: int, event_data: EventCreate, db: Session):
 
     validate_event_times(event_data.start_time, event_data.end_time, event_data.registration_opens_at, event_data.registration_closes_at)
 
-    return create_event(organizer.id, event_data.title, event_data.description, event_data.start_time, 
+    event = create_event(organizer.id, event_data.title, event_data.description, event_data.start_time,
                         event_data.end_time, event_data.category, event_data.venue_name, event_data.venue_address,
                         event_data.capacity, event_data.visibility, event_data.registration_opens_at, event_data.registration_closes_at, db)
+
+    # event.id already exists here: the repository's flush() ran the INSERT
+    log_action(db, user_id, "event.created", "event", event.id, f'Created event "{event.title}"', event_id=event.id)
+
+    db.commit()
+    db.refresh(event)
+
+    return event
 
 
 
@@ -52,7 +61,27 @@ def update_event_service(user_id: int, event_id: int, event_data: EventUpdate, d
 
     validate_event_times(start_time, end_time, registration_opens_at, registration_closes_at)
 
-    return update_event(event, title, description, start_time, end_time, category, venue_name, venue_address, capacity, visibility, registration_opens_at, registration_closes_at, db)
+    # collect the changes before update_event overwrites the old values
+    changes = []
+    if capacity != event.capacity:
+        changes.append(f"capacity {event.capacity} -> {capacity}")
+    if start_time != event.start_time:
+        changes.append(f"start time {event.start_time.isoformat()} -> {start_time.isoformat()}")
+    if visibility != event.visibility:
+        changes.append(f"visibility {event.visibility} -> {visibility}")
+
+    update_event(event, title, description, start_time, end_time, category, venue_name, venue_address, capacity, visibility, registration_opens_at, registration_closes_at, db)
+
+    description_text = f'Updated event "{title}"'
+    if changes:
+        description_text += ": " + ", ".join(changes)
+
+    log_action(db, user_id, "event.updated", "event", event.id, description_text, event_id=event.id)
+
+    db.commit()
+    db.refresh(event)
+
+    return event
 
 
 
@@ -69,7 +98,13 @@ def publish_event_service(user_id: int, event_id: int, db: Session):
     if event.venue_name is None or event.venue_address is None:
         raise EventNotReadyToPublishError()
 
-    return update_event_status(event, "published", db)
+    update_event_status(event, "published", db)
+    log_action(db, user_id, "event.published", "event", event.id, f'Published event "{event.title}"', event_id=event.id)
+
+    db.commit()
+    db.refresh(event)
+
+    return event
 
 
 def cancel_event_service(user_id: int, event_id: int, db: Session):
@@ -79,7 +114,16 @@ def cancel_event_service(user_id: int, event_id: int, db: Session):
     if organizer.id != event.organizer_id:
         raise EventAccessDeniedError()
 
-    return update_event_status(event, "cancelled", db)
+    if event.status == "cancelled":
+        raise InvalidEventStatusError()
+
+    update_event_status(event, "cancelled", db)
+    log_action(db, user_id, "event.cancelled", "event", event.id, f'Cancelled event "{event.title}"', event_id=event.id)
+
+    db.commit()
+    db.refresh(event)
+
+    return event
 
 
 
@@ -93,7 +137,13 @@ def unpublish_event_service(user_id: int, event_id: int, db: Session):
     if event.status != "published":
         raise InvalidEventStatusError()
 
-    return update_event_status(event, "draft", db)
+    update_event_status(event, "draft", db)
+    log_action(db, user_id, "event.unpublished", "event", event.id, f'Unpublished event "{event.title}"', event_id=event.id)
+
+    db.commit()
+    db.refresh(event)
+
+    return event
 
 
 def get_my_events_service(user_id: int, db: Session):

@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from schemas.ticket_type import TicketTypeCreate, TicketTypeUpdate
 from repositories.ticket_type_repository import create_ticket_type, get_ticket_types_by_event_id, update_ticket_type, get_ticket_type_by_id, update_ticket_type_visibility
 from services.organizer_service import ensure_organizer_approved_service
+from services.audit_service import log_action
 from repositories.event_repository import get_event_by_id
 from exceptions import InvalidTicketSalesTimeError, EventAccessDeniedError, EventNotFoundError
 from models.ticket_type import TicketType
@@ -20,17 +21,25 @@ def create_ticket_type_service(user_id: int, event_id: int, ticket_type_data: Ti
 
 
 
-    return create_ticket_type(
+    ticket_type = create_ticket_type(
         event_id,
-        ticket_type_data.name, 
+        ticket_type_data.name,
         ticket_type_data.description,
         ticket_type_data.price,
         ticket_type_data.quantity,
-        ticket_type_data.sales_start, 
+        ticket_type_data.sales_start,
         ticket_type_data.sales_end,
         ticket_type_data.max_per_order,
         db
     )
+
+    log_action(db, user_id, "ticket_type.created", "ticket_type", ticket_type.id,
+               f'Created ticket type "{ticket_type.name}" ({ticket_type.price} KZT, {ticket_type.quantity} tickets)', event_id=event_id)
+
+    db.commit()
+    db.refresh(ticket_type)
+
+    return ticket_type
 
 
 
@@ -64,7 +73,25 @@ def update_ticket_type_service(user_id: int, ticket_type_id: int, ticket_type_da
     if sales_start >= sales_end:
         raise InvalidTicketSalesTimeError()
 
-    return update_ticket_type(ticket_type, name, description, price, quantity, sales_start, sales_end, max_per_order, db)
+    # collect the changes before update_ticket_type overwrites the old values
+    changes = []
+    if price != ticket_type.price:
+        changes.append(f"price {ticket_type.price} -> {price} KZT")
+    if quantity != ticket_type.quantity:
+        changes.append(f"quantity {ticket_type.quantity} -> {quantity}")
+
+    update_ticket_type(ticket_type, name, description, price, quantity, sales_start, sales_end, max_per_order, db)
+
+    description_text = f'Updated ticket type "{name}"'
+    if changes:
+        description_text += ": " + ", ".join(changes)
+
+    log_action(db, user_id, "ticket_type.updated", "ticket_type", ticket_type.id, description_text, event_id=event.id)
+
+    db.commit()
+    db.refresh(ticket_type)
+
+    return ticket_type
 
 
 def hide_ticket_type_service(user_id: int, ticket_type_id: int, db: Session):
@@ -75,7 +102,14 @@ def hide_ticket_type_service(user_id: int, ticket_type_id: int, db: Session):
     if event.organizer_id != organizer.id:
         raise EventAccessDeniedError()
 
-    return update_ticket_type_visibility(ticket_type, True, db)
+    update_ticket_type_visibility(ticket_type, True, db)
+    log_action(db, user_id, "ticket_type.hidden", "ticket_type", ticket_type.id,
+               f'Hid ticket type "{ticket_type.name}"', event_id=event.id)
+
+    db.commit()
+    db.refresh(ticket_type)
+
+    return ticket_type
 
 
 def unhide_ticket_type_service(user_id: int, ticket_type_id: int, db: Session):
@@ -86,4 +120,11 @@ def unhide_ticket_type_service(user_id: int, ticket_type_id: int, db: Session):
     if event.organizer_id != organizer.id:
         raise EventAccessDeniedError()
 
-    return update_ticket_type_visibility(ticket_type, False, db)
+    update_ticket_type_visibility(ticket_type, False, db)
+    log_action(db, user_id, "ticket_type.unhidden", "ticket_type", ticket_type.id,
+               f'Unhid ticket type "{ticket_type.name}"', event_id=event.id)
+
+    db.commit()
+    db.refresh(ticket_type)
+
+    return ticket_type

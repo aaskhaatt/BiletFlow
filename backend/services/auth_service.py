@@ -15,7 +15,11 @@ def register_user_service(user: UserCreate, db: Session):
 
     except UserNotFoundError:
         password_hash = hash_password(user.password)
-        return create_user(user.email, password_hash, db)
+        new_user = create_user(user.email, password_hash, db)
+        db.commit()
+        db.refresh(new_user)
+
+        return new_user
 
 
     raise UserAlreadyExistsError()

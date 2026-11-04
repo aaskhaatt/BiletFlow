@@ -34,7 +34,6 @@ def create_user(email: str, password_hash: str, db: Session):
     )
 
     db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    db.flush()
 
     return new_user

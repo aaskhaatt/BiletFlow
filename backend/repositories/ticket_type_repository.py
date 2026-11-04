@@ -28,8 +28,7 @@ def create_ticket_type(event_id: int, name: str, description: str | None, price:
     )
 
     db.add(ticket_type)
-    db.commit()
-    db.refresh(ticket_type)
+    db.flush()
 
     return ticket_type
 
@@ -52,8 +51,7 @@ def update_ticket_type(ticket_type: TicketType, name: str, description: str | No
     ticket_type.sales_end = sales_end
     ticket_type.max_per_order = max_per_order
 
-    db.commit()
-    db.refresh(ticket_type)
+    db.flush()
 
     return ticket_type
 
@@ -62,7 +60,6 @@ def update_ticket_type_visibility(ticket_type: TicketType, is_hidden: bool, db: 
 
     ticket_type.is_hidden = is_hidden
 
-    db.commit()
-    db.refresh(ticket_type)
+    db.flush()
     
     return ticket_type

@@ -15,5 +15,5 @@ def create_refresh_token(user_id: int, token_hash: str, expires_at: datetime, db
 
 def consume_refresh_token(token_hash:str, db: Session):
     stmt = delete(RefreshToken).where(RefreshToken.token_hash == token_hash).returning(RefreshToken.user_id, RefreshToken.expires_at)
-    return db.execute(stmt).first( )
+    return db.execute(stmt).first()
 

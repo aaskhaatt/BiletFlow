@@ -21,8 +21,7 @@ def create_organizer_profile(user_id: int, db: Session):
     )
 
     db.add(new_organizer)
-    db.commit()
-    db.refresh(new_organizer)
+    db.flush()
 
     return new_organizer
 
@@ -31,6 +30,5 @@ def update_organizer_status(organizer: OrganizerProfile, status: str, db: Sessio
 
     organizer.status = status
 
-    db.commit()
-    db.refresh(organizer)
+    db.flush()
     return organizer
