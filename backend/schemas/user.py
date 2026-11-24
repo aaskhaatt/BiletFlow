@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel, EmailStr, ConfigDict, Field
 
 
@@ -16,4 +17,18 @@ class UserResponse(BaseModel):
 
     id: int
     email: EmailStr
+    email_verified_at: datetime | None = None
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str = Field(min_length=1)
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=1)
+    new_password: str = Field(min_length=6)
     
