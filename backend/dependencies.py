@@ -1,32 +1,39 @@
 from fastapi.security import OAuth2PasswordBearer
-from fastapi import Depends, HTTPException
+from fastapi import Depends
 from sqlalchemy.orm import Session
 from database import get_db
 from security import decode_access_token
-from exceptions import UserNotFoundError
+from exceptions import UserNotFoundError, NotAuthenticatedError, InvalidTokenError, PlatformAdminRequiredError
 from repositories.user_repository import get_user_by_id
 from models.user import User
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+# auto_error=False: a missing token reaches get_current_user, which answers in the unified error format
+# instead of FastAPI's {"detail": ...}
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+def get_current_user(token: str | None = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    if not token:
+        raise NotAuthenticatedError()
+
     payload = decode_access_token(token)
 
+    # bad signature, expired, or not a JWT at all
     if payload is None:
-        raise HTTPException(status_code = 401, detail = "Invalid token")
-    
-    user_id = payload.get("sub")
+        raise InvalidTokenError()
 
-    if user_id is None:
-        raise HTTPException(status_code = 401, detail = "Invalid token")
+    try:
+        user_id = int(payload.get("sub"))
+    except (TypeError, ValueError):
+        raise InvalidTokenError()
 
-    try: 
+    try:
         user = get_user_by_id(user_id, db)
 
     except UserNotFoundError:
-        raise HTTPException(status_code=404, detail = "User Not Found")
+        # the account was deleted after the token was issued: the token is no longer valid (401, not 404)
+        raise InvalidTokenError()
 
     return user
 
@@ -36,6 +43,6 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
 def require_platform_admin(current_user: User = Depends(get_current_user)):
     if not current_user.is_platform_admin:
-        raise HTTPException(status_code=403, detail="Access denied")
+        raise PlatformAdminRequiredError()
 
     return current_user

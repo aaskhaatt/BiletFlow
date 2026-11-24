@@ -13,7 +13,8 @@ from routers.check_in import router as check_in_router
 from routers.paid_sales import router as paid_sales_router
 from routers.admin import router as admin_router
 from fastapi.exceptions import RequestValidationError
-from exception_handlers import ERRORS, exception_handler, validation_exception_handler
+from exception_handlers import ERRORS, exception_handler, validation_exception_handler, http_exception_handler
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -42,6 +43,9 @@ app.add_exception_handler(
     RequestValidationError,
     validation_exception_handler
 )
+
+# FastAPI's built-in errors (404 unknown URL, 405 wrong method) use the same body as ours
+app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 
 app.include_router(auth_router)
 app.include_router(events_router)
