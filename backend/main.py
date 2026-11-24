@@ -1,7 +1,8 @@
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from background import sweep_expired_orders_forever
+from background import send_emails_forever, sweep_expired_orders_forever
 from routers.auth import router as auth_router
 from routers.events import router as events_router
 from routers.organizers import router as organizers_router
@@ -24,9 +25,14 @@ def custom_generate_unique_id(route):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # code before `yield` runs when the server starts, code after it when the server stops
-    sweeper = asyncio.create_task(sweep_expired_orders_forever())
+    tasks = [asyncio.create_task(sweep_expired_orders_forever())]
+    # --- Dev B: email sender, only when a mail server is configured ---
+    if os.getenv("SMTP_HOST"):
+        tasks.append(asyncio.create_task(send_emails_forever()))
+    # --- end Dev B ---
     yield
-    sweeper.cancel()
+    for task in tasks:
+        task.cancel()
 
 
 app = FastAPI(

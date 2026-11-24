@@ -57,7 +57,8 @@ class E2E:
             [sys.executable, "-m", "uvicorn", "main:app", "--port", str(PORT), "--log-level", "warning"],
             cwd=BACKEND, stdout=subprocess.DEVNULL, stderr=self._log,
             # release expired checkout holds every second instead of every minute
-            env={**os.environ, "ORDER_SWEEP_INTERVAL_SECONDS": "1"},
+            # SMTP_HOST="" keeps the email sender off, so test emails stay pending for the tests to inspect
+            env={**os.environ, "ORDER_SWEEP_INTERVAL_SECONDS": "1", "SMTP_HOST": ""},
         )
         for _ in range(100):
             try:

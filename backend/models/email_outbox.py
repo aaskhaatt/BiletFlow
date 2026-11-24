@@ -9,8 +9,8 @@ class EmailOutbox(Base):
     """An email waiting to be sent (SRS 4.10).
 
     Rows are added by queue_email() in the same transaction as the action that causes them,
-    so a rolled-back action never sends an email. A background sender (Feature 7) sends
-    pending rows later; until it exists, rows just stay pending.
+    so a rolled-back action never sends an email. The background sender (send_due_emails in
+    services/email_service.py) sends pending rows whose next_attempt_at has come.
     """
     __tablename__ = "email_outbox"
     # the sender will look for "pending, oldest first" all the time
@@ -27,4 +27,6 @@ class EmailOutbox(Base):
     attempts: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
     last_error: Mapped[str | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    # the sender only picks rows whose time has come; pushed forward while sending and after a failure
+    next_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
