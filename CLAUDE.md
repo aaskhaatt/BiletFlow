@@ -25,7 +25,9 @@ alembic upgrade head                     # apply migrations
 uvicorn main:app --reload                # API on http://localhost:8000, docs at /docs
 ```
 
-Full stack in Docker: `docker compose up --build` (from the repo root).
+Full stack in Docker: `docker compose up --build` (from the repo root). The API container applies migrations itself at start (`backend/start.sh`).
+
+Shared test server (Render, or any server with Docker): see `docs/deploy.md`. `render.yaml` at the repo root describes it.
 
 ### Tests
 
@@ -48,14 +50,16 @@ These are end-to-end tests in `backend/tests/e2e/`, one `test_<feature>.py` per 
 
 The app crashes at startup if any of these is missing.
 
-Optional, with defaults: `ORDER_HOLD_MINUTES` (10) is how long a paid checkout holds its tickets. `ORDER_SWEEP_INTERVAL_SECONDS` (60) is how often the background sweeper releases expired holds; tests set it to 1.
+Optional, with defaults: `CORS_ORIGINS` (`http://localhost:5173`) is a comma-separated list of web app addresses allowed to call the API from a browser. `PORT` (8000) is only read by `start.sh` in the container. `ORDER_HOLD_MINUTES` (10) is how long a paid checkout holds its tickets. `ORDER_SWEEP_INTERVAL_SECONDS` (60) is how often the background sweeper releases expired holds; tests set it to 1.
 
 ## Project structure
 
 ```
 backend/
-  main.py               app setup: routers, exception handlers, CORS
-  database.py           engine, SessionLocal, Base, get_db dependency
+  main.py               app setup: routers, exception handlers, CORS (from CORS_ORIGINS)
+  start.sh              container start: alembic upgrade head, then uvicorn on $PORT
+  Dockerfile            API image (runs as a non-root user); .dockerignore keeps .env/.venv/tests out
+  database.py           engine, SessionLocal, Base, get_db dependency; accepts postgres:// URLs from hosts
   dependencies.py       get_current_user, require_platform_admin
   security.py           password hashing, JWT, refresh token and ticket code generation
   qr.py                 QR code PNG generation (reused by PDF tickets later)
@@ -161,6 +165,7 @@ Done:
   - **Phase 1 (core ticketing) is complete.**
   - `payments` table: all payments are `provider = "simulated"`, `is_simulated = true`, with `SIM-` references. Failed attempts are committed before raising so they stay on record.
 - All repositories flush and all services commit (see Conventions → Transactions)
+- Deployment: `GET /health` (503 if the database is down), migrations at container start, `CORS_ORIGINS`, `render.yaml` and `docs/deploy.md` for the shared test server.
 
 Roadmap (build in this order; each feature must work end to end before the next):
 

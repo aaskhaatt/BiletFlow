@@ -105,3 +105,8 @@ class OrderNotCancellableError(Exception):
 
 class OrderNotRefundableError(Exception):
     pass
+
+
+# --- deployment (Dev B) ---
+class DatabaseUnavailableError(Exception):
+    pass

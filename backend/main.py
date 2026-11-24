@@ -1,4 +1,5 @@
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from background import sweep_expired_orders_forever
@@ -12,6 +13,7 @@ from routers.staff import router as staff_router
 from routers.check_in import router as check_in_router
 from routers.paid_sales import router as paid_sales_router
 from routers.admin import router as admin_router
+from routers.health import router as health_router
 from fastapi.exceptions import RequestValidationError
 from exception_handlers import ERRORS, exception_handler, validation_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
@@ -53,12 +55,15 @@ app.include_router(staff_router)
 app.include_router(check_in_router)
 app.include_router(paid_sales_router)
 app.include_router(admin_router)
+app.include_router(health_router)
+
+# web apps allowed to call the API from a browser: comma-separated, e.g.
+# "http://localhost:5173,https://biletflow-web.onrender.com". Mobile apps don't need CORS.
+CORS_ORIGINS = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",") if origin.strip()]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173"
-    ],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
