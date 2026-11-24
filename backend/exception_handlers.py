@@ -48,7 +48,20 @@ ERRORS = {
     OrderNotPayableError: (409, "Order Can Not Be Paid"),
     OrderExpiredError: (409, "Checkout Time Expired"),
     OrderNotCancellableError: (409, "Order Can Not Be Cancelled"),
-    OrderNotRefundableError: (409, "Order Can Not Be Refunded")
+    OrderNotRefundableError: (409, "Order Can Not Be Refunded"),
+    InvalidImageError: (415, "File Must Be A JPEG, PNG Or WebP Image"),
+    ImageTooLargeError: (413, "Image Is Larger Than 5 MB"),
+    StorageNotConfiguredError: (503, "File Storage Is Not Configured"),
+    StorageUnavailableError: (503, "File Storage Is Unavailable"),
+    TicketNotPrintableError: (409, "Only Valid Tickets Can Be Printed"),
+    CampaignNotFoundError: (404, "Campaign Not Found"),
+    InvalidCampaignError: (400, "Invalid Campaign Settings"),
+    PromoCodeAlreadyExistsError: (409, "Promo Code Already Exists For This Event"),
+    PromoCodeNotFoundError: (404, "Promo Code Not Found"),
+    PromoCodeNotActiveError: (409, "Promo Code Is Not Active"),
+    PromoCodeUsedUpError: (409, "Promo Code Has Been Used Up"),
+    PromoCodeNotApplicableError: (409, "Promo Code Does Not Apply To These Tickets"),
+    CampaignLinkNotFoundError: (404, "Campaign Link Not Found")
 }
 
 async def exception_handler(request: Request, exc):
