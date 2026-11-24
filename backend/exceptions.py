@@ -126,3 +126,6 @@ class PromoCodeUsedUpError(Exception):
 
 class PromoCodeNotApplicableError(Exception):
     pass
+
+class CampaignLinkNotFoundError(Exception):
+    pass

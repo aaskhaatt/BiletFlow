@@ -62,9 +62,22 @@ class CampaignResponse(BaseModel):
     # orders holding the code right now: paid ones plus checkouts still being paid
     redemptions_count: int
     is_active: bool
+    # what the Campaign QR (GET /campaigns/{id}/qr) contains, to share as a link too
+    link: str
+    # how many times that link was opened
+    link_opens: int
     ticket_type_ids: list[int]
     created_at: datetime
     stats: CampaignStats
+
+
+class CampaignLinkResponse(BaseModel):
+    # where a Campaign QR leads. The promo fields are null when the code can't be used right now
+    # (switched off, ended or used up): show the event without a discount
+    event_id: int
+    promo_code: str | None
+    discount_type: str | None
+    discount_value: int | None
 
 
 class OrderPreviewItem(BaseModel):
