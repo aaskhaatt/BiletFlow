@@ -1,2 +1,1 @@
-# shell scripts must keep Unix line endings, or the container fails with "/bin/sh^M: not found"
-*.sh text eol=lf
+* text=auto eol=lf

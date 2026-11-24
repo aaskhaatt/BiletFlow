@@ -20,7 +20,7 @@ def apply_for_organizer(current_user: User = Depends(get_current_user), db: Sess
 
 @router.patch("/{user_id}/approve", response_model=OrganizerResponse)
 def approve_organizer(user_id: int, current_admin: User = Depends(require_platform_admin), db: Session = Depends(get_db)):
-    return approve_organizer_service(user_id, db)
+    return approve_organizer_service(current_admin.id, user_id, db)
     
 
 

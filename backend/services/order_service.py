@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from models.user import User
 from schemas.order import OrderCreate
+from schemas.campaign import OrderPreviewRequest
 from repositories.event_repository import get_event_by_id, reserve_event_capacity, release_event_capacity, lock_event
 from repositories.ticket_type_repository import get_ticket_type_by_id, reserve_ticket_type_inventory, release_ticket_type_inventory
 from repositories.order_repository import (create_order, create_order_item, get_order_by_id, get_orders_by_user_id, lock_order,
@@ -10,6 +11,8 @@ from repositories.order_repository import (create_order, create_order_item, get_
                                            get_events_with_overdue_orders)
 from repositories.ticket_repository import create_ticket, get_attendees_by_event_id
 from repositories.paid_sales_repository import is_paid_sales_active
+from repositories.campaign_repository import redeem_campaign, release_campaign_redemption
+from services.campaign_service import resolve_promo_code
 from services.audit_service import log_action
 from services.organizer_service import ensure_organizer_approved_service
 from services.event_service import ensure_event_owner_service
@@ -17,7 +20,8 @@ from services.payment_service import simulate_payment, SimulatedOutcome
 from security import generate_ticket_code
 from exceptions import (EventNotFoundError, EventAccessDeniedError, RegistrationClosedError, TicketTypeNotFoundError,
                         TicketTypeNotAvailableError, InvalidOrderQuantityError, TicketTypeSoldOutError, EventSoldOutError,
-                        OrderNotFoundError, PaidSalesNotActiveError, OrderNotPayableError, OrderExpiredError, PaymentFailedError)
+                        OrderNotFoundError, PaidSalesNotActiveError, OrderNotPayableError, OrderExpiredError, PaymentFailedError,
+                        PromoCodeUsedUpError, PromoCodeNotActiveError)
 
 # how long a paid checkout keeps its tickets reserved while the attendee pays
 ORDER_HOLD_MINUTES = int(os.getenv("ORDER_HOLD_MINUTES", "10"))
@@ -42,7 +46,7 @@ def _issue_tickets(order, db: Session):
 
 def release_order_inventory(order_id: int, db: Session) -> int:
     # gives an order's tickets back on sale (expired, cancelled or refunded orders); returns how many.
-    # lock order rule: EVENT first, then TICKET TYPES
+    # lock order rule: EVENT first, then TICKET TYPES, then the CAMPAIGN
     order = get_order_by_id(order_id, db)
     items = get_order_items(order_id, db)
     total_quantity = sum(item.quantity for item in items)
@@ -50,6 +54,10 @@ def release_order_inventory(order_id: int, db: Session) -> int:
     release_event_capacity(order.event_id, total_quantity, db)
     for item in items:
         release_ticket_type_inventory(item.ticket_type_id, item.quantity, db)
+
+    # the promo code's use comes back too, so abandoned checkouts don't use up a limited code
+    if order.campaign_id is not None:
+        release_campaign_redemption(order.campaign_id, db)
 
     return total_quantity
 
@@ -76,17 +84,9 @@ def expire_overdue_orders_service(db: Session, event_id: int | None = None) -> i
 
 
 
-def create_order_service(user: User, event_id: int, order_data: OrderCreate, db: Session):
-    now = datetime.now(timezone.utc)
-    event = get_event_by_id(event_id, db)
-
-    # 0. give abandoned holds back first, in their OWN commit: if this order then fails (e.g. sold out),
-    #    its rollback must not undo the release
-    expire_overdue_orders_service(db, event_id=event.id)
-
-    # 1. the event must be open for registration
-    # drafts and private events answer 404, the same as the public event page
-    if event.status != "published" or event.visibility == "private":
+def _ensure_event_open(event, now: datetime):
+    # drafts, private and suspended events answer 404, the same as the public event page
+    if event.status != "published" or event.visibility == "private" or event.suspended_at is not None:
         raise EventNotFoundError()
 
     if event.registration_opens_at is not None and now < event.registration_opens_at:
@@ -96,13 +96,15 @@ def create_order_service(user: User, event_id: int, order_data: OrderCreate, db:
     if now > registration_closes_at:
         raise RegistrationClosedError()
 
-    # 2. every requested ticket type must be valid for this order
-    ticket_type_ids = [item.ticket_type_id for item in order_data.items]
+
+def _validate_items(event, items, now: datetime, db: Session) -> list:
+    # every requested ticket type must be valid for this order; returns [(ticket type, quantity), ...]
+    ticket_type_ids = [item.ticket_type_id for item in items]
     if len(ticket_type_ids) != len(set(ticket_type_ids)):
         raise InvalidOrderQuantityError()
 
     requested = []
-    for item in order_data.items:
+    for item in items:
         try:
             ticket_type = get_ticket_type_by_id(item.ticket_type_id, db)
         except TicketTypeNotFoundError:
@@ -123,6 +125,44 @@ def create_order_service(user: User, event_id: int, order_data: OrderCreate, db:
 
         requested.append((ticket_type, item.quantity))
 
+    return requested
+
+
+def preview_order_service(event_id: int, preview_data: OrderPreviewRequest, db: Session) -> dict:
+    # the checkout screen's price check: same rules as a real order, but nothing is reserved or saved
+    now = datetime.now(timezone.utc)
+    event = get_event_by_id(event_id, db)
+    _ensure_event_open(event, now)
+    requested = _validate_items(event, preview_data.items, now, db)
+
+    subtotal = sum(ticket_type.price * quantity for ticket_type, quantity in requested)
+    discount, code = 0, None
+    if preview_data.promo_code:
+        campaign, discount = resolve_promo_code(event.id, preview_data.promo_code, requested, now, db)
+        code = campaign.code
+
+    return {"subtotal": subtotal, "discount": discount, "total": subtotal - discount, "promo_code": code}
+
+
+
+def create_order_service(user: User, event_id: int, order_data: OrderCreate, db: Session):
+    now = datetime.now(timezone.utc)
+    event = get_event_by_id(event_id, db)
+
+    # 0. give abandoned holds back first, in their OWN commit: if this order then fails (e.g. sold out),
+    #    its rollback must not undo the release
+    expire_overdue_orders_service(db, event_id=event.id)
+
+    # 1. the event must be open for registration
+    _ensure_event_open(event, now)
+
+    # 2. every requested ticket type must be valid for this order, and so must the promo code
+    requested = _validate_items(event, order_data.items, now, db)
+
+    campaign, discount = None, 0
+    if order_data.promo_code:
+        campaign, discount = resolve_promo_code(event.id, order_data.promo_code, requested, now, db)
+
     # 3. reserve inventory atomically: the EVENT first, then TICKET TYPES (lock order rule)
     # if anything below raises, nothing was committed, so get_db rolls these reservations back too
     total_quantity = sum(quantity for _, quantity in requested)
@@ -137,18 +177,32 @@ def create_order_service(user: User, event_id: int, order_data: OrderCreate, db:
         if reserve_ticket_type_inventory(ticket_type.id, quantity, db) is None:
             raise TicketTypeSoldOutError()
 
-    # 4. free orders are confirmed right away; paid orders wait for payment with a time limit
-    total_amount = sum(ticket_type.price * quantity for ticket_type, quantity in requested)
+    # ... then the promo code's use, last (lock order: event -> orders -> ticket types -> campaigns).
+    # Two buyers racing for the last use: the database lets exactly one through.
+    if campaign is not None and redeem_campaign(campaign.id, now, db) is None:
+        db.refresh(campaign)
+        if campaign.max_redemptions is not None and campaign.redemptions_count >= campaign.max_redemptions:
+            raise PromoCodeUsedUpError()
+        raise PromoCodeNotActiveError()
+
+    # 4. free orders are confirmed right away; paid orders wait for payment with a time limit.
+    #    A discount that covers everything makes the order free too.
+    subtotal = sum(ticket_type.price * quantity for ticket_type, quantity in requested)
+    total_amount = subtotal - discount
     is_free = total_amount == 0
     order = create_order(
         user.id, event.id,
         status = "confirmed" if is_free else "pending",
         total_amount = total_amount,
+        # the fee is taken from what's actually paid, after the discount
         processing_fee = calculate_processing_fee(total_amount),
         expires_at = None if is_free else now + timedelta(minutes=ORDER_HOLD_MINUTES),
         buyer_name = order_data.buyer_name,
         buyer_email = user.email,
-        db = db
+        db = db,
+        campaign_id = campaign.id if campaign else None,
+        promo_code = campaign.code if campaign else None,
+        discount_amount = discount,
     )
 
     for ticket_type, quantity in requested:
@@ -160,6 +214,8 @@ def create_order_service(user: User, event_id: int, order_data: OrderCreate, db:
         description = f"Registered {total_quantity} free ticket(s), order #{order.id}"
     else:
         description = f"Started checkout for {total_quantity} ticket(s), {total_amount} KZT, order #{order.id}"
+    if campaign:
+        description += f" with promo code {campaign.code} (-{discount} KZT)"
 
     # 5. log, then ONE commit: reservation, order, items, tickets and log are saved together or not at all
     log_action(db, user.id, "order.created", "order", order.id, description, event_id=event.id)
@@ -256,6 +312,7 @@ def get_event_sales_service(user_id: int, event_id: int, db: Session):
         "gross_sales": totals.gross_sales,
         "processing_fees": totals.processing_fees,
         "refunds": totals.refunds,
+        "discounts": totals.discounts,
         "estimated_payout": totals.gross_sales - totals.processing_fees - totals.refunds,
         "paid_orders": totals.paid_orders,
         "ticket_types": [
