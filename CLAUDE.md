@@ -173,6 +173,11 @@ Done:
 - All repositories flush and all services commit (see Conventions → Transactions)
 - Email outbox (Feature 7): `queue_email(...)`, the `email_outbox` table, and the background SMTP sender with retries, templates for every `EMAIL_TEMPLATES` key, Mailpit in Docker Compose (see Conventions → Emails). Registration queues the verification email.
 - Email verification and password reset (Feature 7, `account_tokens` table): register queues a `verify_email` link (24 h); `POST /auth/verify-email` `{token}`, `POST /auth/resend-verification` (signed in; 409 if already verified), `POST /auth/forgot-password` `{email}` (always the same 200, so it reveals nothing), `POST /auth/reset-password` `{token, new_password}` (1 h link; signs out every session). Tokens are stored as SHA-256 hashes and used up atomically (`DELETE ... RETURNING`); a new link replaces the old one. Bad, expired or used links: 400 `InvalidAccountTokenError`. `users.email_verified_at` is recorded but **not enforced** yet (open decision: must users verify before ordering?).
+- Support cases (Feature 10, `services/support_service.py`, `support_cases` + `support_messages`):
+  - `POST /support/cases` with `kind`: `attendee` (exactly one of `event_id` / `order_id` / `ticket_id`; the server fills in the rest and checks the user owns the order/ticket) or `platform` (organizers only, optional own `event_id`). Categories per kind are in `schemas/support.py`.
+  - `GET /support/cases/me`, `GET /support/cases/inbox?kind=&status=` (organizer: attendee cases about their events; platform admin: everything), `GET /support/cases/{id}` (case + thread; clients poll it), `POST .../messages`, `PATCH .../status`, `PATCH .../assignee` (`{user_id}` or null).
+  - Readers: the requester and the handlers (event organizer for attendee cases, platform admins for all). Anyone else gets 404. Only handlers change status/assignee (403 otherwise); assignees must be handlers. A requester's reply reopens a `waiting_for_customer` or `resolved` case.
+  - Emails: replies notify the other side (assignee first), status changes notify the requester, assignment notifies the assignee. Status changes and assignments are audit-logged (`support_case.status_changed`, `support_case.assigned`).
 
 Roadmap (build in this order; each feature must work end to end before the next):
 

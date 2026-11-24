@@ -15,3 +15,4 @@ from .platform_setting import PlatformSetting
 from .refund import Refund
 from .email_outbox import EmailOutbox
 from .account_token import AccountToken
+from .support_case import SupportCase, SupportMessage

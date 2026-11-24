@@ -13,6 +13,7 @@ from routers.staff import router as staff_router
 from routers.check_in import router as check_in_router
 from routers.paid_sales import router as paid_sales_router
 from routers.admin import router as admin_router
+from routers.support import router as support_router  # Dev B
 from fastapi.exceptions import RequestValidationError
 from exception_handlers import ERRORS, exception_handler, validation_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
@@ -59,6 +60,7 @@ app.include_router(staff_router)
 app.include_router(check_in_router)
 app.include_router(paid_sales_router)
 app.include_router(admin_router)
+app.include_router(support_router)  # Dev B
 
 app.add_middleware(
     CORSMiddleware,
