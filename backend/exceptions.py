@@ -120,3 +120,24 @@ class StorageUnavailableError(Exception):
 
 class TicketNotPrintableError(Exception):
     pass
+
+class CampaignNotFoundError(Exception):
+    pass
+
+class InvalidCampaignError(Exception):
+    pass
+
+class PromoCodeAlreadyExistsError(Exception):
+    pass
+
+class PromoCodeNotFoundError(Exception):
+    pass
+
+class PromoCodeNotActiveError(Exception):
+    pass
+
+class PromoCodeUsedUpError(Exception):
+    pass
+
+class PromoCodeNotApplicableError(Exception):
+    pass

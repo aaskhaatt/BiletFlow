@@ -97,11 +97,11 @@ backend/
 - **Inventory** changes only through the atomic reserve queries (`reserve_ticket_type_inventory`, `reserve_event_capacity`): one `UPDATE ... WHERE sold + n <= limit RETURNING`. Never check availability in Python and then write, because that double-sells under concurrency.
 - Orders copy `unit_price`, `buyer_name` and `buyer_email` at purchase time (snapshots), so later edits never rewrite history.
 - **Concurrency patterns.**
-  1. When check and change fit in one statement: an atomic `UPDATE ... WHERE <condition> RETURNING` (inventory, check-in, refresh tokens).
+  1. When check and change fit in one statement: an atomic `UPDATE ... WHERE <condition> RETURNING` (inventory, check-in, refresh tokens, promo code uses).
   2. When something must happen in between (charging a payment): lock the row with `SELECT ... FOR UPDATE` **plus `.execution_options(populate_existing=True)`**. Without it, SQLAlchemy may return a stale cached copy after waiting for the lock.
   3. To create-if-missing: `INSERT ... ON CONFLICT DO NOTHING`.
   4. Unique constraints are the final guarantee; catch `IntegrityError` for a friendly 409.
-  5. **Lock order rule.** A transaction that locks or updates several of these rows does it in this order: **event → its orders → ticket types**.
+  5. **Lock order rule.** A transaction that locks or updates several of these rows does it in this order: **event → its orders → ticket types → promo campaigns**.
      - `lock_event` comes first, inventory release does the event before ticket types, and reservations do the event capacity before ticket types.
      - Locking in different orders in different code paths causes deadlocks under concurrency.
      - That's why `pay_order_service` only refuses an overdue order and leaves the release to the sweeper.

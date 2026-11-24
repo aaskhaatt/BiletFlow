@@ -13,3 +13,4 @@ from .paid_sales_activation import PaidSalesActivation
 from .payout_account import PayoutAccount
 from .platform_setting import PlatformSetting
 from .refund import Refund
+from .promo_campaign import PromoCampaign
