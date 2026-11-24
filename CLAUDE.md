@@ -94,6 +94,7 @@ backend/
 - Statuses are plain strings. Event: `draft` / `published` / `cancelled`. Organizer profile: `pending` / `approved`. Order: `pending` (F5) / `confirmed` / `cancelled` / `refunded` / `expired` (F5). Ticket: `valid` / `checked_in` / `cancelled` / `refunded`.
 - **Inventory** changes only through the atomic reserve queries (`reserve_ticket_type_inventory`, `reserve_event_capacity`): one `UPDATE ... WHERE sold + n <= limit RETURNING`. Never check availability in Python and then write, because that double-sells under concurrency.
 - Orders copy `unit_price`, `buyer_name` and `buyer_email` at purchase time (snapshots), so later edits never rewrite history.
+- **User emails are lowercase.** `NormalizedEmail` in `schemas/user.py` lowercases input, `get_user_by_email` matches case-insensitively, and the unique index `ux_users_email_lower` on `lower(email)` is the final guarantee. Use `NormalizedEmail` for any new request field that holds a user's email.
 - **Concurrency patterns.**
   1. When check and change fit in one statement: an atomic `UPDATE ... WHERE <condition> RETURNING` (inventory, check-in, refresh tokens).
   2. When something must happen in between (charging a payment): lock the row with `SELECT ... FOR UPDATE` **plus `.execution_options(populate_existing=True)`**. Without it, SQLAlchemy may return a stale cached copy after waiting for the lock.
@@ -161,6 +162,7 @@ Done:
   - **Phase 1 (core ticketing) is complete.**
   - `payments` table: all payments are `provider = "simulated"`, `is_simulated = true`, with `SIM-` references. Failed attempts are committed before raising so they stay on record.
 - All repositories flush and all services commit (see Conventions → Transactions)
+- Case-insensitive emails: `Ann@x.com` and `ann@x.com` are one account (register, login, staff assignment, order snapshots). Simultaneous sign-ups with the same address give one 201 and 409s instead of a 500.
 
 Roadmap (build in this order; each feature must work end to end before the next):
 

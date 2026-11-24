@@ -1,13 +1,18 @@
-from pydantic import BaseModel, EmailStr, ConfigDict, Field
+from typing import Annotated
+from pydantic import AfterValidator, BaseModel, EmailStr, ConfigDict, Field
+
+
+# Ann@X.com and ann@x.com are one account: emails are saved and compared in lowercase
+NormalizedEmail = Annotated[EmailStr, AfterValidator(lambda email: email.lower())]
 
 
 class UserCreate(BaseModel):
-    email: EmailStr
+    email: NormalizedEmail
     password: str = Field(min_length=6)
 
 
 class UserLogin(BaseModel):
-    email: EmailStr
+    email: NormalizedEmail
     password: str = Field(min_length=1)
 
 

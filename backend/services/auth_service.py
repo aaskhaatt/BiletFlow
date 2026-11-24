@@ -1,5 +1,6 @@
 from schemas.user import UserCreate, UserLogin
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timezone, timedelta
 from repositories.user_repository import create_user, get_user_by_email
 from exceptions import UserAlreadyExistsError, UserNotFoundError, InvalidCredentialsError, InvalidRefreshTokenError
@@ -15,7 +16,12 @@ def register_user_service(user: UserCreate, db: Session):
 
     except UserNotFoundError:
         password_hash = hash_password(user.password)
-        new_user = create_user(user.email, password_hash, db)
+        try:
+            new_user = create_user(user.email, password_hash, db)
+        except IntegrityError:
+            # someone registered the same address a moment ago; the unique index caught it
+            db.rollback()
+            raise UserAlreadyExistsError()
         db.commit()
         db.refresh(new_user)
 
