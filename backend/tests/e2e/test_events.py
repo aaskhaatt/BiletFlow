@@ -48,6 +48,11 @@ def main() -> bool:
 
         tt = t.make_ticket_type(org, eid)
         t.check("create ticket type", isinstance(tt, int))
+        s, _ = t.call("GET", f"/events/{eid}/ticket-types")
+        t.check("private: its ticket types aren't public either", s == 404, f"status {s}")
+        t.call("PATCH", f"/events/{eid}", {"visibility": "unlisted"}, org)
+        s, types = t.call("GET", f"/events/{eid}/ticket-types")
+        t.check("unlisted: ticket types reachable by link", s == 200 and [x["id"] for x in types] == [tt], f"status {s}")
 
         s, body = t.call("PATCH", f"/events/{eid}/unpublish", token=org)
         t.check("unpublish", s == 200 and body["status"] == "draft", body.get("status"))
