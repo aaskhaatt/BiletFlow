@@ -27,6 +27,8 @@ alembic upgrade head                     # apply migrations
 uvicorn main:app --reload                # API on http://localhost:8000, docs at /docs
 ```
 
+Demo data: `python scripts/seed_demo.py` (from `backend/`) creates an admin, an organizer, staff, 10 attendees and 4 events (paid with promo codes, live with check-ins, completed, draft) through the real services. `--reset` recreates it, `--clear` removes it. Accounts are `@demo.example.com`; the shared password is `DEMO_PASSWORD` in the script. It refuses non-local databases unless given `--allow-remote`.
+
 Full stack in Docker: `docker compose up --build` (from the repo root).
 
 ### Tests
