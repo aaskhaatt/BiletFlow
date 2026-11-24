@@ -183,6 +183,7 @@ Done:
   - `POST /admin/events/{id}/suspend` `{reason}` / `.../unsuspend`: a suspended event is hidden from `GET /events` and `GET /events/{id}` (404) and takes no new orders (404); the organizer still sees it in `/events/me`; issued tickets still scan.
   - All four and organizer approval are audit-logged (`user.suspended`, `event.suspended`, `organizer.approved`, ...).
 - Admin search and monitoring (Feature 13): `GET /admin/users` (`q`, `suspended`), `/admin/events` (`q`, `status`, `suspended`), `/admin/orders` (`q` = buyer email/name, `status`, `event_id`), `/admin/payments` (`status`, `purpose`, `event_id`; `status=failed` is the failed-payment monitor), `/admin/refunds` (`event_id`). All answer `{items, total}`, newest first, with `limit` (1–200, default 50) and `offset`; a numeric `q` also matches the id; `%`/`_` in `q` are literal. `?format=csv` downloads every matching row as UTF-8 CSV with a BOM (Excel-friendly).
+- Event reports (Feature 13, `event_reports`): `POST /events/{id}/reports` `{reason, details?}` (signed in, public events only; one per user per event, 409 `EventAlreadyReportedError`, guaranteed by a unique constraint). Admins: `GET /admin/event-reports?status=&event_id=` (same paging/CSV as the other admin lists) and `POST /admin/event-reports/{id}/review` `{status: dismissed|actioned, note?}`, audit-logged as `event_report.reviewed`. Suspending the event is a separate admin action.
 
 Roadmap (build in this order; each feature must work end to end before the next):
 

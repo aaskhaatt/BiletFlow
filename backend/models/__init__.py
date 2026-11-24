@@ -16,3 +16,4 @@ from .refund import Refund
 from .email_outbox import EmailOutbox
 from .account_token import AccountToken
 from .support_case import SupportCase, SupportMessage
+from .event_report import EventReport

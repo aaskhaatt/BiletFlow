@@ -1,3 +1,5 @@
+from exceptions import EventReportNotFoundError
+from models import EventReport
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
@@ -18,3 +20,17 @@ def search_rows(model, db: Session, filters=(), q: str | None = None, q_columns=
     if limit is not None:
         stmt = stmt.limit(limit)
     return list(db.scalars(stmt)), total
+
+
+def create_event_report(event_id: int, reporter_user_id: int, reason: str, details: str | None, db: Session):
+    report = EventReport(event_id=event_id, reporter_user_id=reporter_user_id, reason=reason, details=details)
+    db.add(report)
+    db.flush()
+    return report
+
+
+def get_event_report_by_id(report_id: int, db: Session) -> EventReport:
+    report = db.get(EventReport, report_id)
+    if report is None:
+        raise EventReportNotFoundError()
+    return report

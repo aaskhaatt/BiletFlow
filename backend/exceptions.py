@@ -57,6 +57,12 @@ class UserSuspendedError(Exception):
 
 class CannotSuspendSelfError(Exception):
     pass
+
+class EventAlreadyReportedError(Exception):
+    pass
+
+class EventReportNotFoundError(Exception):
+    pass
 # --- end Dev B ---
 
 class InvalidEventStatusError(Exception):

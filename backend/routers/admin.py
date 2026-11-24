@@ -10,11 +10,13 @@ from services.paid_sales_service import list_activations_service, suspend_paid_s
 from services.settings_service import get_settings_service, set_activation_fee_service
 # --- Dev B: admin tools (Feature 13) ---
 from fastapi import Query, Response
-from schemas.admin import AdminOrderRow, AdminPaymentRow, AdminRefundRow, AdminUserResponse, Page, SuspendRequest
+from schemas.admin import (AdminOrderRow, AdminPaymentRow, AdminRefundRow, AdminUserResponse, EventReportResponse,
+                           EventReportReview, Page, SuspendRequest)
 from schemas.event import EventResponse
 from services.admin_service import (suspend_user_service, unsuspend_user_service, suspend_event_service,
                                     unsuspend_event_service, search_users_service, search_events_service,
-                                    search_orders_service, search_payments_service, search_refunds_service, rows_to_csv)
+                                    search_orders_service, search_payments_service, search_refunds_service, rows_to_csv,
+                                    search_event_reports_service, review_event_report_service)
 
 
 # every route here requires a platform admin (403 for everyone else)
@@ -125,3 +127,19 @@ def search_payments(q: str | None = None, status: Literal["succeeded", "failed"]
 def search_refunds(q: str | None = None, event_id: int | None = None, limit: int = Limit, offset: int = Offset,
                    format: Format = "json", admin: User = Depends(require_platform_admin), db: Session = Depends(get_db)):
     return _page(search_refunds_service(q, event_id, _limit(format, limit), offset, db), AdminRefundRow, format, "refunds")
+
+
+# --- Dev B: reported events (Feature 13) ---
+
+@router.get("/event-reports", response_model=Page[EventReportResponse])
+def search_event_reports(status: Literal["open", "dismissed", "actioned"] | None = None, event_id: int | None = None,
+                         limit: int = Limit, offset: int = Offset, format: Format = "json",
+                         admin: User = Depends(require_platform_admin), db: Session = Depends(get_db)):
+    return _page(search_event_reports_service(status, event_id, _limit(format, limit), offset, db),
+                 EventReportResponse, format, "event-reports")
+
+
+@router.post("/event-reports/{report_id}/review", response_model=EventReportResponse)
+def review_event_report(report_id: int, data: EventReportReview, admin: User = Depends(require_platform_admin),
+                        db: Session = Depends(get_db)):
+    return review_event_report_service(admin.id, report_id, data.status, data.note, db)

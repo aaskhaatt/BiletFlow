@@ -2,10 +2,12 @@
 import csv
 import io
 from datetime import datetime, timezone
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from exceptions import CannotSuspendSelfError
-from models import Event, Order, Payment, Refund, User
-from repositories.admin_repository import search_rows
+from exceptions import CannotSuspendSelfError, EventAlreadyReportedError
+from models import Event, EventReport, Order, Payment, Refund, User
+from repositories.admin_repository import create_event_report, get_event_report_by_id, search_rows
+from services.event_service import get_public_event_service
 from repositories.event_repository import get_event_by_id
 from repositories.refresh_token_repository import delete_user_refresh_tokens
 from repositories.user_repository import get_user_by_id
@@ -104,3 +106,37 @@ def rows_to_csv(rows, schema) -> str:
         data = schema.model_validate(row).model_dump(mode="json")
         writer.writerow([data[c] for c in columns])
     return out.getvalue()
+
+
+# --- event reports (SRS 4.12) ------------------------------------------------------------------
+
+def report_event_service(user_id: int, event_id: int, data, db: Session):
+    get_public_event_service(event_id, db)  # only events people can actually see
+    try:
+        report = create_event_report(event_id, user_id, data.reason, data.details, db)
+        db.commit()
+    except IntegrityError:
+        # the unique (event, reporter) constraint caught a second report, even one sent at the same moment
+        db.rollback()
+        raise EventAlreadyReportedError()
+    db.refresh(report)
+    return report
+
+
+def search_event_reports_service(status, event_id, limit, offset, db: Session):
+    filters = _only((status, EventReport.status == status), (event_id, EventReport.event_id == event_id))
+    return search_rows(EventReport, db, filters, None, [], limit, offset)
+
+
+def review_event_report_service(admin_user_id: int, report_id: int, status: str, note: str | None, db: Session):
+    report = get_event_report_by_id(report_id, db)
+    old = report.status
+    report.status = status
+    report.review_note = note
+    report.reviewed_by_user_id = admin_user_id
+    report.reviewed_at = datetime.now(timezone.utc)
+    log_action(db, admin_user_id, "event_report.reviewed", "event_report", report.id,
+               f"Report ({report.reason}): {old} -> {status}" + (f": {note}" if note else ""), event_id=report.event_id)
+    db.commit()
+    db.refresh(report)
+    return report
