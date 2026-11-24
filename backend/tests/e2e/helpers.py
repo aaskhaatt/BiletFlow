@@ -81,6 +81,8 @@ class E2E:
                     c.execute(text("delete from audit_logs where event_id = any(:ids)"), {"ids": self.event_ids})
                 # deleting the users cascades to their organizer profile, events, orders and tickets
                 c.execute(text("delete from users where email = any(:emails)"), {"emails": self.emails})
+                # queued emails aren't linked to users (they keep the address as sent), so delete them too
+                c.execute(text("delete from email_outbox where to_email = any(:emails)"), {"emails": self.emails})
         finally:
             self.server.terminate()
             self.server.wait()

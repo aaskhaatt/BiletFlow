@@ -15,3 +15,4 @@ from .platform_setting import PlatformSetting
 from .refund import Refund
 from .promo_campaign import PromoCampaign
 from .email_outbox import EmailOutbox
+from .account_token import AccountToken

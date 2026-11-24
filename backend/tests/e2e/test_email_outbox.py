@@ -79,10 +79,10 @@ def main() -> bool:
                 {"verify_email", "password_reset", "order_confirmed", "payment_failed", "order_refunded",
                  "event_updated", "event_cancelled", "payout_status", "support_message"} <= EMAIL_TEMPLATES.keys())
 
-        # 5. the stub doesn't change the API: registering still works and queues nothing yet
+        # 5. registering queues exactly one email, the verification link (test_account_emails.py has the rest)
         _, email_address = t.new_user()
-        queued = t.db_value("select count(*) from email_outbox where to_email = :e", e=email_address)
-        t.check("registration still works and queues nothing yet", queued == 0)
+        queued = t.db_rows("select template from email_outbox where to_email = :e", e=email_address)
+        t.check("registration queues only the verification email", [r.template for r in queued] == ["verify_email"])
     return t.passed
 
 

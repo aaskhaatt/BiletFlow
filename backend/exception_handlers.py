@@ -16,6 +16,10 @@ ERRORS = {
     TicketTypeNotFoundError: (404, "Ticket Type Not Found"),
     InvalidTicketSalesTimeError: (400, "Invalid Ticket Sales Time"),
     InvalidRefreshTokenError: (401, "Invalid Refresh Token"),
+    # --- Dev B: Feature 7 ---
+    InvalidAccountTokenError: (400, "This link is invalid, expired or already used"),
+    EmailAlreadyVerifiedError: (409, "Email Is Already Verified"),
+    # --- end Dev B ---
     InvalidEventStatusError: (409, "Invalid Event Status"),
     EventNotReadyToPublishError: (400, "Event Not Ready To Publish"),
     RegistrationClosedError: (409, "Registration Is Not Open"),

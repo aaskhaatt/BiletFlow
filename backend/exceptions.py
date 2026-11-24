@@ -34,6 +34,14 @@ class InvalidTicketSalesTimeError(Exception):
 class InvalidRefreshTokenError(Exception):
     pass
 
+# --- Dev B: email verification and password reset (Feature 7) ---
+class InvalidAccountTokenError(Exception):
+    pass
+
+class EmailAlreadyVerifiedError(Exception):
+    pass
+# --- end Dev B ---
+
 class InvalidEventStatusError(Exception):
     pass
 
