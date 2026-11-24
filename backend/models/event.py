@@ -28,6 +28,10 @@ class Event(Base):
     refund_policy: Mapped[str | None] = mapped_column(nullable=True)
     # where the cover image lives in file storage, e.g. "events/12/3f9a....jpg"; the URL is built from it
     image_key: Mapped[str | None] = mapped_column(nullable=True)
+    # Dev B: a suspended event is hidden from the public and sells nothing; issued tickets still scan
+    # set by a platform admin (SRS 4.12); null = not suspended
+    suspended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    suspension_reason: Mapped[str | None] = mapped_column(nullable=True)
 
     @property
     def image_url(self) -> str | None:

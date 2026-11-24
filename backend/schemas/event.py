@@ -56,6 +56,8 @@ class EventResponse(BaseModel):
     refund_policy: str | None = None
     # public address of the cover image, null when there is none
     image_url: str | None = None
+    suspended_at: datetime | None = None
+    suspension_reason: str | None = None
     # draft / upcoming / active (between start and end) / completed / cancelled, worked out on every read
     lifecycle: str
 
