@@ -89,6 +89,8 @@ backend/
 - Register every new exception in the `ERRORS` dict in `exception_handlers.py` with `(status_code, message)`, or it becomes a 500.
 - Error response body: `{"error": "<ExceptionName>", "message": "...", "fields": null}`.
 - Validation errors return 422 with `{"error": "VALIDATION_ERROR", "message": "Invalid data", "fields": {field: msg}}`.
+- Auth errors from `dependencies.py` use the same body: 401 `NotAuthenticatedError` (no token) or `InvalidTokenError` (bad, expired or forged token, or the user was deleted), both with `WWW-Authenticate: Bearer`; 403 `PlatformAdminRequiredError`. Clients refresh the token on any 401 from a protected endpoint.
+- FastAPI's own errors (unknown URL, wrong method) are converted too: `{"error": "NOT_FOUND" | "METHOD_NOT_ALLOWED" | ..., "message": ..., "fields": null}`. No response anywhere uses `{"detail": ...}`.
 - `get_*_by_id`-style repository functions raise `<Entity>NotFoundError` instead of returning `None`.
 
 **Authorization.**
@@ -145,7 +147,7 @@ Done:
 - Organizer apply and admin approve
 - Events: create, update, publish, unpublish, cancel, list published, list mine, public `GET /events/{id}`. Venue, category, capacity, visibility (public/unlisted/private) and a registration window. Publishing needs a venue; drafts and private events return 404 publicly.
 - Ticket types: create, list, update, hide and unhide, `max_per_order` (default 10)
-- Unified error format, CORS for `http://localhost:5173`
+- Unified error format for every error, including 401/403 from auth and FastAPI's 404/405; CORS for `http://localhost:5173`
 - Refresh tokens: stored as SHA-256 hashes, rotated on every refresh with an atomic `DELETE ... RETURNING`; logout always succeeds
 - Audit log (`audit_logs` table): event and ticket-type actions are logged in the same transaction as the change. There's no read endpoint yet; the timeline API is Feature 12.
 - Orders + free registration: `POST /events/{id}/orders`, `GET /orders/me`, `GET /orders/{id}`, `GET /events/{id}/attendees`. Tickets have random `T-` codes. Concurrency-tested: 20 simultaneous buyers for 5 tickets give exactly 5 tickets.
@@ -221,7 +223,6 @@ Known issues / polish later (features come first; fix these near the end):
 - Gaps found while documenting the API for the mobile app:
   - `GET /events` has no search, filters or paging, and events have no images.
   - `GET /events/{id}/ticket-types` returns 404 for drafts and skips hidden types, even for the organizer.
-  - Auth and admin errors return `{"detail": ...}` instead of the unified error format.
 - **Bug: email case.** Pydantic lowercases only the domain, so `Ann@x.com` and `ann@x.com` are different accounts, and login is case-sensitive before the `@`. Fix: lowercase emails in `UserCreate`/`UserLogin` (and existing rows) plus a case-insensitive unique index.
 - **Bug: private events leak ticket types.** `get_ticket_types_by_event_id_service` checks `status == published` but not `visibility != private`.
 - Client-facing auth and permission rules are documented in `docs/auth-and-roles.md`. Update it when permissions change.

@@ -175,3 +175,13 @@ class PromoCodeNotApplicableError(Exception):
 
 class CampaignLinkNotFoundError(Exception):
     pass
+
+# --- authentication (Dev B): raised by dependencies.py, all with the unified error body ---
+class NotAuthenticatedError(Exception):
+    pass
+
+class InvalidTokenError(Exception):
+    pass
+
+class PlatformAdminRequiredError(Exception):
+    pass
