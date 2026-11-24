@@ -11,6 +11,8 @@ class OrderItemCreate(BaseModel):
 class OrderCreate(BaseModel):
     buyer_name: str = Field(min_length=1, max_length=200)
     items: list[OrderItemCreate] = Field(min_length=1)
+    # optional; not case-sensitive
+    promo_code: str | None = Field(default=None, max_length=32)
 
 
 
@@ -42,7 +44,10 @@ class OrderResponse(BaseModel):
     id: int
     event_id: int
     status: str
+    # what the attendee pays, after any discount
     total_amount: int
+    discount_amount: int
+    promo_code: str | None
     buyer_name: str
     buyer_email: str
     created_at: datetime
@@ -89,6 +94,8 @@ class SalesSummaryResponse(BaseModel):
     gross_sales: int
     processing_fees: int
     refunds: int
+    # promo discounts on paid orders, already left out of gross_sales
+    discounts: int
     estimated_payout: int
     paid_orders: int
     ticket_types: list[TicketTypeSales]
