@@ -22,6 +22,8 @@ ERRORS = {
     SupportCaseNotFoundError: (404, "Support Case Not Found"),
     SupportCaseAccessDeniedError: (403, "Only The Case Handlers Can Do This"),
     InvalidSupportAssigneeError: (400, "This User Does Not Handle This Case"),
+    UserSuspendedError: (403, "This Account Is Suspended"),
+    CannotSuspendSelfError: (400, "Admins Can Not Suspend Themselves"),
     # --- end Dev B ---
     InvalidEventStatusError: (409, "Invalid Event Status"),
     EventNotReadyToPublishError: (400, "Event Not Ready To Publish"),

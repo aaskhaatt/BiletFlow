@@ -2,7 +2,7 @@ from schemas.user import UserCreate, UserLogin
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone, timedelta
 from repositories.user_repository import create_user, get_user_by_email, get_user_by_id
-from exceptions import UserAlreadyExistsError, UserNotFoundError, InvalidCredentialsError, InvalidRefreshTokenError, InvalidAccountTokenError, EmailAlreadyVerifiedError
+from exceptions import UserAlreadyExistsError, UserNotFoundError, InvalidCredentialsError, InvalidRefreshTokenError, InvalidAccountTokenError, EmailAlreadyVerifiedError, UserSuspendedError
 from repositories.refresh_token_repository import create_refresh_token, consume_refresh_token, delete_user_refresh_tokens
 from repositories.account_token_repository import create_account_token, consume_account_token, delete_account_tokens
 from services.email_service import queue_email
@@ -39,6 +39,10 @@ def authenticate_user_service(user: UserLogin, db: Session):
 
     if not verify_password(user.password, authenticated_user.password_hash):
         raise InvalidCredentialsError()
+
+    # only after the password check, so the error doesn't tell strangers the account exists
+    if authenticated_user.suspended_at is not None:
+        raise UserSuspendedError()
 
         
     return authenticated_user

@@ -85,8 +85,8 @@ def create_order_service(user: User, event_id: int, order_data: OrderCreate, db:
     expire_overdue_orders_service(db, event_id=event.id)
 
     # 1. the event must be open for registration
-    # drafts and private events answer 404, the same as the public event page
-    if event.status != "published" or event.visibility == "private":
+    # drafts, private and suspended events answer 404, the same as the public event page
+    if event.status != "published" or event.visibility == "private" or event.suspended_at is not None:
         raise EventNotFoundError()
 
     if event.registration_opens_at is not None and now < event.registration_opens_at:

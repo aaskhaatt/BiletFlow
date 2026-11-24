@@ -54,3 +54,5 @@ class EventResponse(BaseModel):
     registration_opens_at: datetime | None = None
     registration_closes_at: datetime | None = None
     refund_policy: str | None = None
+    suspended_at: datetime | None = None
+    suspension_reason: str | None = None

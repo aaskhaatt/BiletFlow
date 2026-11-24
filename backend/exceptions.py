@@ -50,6 +50,13 @@ class SupportCaseAccessDeniedError(Exception):
 
 class InvalidSupportAssigneeError(Exception):
     pass
+
+# admin tools (Feature 13)
+class UserSuspendedError(Exception):
+    pass
+
+class CannotSuspendSelfError(Exception):
+    pass
 # --- end Dev B ---
 
 class InvalidEventStatusError(Exception):

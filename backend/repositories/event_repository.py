@@ -66,7 +66,7 @@ def update_event(event: Event, title: str, description: str | None, start_time: 
 
 
 def get_published_events(db: Session):
-    stmt = select(Event).where(Event.status == "published", Event.visibility == "public")
+    stmt = select(Event).where(Event.status == "published", Event.visibility == "public", Event.suspended_at.is_(None))
 
     published_events = db.scalars(stmt).all()
 
