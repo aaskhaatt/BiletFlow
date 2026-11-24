@@ -48,6 +48,8 @@ These are end-to-end tests in `backend/tests/e2e/`, one `test_<feature>.py` per 
 
 The app crashes at startup if any of these is missing.
 
+Email (optional): `SMTP_HOST` turns the email sender on (unset = emails stay `pending`); `SMTP_PORT` (1025, Mailpit), `MAIL_FROM` (`BiletFlow <no-reply@biletflow.local>`), `FRONTEND_URL` (`http://localhost:5173`, used for links in emails), `EMAIL_SEND_INTERVAL_SECONDS` (5).
+
 Optional, with defaults: `ORDER_HOLD_MINUTES` (10) is how long a paid checkout holds its tickets. `ORDER_SWEEP_INTERVAL_SECONDS` (60) is how often the background sweeper releases expired holds; tests set it to 1.
 
 ## Project structure
@@ -123,9 +125,10 @@ backend/
 
 **Emails.**
 - Any action that should email someone calls `queue_email(db, to, template, data)` from `services/email_service.py`, **before** the commit, exactly like `log_action`.
-- It only saves a row in `email_outbox` (status `pending`) in the same transaction, so a rolled-back action never emails anyone. A background sender (Feature 7) sends pending rows; nothing is sent until it exists.
+- It only saves a row in `email_outbox` (status `pending`) in the same transaction, so a rolled-back action never emails anyone. The background sender (`send_due_emails`, started by `main.py` only when `SMTP_HOST` is set) sends them every few seconds, oldest first, and retries failures with backoff (1, 2, 4, 8 min; `failed` after 5 attempts). Subjects and bodies live in `services/email_templates.py`.
 - `template` must be a key of `EMAIL_TEMPLATES`, which also lists the `data` keys each template uses. Agree on a new name with the other developer before adding one.
 - `data` must be JSON-safe: pass ids, strings and numbers, and datetimes as `.isoformat()` strings. An unknown template or non-JSON data raises at once (a programming error, not a domain exception).
+- Local demo: `docker compose up -d mailpit`, put `SMTP_HOST=localhost` in `backend/.env`, and every email shows up at http://localhost:8025. The e2e test servers always run with the sender off.
 - Pass the address from the order snapshot (`order.buyer_email`), not from the current user, so history stays correct.
 
 ## Status (update as features land)
@@ -168,7 +171,7 @@ Done:
   - **Phase 1 (core ticketing) is complete.**
   - `payments` table: all payments are `provider = "simulated"`, `is_simulated = true`, with `SIM-` references. Failed attempts are committed before raising so they stay on record.
 - All repositories flush and all services commit (see Conventions → Transactions)
-- Email outbox stub (start of Feature 7): `queue_email(...)` and the `email_outbox` table (see Conventions → Emails). Nothing calls it or sends emails yet.
+- Email outbox (Feature 7): `queue_email(...)`, the `email_outbox` table, and the background SMTP sender with retries, templates for every `EMAIL_TEMPLATES` key, Mailpit in Docker Compose (see Conventions → Emails). Nothing calls `queue_email` yet.
 
 Roadmap (build in this order; each feature must work end to end before the next):
 

@@ -21,8 +21,21 @@ services:
       - "8000:8000"
     env_file:
       - ./backend/.env
+    environment:
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
     depends_on:
       - postgres
+      - mailpit
+
+
+  # fake inbox for the demo: every email the API sends shows up at http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.27
+    container_name: biletflow_mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
 
 
 volumes:
