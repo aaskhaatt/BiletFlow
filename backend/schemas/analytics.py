@@ -32,6 +32,7 @@ class CheckInStats(BaseModel):
     # right now; with ticket_type_id, that type only
     tickets: int                # valid tickets (used or not)
     checked_in: int
+    absent: int                 # ticket holders not checked in (yet)
     percent: float | None
 
 

@@ -1,6 +1,7 @@
 import secrets
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
+from models.user import User
 from schemas.event import EventCreate, EventUpdate, EventDuplicate
 from services.organizer_service import ensure_organizer_approved_service
 from services.audit_service import log_action
@@ -220,11 +221,12 @@ def ensure_event_owner_service(user_id: int, event_id: int, db: Session):
 
 # --- event history and duplication (SRS 4.16) ----------------------------------------------------------------------
 
-def get_event_history_service(user_id: int, event_id: int, action_type: str | None, action: str | None,
+def get_event_history_service(user: User, event_id: int, action_type: str | None, action: str | None,
                               date_from: datetime | None, date_to: datetime | None, limit: int, offset: int,
                               db: Session) -> dict:
-    # the activity timeline is the audit log of the event: every change, sale, refund and check-in
-    event = ensure_event_owner_service(user_id, event_id, db)
+    # the activity timeline is the audit log of the event: every change, sale, refund and check-in.
+    # Its organizer reads it; platform admins too, for moderation and support (SRS 4.16)
+    event = get_event_by_id(event_id, db) if user.is_platform_admin else ensure_event_owner_service(user.id, event_id, db)
     rows, total = get_event_history(event.id, action_type, action, _as_utc(date_from), _as_utc(date_to), limit, offset, db)
 
     return {
@@ -290,3 +292,8 @@ def duplicate_event_service(user_id: int, event_id: int, data: EventDuplicate | 
     db.refresh(event)
 
     return event
+
+
+def get_event_for_owner_service(user_id: int, event_id: int, db: Session):
+    # the organizer's own view of one event, in any status: previewing a draft before publishing (SRS 4.2)
+    return ensure_event_owner_service(user_id, event_id, db)

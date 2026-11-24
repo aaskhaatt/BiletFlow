@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import select, update, func, case
-from models import Order, OrderItem, TicketType
+from models import Order, OrderItem, TicketType, Ticket, Payment, Refund
 from exceptions import OrderNotFoundError
 
 
@@ -29,8 +29,10 @@ def create_order(user_id: int, event_id: int, status: str, total_amount: int, pr
     return order
 
 
-def create_order_item(order_id: int, ticket_type_id: int, quantity: int, unit_price: int, db: Session):
+def create_order_item(order_id: int, ticket_type_id: int, quantity: int, unit_price: int, db: Session,
+                      attendee_names: list[str] | None = None):
     order_item = OrderItem(
+        attendee_names = attendee_names,
         order_id = order_id,
         ticket_type_id = ticket_type_id,
         quantity = quantity,
@@ -162,3 +164,32 @@ def sold_between(sold_from: datetime | None, sold_to: datetime | None) -> list:
     if sold_to is not None:
         conditions.append(ORDER_SALE_TIME < sold_to)
     return conditions
+
+
+def get_ticket_status_counts(event_id: int, db: Session) -> dict[tuple[int, str], int]:
+    # {(ticket_type_id, status): count} for the event's tickets
+    stmt = (select(Ticket.ticket_type_id, Ticket.status, func.count())
+            .where(Ticket.event_id == event_id).group_by(Ticket.ticket_type_id, Ticket.status))
+
+    return {(type_id, status): count for type_id, status, count in db.execute(stmt)}
+
+
+def get_event_orders(event_id: int, status: str | None, q: str | None, limit: int, offset: int, db: Session):
+    """(page, total): orders with their ticket count, successful payment reference and refund, newest first."""
+    tickets = (select(Ticket.order_id, func.count().label("tickets")).group_by(Ticket.order_id).subquery())
+    paid = (select(Payment.order_id, Payment.provider_reference.label("payment_reference"))
+            .where(Payment.status == "succeeded", Payment.purpose == "order").subquery())
+    stmt = (select(Order, Refund, tickets.c.tickets, paid.c.payment_reference)
+            .outerjoin(Refund, Refund.order_id == Order.id)
+            .outerjoin(tickets, tickets.c.order_id == Order.id)
+            .outerjoin(paid, paid.c.order_id == Order.id)
+            .where(Order.event_id == event_id))
+    if status is not None:
+        stmt = stmt.where(Order.status == status)
+    if q:
+        stmt = stmt.where(Order.buyer_email.icontains(q, autoescape=True) | Order.buyer_name.icontains(q, autoescape=True))
+
+    total = db.scalar(select(func.count()).select_from(stmt.subquery()))
+    rows = db.execute(stmt.order_by(Order.id.desc()).limit(limit).offset(offset)).all()
+
+    return rows, total

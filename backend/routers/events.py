@@ -9,7 +9,7 @@ from models.user import User
 from dependencies import get_current_user
 from services.event_service import (create_event_service, get_published_events_service, get_my_events_service, update_event_service,
                                     publish_event_service, unpublish_event_service, get_public_event_service, get_event_categories_service,
-                                    get_event_history_service, duplicate_event_service)
+                                    get_event_history_service, duplicate_event_service, get_event_for_owner_service)
 from services.cancellation_service import cancel_event_service
 from services.event_image_service import upload_event_image_service, delete_event_image_service
 from storage import MAX_IMAGE_BYTES
@@ -99,7 +99,7 @@ def get_event_history(event_id: int,
                       date_from: datetime | None = Query(None), date_to: datetime | None = Query(None),
                       limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),
                       current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return get_event_history_service(current_user.id, event_id, action_type, action, date_from, date_to, limit, offset, db)
+    return get_event_history_service(current_user, event_id, action_type, action, date_from, date_to, limit, offset, db)
 
 
 # a new draft with the same details and ticket types; the body is optional
@@ -107,3 +107,9 @@ def get_event_history(event_id: int,
 def duplicate_event(event_id: int, data: EventDuplicate | None = None, current_user: User = Depends(get_current_user),
                     db: Session = Depends(get_db)):
     return duplicate_event_service(current_user.id, event_id, data, db)
+
+
+# the organizer's own view of one event, drafts and private events included: the preview before publishing
+@router.get("/{event_id}/manage", response_model=EventResponse)
+def get_event_for_owner(event_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return get_event_for_owner_service(current_user.id, event_id, db)

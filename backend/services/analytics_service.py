@@ -74,6 +74,7 @@ def get_event_analytics_service(user_id: int, event_id: int, date_from: datetime
         "check_in": {
             "tickets": counts.issued,
             "checked_in": counts.checked_in,
+            "absent": counts.issued - counts.checked_in,
             "percent": _percent(counts.checked_in, counts.issued),
         },
         "sales_over_time": [

@@ -59,7 +59,8 @@ def main() -> bool:
                 sales["processing_fees"], sales["estimated_payout"], sales["paid_orders"]) == (78000, 2000, 30000, 1440, 46560, 2))
         t.check("capacity: 100, 6 sold, 1 held, 93 left, 6.0% sold",
                 r["capacity"] == {"capacity": 100, "sold": 6, "held": 1, "remaining": 93, "percent_sold": 6.0}, f"{r['capacity']}")
-        t.check("check-in: 2 of 6, 33.3%", r["check_in"] == {"tickets": 6, "checked_in": 2, "percent": 33.3}, f"{r['check_in']}")
+        t.check("check-in: 2 of 6, 33.3%", r["check_in"] == {"tickets": 6, "checked_in": 2, "absent": 4, "percent": 33.3},
+                f"{r['check_in']}")
         t.check("sales per day, in Kazakhstan time (00:30 local counts for the next day); refunded order left out",
                 r["sales_over_time"] == [{"date": "2026-12-01", "orders": 1, "tickets": 2, "revenue": 18000},
                                          {"date": "2026-12-02", "orders": 1, "tickets": 1, "revenue": 30000},
@@ -92,7 +93,7 @@ def main() -> bool:
         s, r = analytics(ticket_type_id=std)
         t.check("type: Standard's own capacity: 50, 2 sold, 1 held, 47 left, 4.0%",
                 r["capacity"] == {"capacity": 50, "sold": 2, "held": 1, "remaining": 47, "percent_sold": 4.0}, f"{r['capacity']}")
-        t.check("type: check-ins of Standard only", r["check_in"] == {"tickets": 2, "checked_in": 1, "percent": 50.0})
+        t.check("type: check-ins of Standard only", r["check_in"] == {"tickets": 2, "checked_in": 1, "absent": 1, "percent": 50.0})
         t.check("type: days with Standard sales, at ticket price", r["sales_over_time"] == [
             {"date": "2026-12-01", "orders": 1, "tickets": 2, "revenue": 20000}], f"{r['sales_over_time']}")
         t.check("type: only that ticket type listed", [x["ticket_type_id"] for x in r["ticket_types"]] == [std])
