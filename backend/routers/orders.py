@@ -6,8 +6,9 @@ from models.user import User
 from schemas.order import (OrderCreate, OrderResponse, AttendeeResponse, PayOrderRequest, SalesSummaryResponse,
                            CancelOrderRequest, RefundOrderRequest)
 from services.cancellation_service import cancel_order_service, refund_order_service
+from schemas.campaign import OrderPreviewRequest, OrderPreviewResponse
 from services.order_service import (create_order_service, pay_order_service, get_my_orders_service, get_order_service,
-                                    get_event_attendees_service, get_event_sales_service)
+                                    get_event_attendees_service, get_event_sales_service, preview_order_service)
 
 
 router = APIRouter(tags=["orders"])
@@ -16,6 +17,13 @@ router = APIRouter(tags=["orders"])
 @router.post("/events/{event_id}/orders", response_model=OrderResponse, status_code=201)
 def create_order(event_id: int, order_data: OrderCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return create_order_service(current_user, event_id, order_data, db)
+
+
+# the checkout screen's price check, promo code included; reserves nothing
+@router.post("/events/{event_id}/orders/preview", response_model=OrderPreviewResponse)
+def preview_order(event_id: int, preview_data: OrderPreviewRequest, current_user: User = Depends(get_current_user),
+                  db: Session = Depends(get_db)):
+    return preview_order_service(event_id, preview_data, db)
 
 
 # must stay above /orders/{order_id}, otherwise "me" would be read as an order_id

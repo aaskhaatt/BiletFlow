@@ -1,8 +1,10 @@
 # BiletFlow
 
-BiletFlow is a self-service event-ticketing platform for Kazakhstan, built as a 5-person academic project over 10–12 weeks. Organizers create events and issue free or paid QR-code tickets. Attendees register or buy tickets, and event admins check people in with a mobile app. This repository holds the **backend API**. The web frontend (React + Vite) and the mobile check-in app (React Native) call it.
+BiletFlow is a self-service event-ticketing platform for Kazakhstan, built as a 5-person academic project over 10–12 weeks. Organizers create events and issue free or paid QR-code tickets. Attendees register or buy tickets, and event admins check people in with a mobile app. This repository holds the **backend API**. The web frontend (React + Vite) and the mobile app (React Native) call it. The team changed the requirement: the mobile app does what the website does, plus ticket scanning. This overrides the SRS, which excludes native attendee and organizer apps.
 
 Source of truth for requirements: the SRS, "BiletFlow_SRS_Initial_Draft.pdf" (v0.3). Section 8 sets the MVP scope; Section 13 has the schedule and team ownership.
+
+Two backend developers work on this repo from different computers. **Dev B starts with `docs/onboarding-dev-b.md`**: setup on Windows, file ownership, git and migration rules, the interfaces between the two developers, and Dev B's task specs.
 
 ## Stack
 
@@ -95,11 +97,11 @@ backend/
 - **Inventory** changes only through the atomic reserve queries (`reserve_ticket_type_inventory`, `reserve_event_capacity`): one `UPDATE ... WHERE sold + n <= limit RETURNING`. Never check availability in Python and then write, because that double-sells under concurrency.
 - Orders copy `unit_price`, `buyer_name` and `buyer_email` at purchase time (snapshots), so later edits never rewrite history.
 - **Concurrency patterns.**
-  1. When check and change fit in one statement: an atomic `UPDATE ... WHERE <condition> RETURNING` (inventory, check-in, refresh tokens).
+  1. When check and change fit in one statement: an atomic `UPDATE ... WHERE <condition> RETURNING` (inventory, check-in, refresh tokens, promo code uses).
   2. When something must happen in between (charging a payment): lock the row with `SELECT ... FOR UPDATE` **plus `.execution_options(populate_existing=True)`**. Without it, SQLAlchemy may return a stale cached copy after waiting for the lock.
   3. To create-if-missing: `INSERT ... ON CONFLICT DO NOTHING`.
   4. Unique constraints are the final guarantee; catch `IntegrityError` for a friendly 409.
-  5. **Lock order rule.** A transaction that locks or updates several of these rows does it in this order: **event → its orders → ticket types**.
+  5. **Lock order rule.** A transaction that locks or updates several of these rows does it in this order: **event → its orders → ticket types → promo campaigns**.
      - `lock_event` comes first, inventory release does the event before ticket types, and reservations do the event capacity before ticket types.
      - Locking in different orders in different code paths causes deadlocks under concurrency.
      - That's why `pay_order_service` only refuses an overdue order and leaves the release to the sweeper.
@@ -196,6 +198,14 @@ Phase 3, bonus (only after Phases 1–2): assigned seating, calendar .ics export
 Known issues / polish later (features come first; fix these near the end):
 - Ticket-type URLs are inconsistent: `/events/{id}/ticket-type` (singular), `/ticket-types/{id}` and `/ticket_types/{id}/hide` (underscore). Fix together with the frontend developer.
 - Tests run against the development database. A separate test database would be safer.
+- Gaps found while documenting the API for the mobile app:
+  - No "current user" endpoint such as `GET /auth/me`.
+  - `GET /events` has no search, filters or paging, and events have no images.
+  - `GET /events/{id}/ticket-types` returns 404 for drafts and skips hidden types, even for the organizer.
+  - Auth and admin errors return `{"detail": ...}` instead of the unified error format.
+- **Bug: email case.** Pydantic lowercases only the domain, so `Ann@x.com` and `ann@x.com` are different accounts, and login is case-sensitive before the `@`. Fix: lowercase emails in `UserCreate`/`UserLogin` (and existing rows) plus a case-insensitive unique index.
+- **Bug: private events leak ticket types.** `get_ticket_types_by_event_id_service` checks `status == published` but not `visibility != private`.
+- Client-facing auth and permission rules are documented in `docs/auth-and-roles.md`. Update it when permissions change.
 - No `.env.example`.
 - `AccessTokenResponse` in `schemas/token.py` is unused.
 - Expired refresh tokens are only deleted when someone tries to use them; there's no cleanup job.
