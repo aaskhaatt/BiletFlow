@@ -16,6 +16,17 @@ ERRORS = {
     TicketTypeNotFoundError: (404, "Ticket Type Not Found"),
     InvalidTicketSalesTimeError: (400, "Invalid Ticket Sales Time"),
     InvalidRefreshTokenError: (401, "Invalid Refresh Token"),
+    # --- Dev B: Feature 7 ---
+    InvalidAccountTokenError: (400, "This link is invalid, expired or already used"),
+    EmailAlreadyVerifiedError: (409, "Email Is Already Verified"),
+    SupportCaseNotFoundError: (404, "Support Case Not Found"),
+    SupportCaseAccessDeniedError: (403, "Only The Case Handlers Can Do This"),
+    InvalidSupportAssigneeError: (400, "This User Does Not Handle This Case"),
+    UserSuspendedError: (403, "This Account Is Suspended"),
+    CannotSuspendSelfError: (400, "Admins Can Not Suspend Themselves"),
+    EventAlreadyReportedError: (409, "You Already Reported This Event"),
+    EventReportNotFoundError: (404, "Event Report Not Found"),
+    # --- end Dev B ---
     InvalidEventStatusError: (409, "Invalid Event Status"),
     EventNotReadyToPublishError: (400, "Event Not Ready To Publish"),
     RegistrationClosedError: (409, "Registration Is Not Open"),
@@ -39,7 +50,20 @@ ERRORS = {
     OrderNotPayableError: (409, "Order Can Not Be Paid"),
     OrderExpiredError: (409, "Checkout Time Expired"),
     OrderNotCancellableError: (409, "Order Can Not Be Cancelled"),
-    OrderNotRefundableError: (409, "Order Can Not Be Refunded")
+    OrderNotRefundableError: (409, "Order Can Not Be Refunded"),
+    InvalidImageError: (415, "File Must Be A JPEG, PNG Or WebP Image"),
+    ImageTooLargeError: (413, "Image Is Larger Than 5 MB"),
+    StorageNotConfiguredError: (503, "File Storage Is Not Configured"),
+    StorageUnavailableError: (503, "File Storage Is Unavailable"),
+    TicketNotPrintableError: (409, "Only Valid Tickets Can Be Printed"),
+    CampaignNotFoundError: (404, "Campaign Not Found"),
+    InvalidCampaignError: (400, "Invalid Campaign Settings"),
+    PromoCodeAlreadyExistsError: (409, "Promo Code Already Exists For This Event"),
+    PromoCodeNotFoundError: (404, "Promo Code Not Found"),
+    PromoCodeNotActiveError: (409, "Promo Code Is Not Active"),
+    PromoCodeUsedUpError: (409, "Promo Code Has Been Used Up"),
+    PromoCodeNotApplicableError: (409, "Promo Code Does Not Apply To These Tickets"),
+    CampaignLinkNotFoundError: (404, "Campaign Link Not Found")
 }
 
 async def exception_handler(request: Request, exc):

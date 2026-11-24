@@ -34,6 +34,37 @@ class InvalidTicketSalesTimeError(Exception):
 class InvalidRefreshTokenError(Exception):
     pass
 
+# --- Dev B: email verification and password reset (Feature 7) ---
+class InvalidAccountTokenError(Exception):
+    pass
+
+class EmailAlreadyVerifiedError(Exception):
+    pass
+
+# support cases (Feature 10)
+class SupportCaseNotFoundError(Exception):
+    pass
+
+class SupportCaseAccessDeniedError(Exception):
+    pass
+
+class InvalidSupportAssigneeError(Exception):
+    pass
+
+# admin tools (Feature 13)
+class UserSuspendedError(Exception):
+    pass
+
+class CannotSuspendSelfError(Exception):
+    pass
+
+class EventAlreadyReportedError(Exception):
+    pass
+
+class EventReportNotFoundError(Exception):
+    pass
+# --- end Dev B ---
+
 class InvalidEventStatusError(Exception):
     pass
 
@@ -104,4 +135,43 @@ class OrderNotCancellableError(Exception):
     pass
 
 class OrderNotRefundableError(Exception):
+    pass
+
+class InvalidImageError(Exception):
+    pass
+
+class ImageTooLargeError(Exception):
+    pass
+
+class StorageNotConfiguredError(Exception):
+    pass
+
+class StorageUnavailableError(Exception):
+    pass
+
+class TicketNotPrintableError(Exception):
+    pass
+
+class CampaignNotFoundError(Exception):
+    pass
+
+class InvalidCampaignError(Exception):
+    pass
+
+class PromoCodeAlreadyExistsError(Exception):
+    pass
+
+class PromoCodeNotFoundError(Exception):
+    pass
+
+class PromoCodeNotActiveError(Exception):
+    pass
+
+class PromoCodeUsedUpError(Exception):
+    pass
+
+class PromoCodeNotApplicableError(Exception):
+    pass
+
+class CampaignLinkNotFoundError(Exception):
     pass

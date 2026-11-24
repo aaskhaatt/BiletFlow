@@ -2,7 +2,7 @@
 import sys
 from helpers import E2E
 
-FIELDS = {"id", "email", "is_platform_admin", "organizer", "is_event_staff"}
+FIELDS = {"id", "email", "is_platform_admin", "email_verified", "organizer", "is_event_staff"}
 
 
 def main() -> bool:
@@ -21,6 +21,11 @@ def main() -> bool:
                 me["id"] == t.db_value("select id from users where email = :e", e=email) and me["email"] == email)
         t.check("attendee has no roles",
                 me["is_platform_admin"] is False and me["organizer"] is None and me["is_event_staff"] is False)
+        t.check("a new account isn't verified yet", me["email_verified"] is False)
+        token = t.db_rows("select data from email_outbox where to_email = :e and template = 'verify_email'", e=email)[0].data["token"]
+        t.call("POST", "/auth/verify-email", {"token": token})
+        _, me = t.call("GET", "/auth/me", token=user)
+        t.check("verified after opening the link", me["email_verified"] is True)
 
         # applied but not approved yet
         pending, _ = t.new_user()
