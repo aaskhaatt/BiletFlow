@@ -63,13 +63,14 @@ def update_ticket_type_service(user_id: int, ticket_type_id: int, ticket_type_da
         raise EventAccessDeniedError()
 
 
-    name = ticket_type_data.name if ticket_type_data.name is not None else ticket_type.name
-    description = ticket_type_data.description if ticket_type_data.description is not None else ticket_type.description
-    price = ticket_type_data.price if ticket_type_data.price is not None else ticket_type.price
-    quantity = ticket_type_data.quantity if ticket_type_data.quantity is not None else ticket_type.quantity
-    sales_start = ticket_type_data.sales_start if ticket_type_data.sales_start is not None else ticket_type.sales_start
-    sales_end = ticket_type_data.sales_end if ticket_type_data.sales_end is not None else ticket_type.sales_end
-    max_per_order = ticket_type_data.max_per_order if ticket_type_data.max_per_order is not None else ticket_type.max_per_order
+    # only the fields that were sent: one left out keeps its value, a description sent as null is cleared
+    sent = ticket_type_data.model_dump(exclude_unset=True)
+
+    def new(field: str):
+        return sent[field] if field in sent else getattr(ticket_type, field)
+
+    name, description, price, quantity = new("name"), new("description"), new("price"), new("quantity")
+    sales_start, sales_end, max_per_order = new("sales_start"), new("sales_end"), new("max_per_order")
 
     if sales_start >= sales_end:
         raise InvalidTicketSalesTimeError()

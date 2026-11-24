@@ -46,6 +46,8 @@ These are end-to-end tests in `backend/tests/e2e/`, one `test_<feature>.py` per 
 
 ### Environment variables (`backend/.env`, not committed)
 
+Start from the template: `cp .env.example .env` (in `backend/`), then set your own `SECRET_KEY`.
+
 | Variable | Purpose |
 |---|---|
 | `DATABASE_URL` | SQLAlchemy URL, e.g. `postgresql://postgres:postgres@localhost:5432/biletflow`. Inside Docker the host is `postgres`, not `localhost`. |
@@ -56,9 +58,12 @@ These are end-to-end tests in `backend/tests/e2e/`, one `test_<feature>.py` per 
 
 The app crashes at startup if any of these is missing.
 
-Email (optional): `SMTP_HOST` turns the email sender on (unset = emails stay `pending`); `SMTP_PORT` (1025, Mailpit), `MAIL_FROM` (`BiletFlow <no-reply@biletflow.local>`), `FRONTEND_URL` (`http://localhost:5173`, used for links in emails), `EMAIL_SEND_INTERVAL_SECONDS` (5).
-
-Optional, with defaults: `CORS_ORIGINS` (`http://localhost:5173`) is a comma-separated list of web app addresses allowed to call the API from a browser. `PORT` (8000) is only read by `start.sh` in the container. `ORDER_HOLD_MINUTES` (10) is how long a paid checkout holds its tickets. `ORDER_SWEEP_INTERVAL_SECONDS` (60) is how often the background sweeper releases expired holds; tests set it to 1.
+Optional, with defaults:
+- `CORS_ORIGINS` (`http://localhost:5173`): comma-separated web app addresses allowed to call the API from a browser (mobile apps don't need it). `PORT` (8000): only read by `start.sh` in the container.
+- `ORDER_HOLD_MINUTES` (10): how long a paid checkout holds its tickets. `ORDER_SWEEP_INTERVAL_SECONDS` (60): how often the background sweeper releases expired holds; tests set it to 1.
+- `FRONTEND_URL` (`http://localhost:5173`): the web app's address. Campaign QR links (and Dev B's email links) point there; use the HTTPS address once deployed.
+- `S3_ENDPOINT_URL`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET` (`biletflow-images`), `S3_REGION`, `S3_PUBLIC_URL`: event image storage, any S3-compatible service. Locally the `storage` service in docker-compose (RustFS; MinIO no longer publishes images): `docker compose up -d storage`. Without `S3_ENDPOINT_URL`, uploads answer 503 and the image tests skip. `S3_PUBLIC_URL` is only needed when browsers reach storage at another address than the API (inside Docker).
+- Email: `SMTP_HOST` turns the email sender on (unset = emails stay `pending`); `SMTP_PORT` (1025, Mailpit), `MAIL_FROM` (`BiletFlow <no-reply@biletflow.local>`), `FRONTEND_URL` (`http://localhost:5173`, used for links in emails), `EMAIL_SEND_INTERVAL_SECONDS` (5).
 
 ## Project structure
 
@@ -69,8 +74,10 @@ backend/
   Dockerfile            API image (runs as a non-root user); .dockerignore keeps .env/.venv/tests out
   database.py           engine, SessionLocal, Base, get_db dependency; accepts postgres:// URLs from hosts
   dependencies.py       get_current_user, require_platform_admin
-  security.py           password hashing, JWT, refresh token and ticket code generation
-  qr.py                 QR code PNG generation (reused by PDF tickets later)
+  security.py           password hashing, JWT, refresh token, ticket code and campaign token generation
+  qr.py                 QR codes: PNG for screens, a square matrix for PDFs (one place for the settings)
+  ticket_pdf.py         printable A4 PDF tickets (ReportLab); fonts in assets/fonts (DejaVu: Cyrillic and Kazakh)
+  storage.py            S3 file storage for event images: upload, copy, delete, public URLs
   background.py         sweeper that releases expired checkout holds; started by the lifespan in main.py
   exceptions.py         domain exceptions (plain Exception subclasses)
   exception_handlers.py maps domain exceptions to HTTP status + JSON error body
@@ -80,6 +87,8 @@ backend/
   services/             business rules, permission checks
   routers/              HTTP endpoints, thin: parse input, call service
   alembic/versions/     migrations
+  scripts/seed_demo.py  demo data in one command (see Running locally)
+  .env.example          every setting, with defaults and comments
   tests/run_all.py      runs every end-to-end test
   tests/e2e/            helpers.py (shared test tools) + one test_<feature>.py per feature
 ```
@@ -153,7 +162,7 @@ Done:
 - Ticket types: create, list, update, hide and unhide, `max_per_order` (default 10)
 - Unified error format for every error, including 401/403 from auth and FastAPI's 404/405; CORS for `http://localhost:5173`
 - Refresh tokens: stored as SHA-256 hashes, rotated on every refresh with an atomic `DELETE ... RETURNING`; logout always succeeds
-- Audit log (`audit_logs` table): event and ticket-type actions are logged in the same transaction as the change. There's no read endpoint yet; the timeline API is Feature 12.
+- Audit log (`audit_logs` table): every state change is logged in the same transaction as the change, and read back as the event timeline (`GET /events/{id}/history`).
 - Orders + free registration: `POST /events/{id}/orders`, `GET /orders/me`, `GET /orders/{id}`, `GET /events/{id}/attendees`. Tickets have random `T-` codes. Concurrency-tested: 20 simultaneous buyers for 5 tickets give exactly 5 tickets.
 - Ticket QR image: `GET /tickets/{id}/qr` returns a PNG for the ticket's owner (`qr.py`, using `qrcode` + `pypng`, error correction "Q" for paper tickets)
 - Staff + check-in (Feature 3):
@@ -198,6 +207,18 @@ Done:
   - All four and organizer approval are audit-logged (`user.suspended`, `event.suspended`, `organizer.approved`, ...).
 - Admin search and monitoring (Feature 13): `GET /admin/users` (`q`, `suspended`), `/admin/events` (`q`, `status`, `suspended`), `/admin/orders` (`q` = buyer email/name, `status`, `event_id`), `/admin/payments` (`status`, `purpose`, `event_id`; `status=failed` is the failed-payment monitor), `/admin/refunds` (`event_id`). All answer `{items, total}`, newest first, with `limit` (1–200, default 50) and `offset`; a numeric `q` also matches the id; `%`/`_` in `q` are literal. `?format=csv` downloads every matching row as UTF-8 CSV with a BOM (Excel-friendly).
 - Event reports (Feature 13, `event_reports`): `POST /events/{id}/reports` `{reason, details?}` (signed in, public events only; one per user per event, 409 `EventAlreadyReportedError`, guaranteed by a unique constraint). Admins: `GET /admin/event-reports?status=&event_id=` (same paging/CSV as the other admin lists) and `POST /admin/event-reports/{id}/review` `{status: dismissed|actioned, note?}`, audit-logged as `event_report.reviewed`. Suspending the event is a separate admin action.
+- Phase 2, Dev A:
+  - Event search: `GET /events?q=&category=&date_from=&date_to=&include_past=&limit=&offset=` answers `{items, total}` (soonest first, ended events hidden by default); `GET /events/categories`.
+  - Event cover images: `PUT/DELETE /events/{id}/image` (multipart `file`; JPEG, PNG or WebP, 5 MB; type checked from the bytes); `image_url` on every event. `image_key` is stored, the URL is built on read.
+  - Ticket types: `GET /events/{id}/ticket-types/manage` (organizer: hidden types and drafts included). The public list follows the public event page's rules (private events answer 404).
+  - PDF tickets: `GET /tickets/{id}/pdf` and `GET /orders/{id}/pdf`, buyer only, valid or checked-in tickets only (409 `TicketNotPrintableError`). Times print in UTC+5; `Cache-Control: no-store`.
+  - Promo codes (`promo_campaigns`): `POST/GET /events/{id}/campaigns`, `GET/PATCH /campaigns/{id}`; percent or fixed KZT, dates, a use limit and optional ticket types. `promo_code` on orders; `POST /events/{id}/orders/preview` prices a checkout without reserving. Uses are taken by an atomic `UPDATE` (lock order: ... ticket types -> campaigns) and come back in `release_order_inventory` (expiry, cancel, refund). Orders store `campaign_id`, `promo_code`, `discount_amount`; `total_amount` is after the discount.
+  - Campaign QR: an opaque `C-` token per campaign; `GET /campaigns/{id}/qr` (PNG, organizer), public `GET /campaign-links/{token}` (event + code to pre-fill, counts `link_opens`). The scanner rejects `C-` codes.
+  - Organizer analytics: `GET /events/{id}/analytics?date_from=&date_to=&ticket_type_id=`: capacity, money (same definitions as `/sales`), check-in %, sales per day in UTC+5, per ticket type, per campaign.
+  - Event history and lifecycle: `GET /events/{id}/history?type=&action=&date_from=&date_to=` over the audit log; `lifecycle` (draft/upcoming/active/completed/cancelled) on every event, filter `GET /events/me?lifecycle=`; `POST /events/{id}/duplicate` copies an event and its ticket types into a draft (optional new `start_time` shifts all dates; the image is copied, not shared).
+  - Order and event emails (`services/notification_service.py`): order confirmed, payment failed, order cancelled, order refunded, event updated (published event's start, end or venue; one email per ticket holder) and event cancelled (one per affected person, no extra per-order emails). Queued in the same transaction as the action.
+  - Demo data: `scripts/seed_demo.py`.
+  - PATCH semantics: a field left out keeps its value, `null` clears an optional field, and required fields refuse `null` (422). Services read `model_dump(exclude_unset=True)`; see `schemas/partial.py`.
 
 Roadmap (build in this order; each feature must work end to end before the next):
 
@@ -210,30 +231,26 @@ Phase 1, core ticketing:
 6. Cancellations + refunds (4.9)
 
 Phase 2, rest of the required MVP:
-7. Email notifications + email verification + password reset (4.1, 4.10)
-8. Printable PDF tickets (4.7)
-9. Promo codes + Campaign QR codes (4.14)
-10. Support cases (4.13)
-11. Organizer analytics (4.15)
-12. Event history, activity timeline, duplicate event (4.16)
-13. Platform admin tools (4.12)
+7. Email notifications + email verification + password reset (4.1, 4.10). Done (accounts and sender: Dev B; order and event emails: Dev A).
+8. Printable PDF tickets (4.7). Done.
+9. Promo codes + Campaign QR codes (4.14). Done.
+10. Support cases (4.13). Done.
+11. Organizer analytics (4.15). Done.
+12. Event history, activity timeline, duplicate event (4.16). Done.
+13. Platform admin tools (4.12). Done (two review follow-ups open, see Known issues).
 
 Automated tests (API, payment, QR validation) are required (SRS §9) and should grow with each feature.
 
 Phase 3, bonus (only after Phases 1–2): assigned seating, calendar .ics export, kk/ru/en localization.
 
-Known issues / polish later (features come first; fix these near the end):
-- Ticket-type URLs are inconsistent: `/events/{id}/ticket-type` (singular), `/ticket-types/{id}` and `/ticket_types/{id}/hide` (underscore). Fix together with the frontend developer.
-- Tests run against the development database. A separate test database would be safer.
-- Gaps found while documenting the API for the mobile app:
-  - `GET /events` has no search, filters or paging, and events have no images.
-  - `GET /events/{id}/ticket-types` returns 404 for drafts and skips hidden types, even for the organizer.
-- **Bug: email case.** Pydantic lowercases only the domain, so `Ann@x.com` and `ann@x.com` are different accounts, and login is case-sensitive before the `@`. Fix: lowercase emails in `UserCreate`/`UserLogin` (and existing rows) plus a case-insensitive unique index.
-- **Bug: private events leak ticket types.** `get_ticket_types_by_event_id_service` checks `status == published` but not `visibility != private`.
+Known issues / polish later:
+- Ticket-type URLs are inconsistent: `/events/{id}/ticket-type` (singular), `/ticket-types/{id}` and `/ticket_types/{id}/hide` (underscore). Renaming breaks the frontend's client, so only together with the frontend developers.
+- Endpoint function names are inconsistent (`user_login` vs `refresh_token_router`). Renaming changes operation IDs, so the same applies.
+- Tests run against the development database. A separate test database would be safer (Dev B, week 4).
+- Expired refresh tokens are only deleted when someone tries to use them; there's no cleanup job (Dev B, week 4).
+- Private events can't be reached by anyone except the organizer; invite links would be a later feature.
+- Analytics money is per order, so the ticket-type filter doesn't split gross or discounts (a discount covers the whole order). Documented in `schemas/analytics.py`.
 - Client-facing auth and permission rules are documented in `docs/auth-and-roles.md`. Update it when permissions change.
-- No `.env.example`.
-- `AccessTokenResponse` in `schemas/token.py` is unused.
-- Expired refresh tokens are only deleted when someone tries to use them; there's no cleanup job.
-- Update endpoints use "value if not None else old value", so a field can never be cleared back to null (e.g. removing a category). Fix with `model_dump(exclude_unset=True)`.
-- Private events can't be reached by anyone except the organizer yet; invite links are a later feature.
-- Endpoint function names are inconsistent (`user_login` vs `refresh_token_router`). Renaming changes operation IDs, so coordinate with the frontend.
+- **Email case** (`Ann@x.com` vs `ann@x.com` are different accounts): fixed in Dev B's open PR #13.
+- `users.email_verified_at` is recorded but not enforced. Decision: attendees don't have to verify before ordering.
+- Review follow-ups for Dev B: CSV exports must neutralize cells starting with `=`, `+`, `-` or `@` (formula injection), and `reserve_event_capacity` plus `pay_order_service` must refuse suspended events (race between the check and the reservation).
