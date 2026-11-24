@@ -39,7 +39,14 @@ ERRORS = {
     OrderNotPayableError: (409, "Order Can Not Be Paid"),
     OrderExpiredError: (409, "Checkout Time Expired"),
     OrderNotCancellableError: (409, "Order Can Not Be Cancelled"),
-    OrderNotRefundableError: (409, "Order Can Not Be Refunded")
+    OrderNotRefundableError: (409, "Order Can Not Be Refunded"),
+    CampaignNotFoundError: (404, "Campaign Not Found"),
+    InvalidCampaignError: (400, "Invalid Campaign Settings"),
+    PromoCodeAlreadyExistsError: (409, "Promo Code Already Exists For This Event"),
+    PromoCodeNotFoundError: (404, "Promo Code Not Found"),
+    PromoCodeNotActiveError: (409, "Promo Code Is Not Active"),
+    PromoCodeUsedUpError: (409, "Promo Code Has Been Used Up"),
+    PromoCodeNotApplicableError: (409, "Promo Code Does Not Apply To These Tickets")
 }
 
 async def exception_handler(request: Request, exc):
