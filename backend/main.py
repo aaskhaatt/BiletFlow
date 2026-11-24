@@ -12,6 +12,7 @@ from routers.staff import router as staff_router
 from routers.check_in import router as check_in_router
 from routers.paid_sales import router as paid_sales_router
 from routers.campaigns import router as campaigns_router
+from routers.analytics import router as analytics_router
 from routers.admin import router as admin_router
 from fastapi.exceptions import RequestValidationError
 from exception_handlers import ERRORS, exception_handler, validation_exception_handler
@@ -54,6 +55,7 @@ app.include_router(staff_router)
 app.include_router(check_in_router)
 app.include_router(paid_sales_router)
 app.include_router(campaigns_router)
+app.include_router(analytics_router)
 app.include_router(admin_router)
 
 app.add_middleware(

@@ -1,8 +1,9 @@
 from datetime import datetime
-from sqlalchemy import select, update, func, or_
+from sqlalchemy import select, update, func, or_, and_
 from sqlalchemy.orm import Session, selectinload
 from models import PromoCampaign, Order, OrderItem, TicketType
 from exceptions import CampaignNotFoundError, PromoCodeNotFoundError, CampaignLinkNotFoundError
+from repositories.order_repository import sold_between
 
 
 def create_campaign(event_id: int, name: str, code: str, discount_type: str, discount_value: int,
@@ -102,12 +103,14 @@ def release_campaign_redemption(campaign_id: int, db: Session):
     db.execute(stmt)
 
 
-def get_campaign_stats(event_id: int, db: Session) -> dict[int, dict]:
-    """Per campaign of the event: paid orders, tickets, gross, discount and net. One query for all of them."""
+def get_campaign_stats(event_id: int, db: Session, sold_from: datetime | None = None,
+                       sold_to: datetime | None = None) -> dict[int, dict]:
+    """Per campaign of the event: paid orders, tickets, gross, discount and net. One query for all of them.
+    With dates, only orders sold in that period count (analytics filters)."""
     # tickets per order, summed first: joining items straight to orders would count each order's total once per item
     quantities = (select(OrderItem.order_id, func.sum(OrderItem.quantity).label("tickets"))
                   .group_by(OrderItem.order_id).subquery())
-    paid = Order.status == "confirmed"
+    paid = and_(Order.status == "confirmed", *sold_between(sold_from, sold_to))
     stmt = (
         select(
             PromoCampaign.id,
