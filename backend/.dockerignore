@@ -1,0 +1,8 @@
+# Never ship local secrets or the local virtualenv inside the image
+.env
+.env.*
+.venv/
+__pycache__/
+*.pyc
+# tests and their output aren't needed to run the API
+tests/

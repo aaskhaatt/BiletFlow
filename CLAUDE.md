@@ -29,7 +29,9 @@ uvicorn main:app --reload                # API on http://localhost:8000, docs at
 
 Demo data: `python scripts/seed_demo.py` (from `backend/`) creates an admin, an organizer, staff, 10 attendees and 4 events (paid with promo codes, live with check-ins, completed, draft) through the real services. `--reset` recreates it, `--clear` removes it. Accounts are `@demo.example.com`; the shared password is `DEMO_PASSWORD` in the script. It refuses non-local databases unless given `--allow-remote`.
 
-Full stack in Docker: `docker compose up --build` (from the repo root).
+Full stack in Docker: `docker compose up --build` (from the repo root). The API container applies migrations itself at start (`backend/start.sh`).
+
+Shared test server (Render, or any server with Docker): see `docs/deploy.md`. `render.yaml` at the repo root describes it.
 
 ### Tests
 
@@ -57,6 +59,7 @@ Start from the template: `cp .env.example .env` (in `backend/`), then set your o
 The app crashes at startup if any of these is missing.
 
 Optional, with defaults:
+- `CORS_ORIGINS` (`http://localhost:5173`): comma-separated web app addresses allowed to call the API from a browser (mobile apps don't need it). `PORT` (8000): only read by `start.sh` in the container.
 - `ORDER_HOLD_MINUTES` (10): how long a paid checkout holds its tickets. `ORDER_SWEEP_INTERVAL_SECONDS` (60): how often the background sweeper releases expired holds; tests set it to 1.
 - `FRONTEND_URL` (`http://localhost:5173`): the web app's address. Campaign QR links (and Dev B's email links) point there; use the HTTPS address once deployed.
 - `S3_ENDPOINT_URL`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET` (`biletflow-images`), `S3_REGION`, `S3_PUBLIC_URL`: event image storage, any S3-compatible service. Locally the `storage` service in docker-compose (RustFS; MinIO no longer publishes images): `docker compose up -d storage`. Without `S3_ENDPOINT_URL`, uploads answer 503 and the image tests skip. `S3_PUBLIC_URL` is only needed when browsers reach storage at another address than the API (inside Docker).
@@ -66,8 +69,10 @@ Optional, with defaults:
 
 ```
 backend/
-  main.py               app setup: routers, exception handlers, CORS
-  database.py           engine, SessionLocal, Base, get_db dependency
+  main.py               app setup: routers, exception handlers, CORS (from CORS_ORIGINS)
+  start.sh              container start: alembic upgrade head, then uvicorn on $PORT
+  Dockerfile            API image (runs as a non-root user); .dockerignore keeps .env/.venv/tests out
+  database.py           engine, SessionLocal, Base, get_db dependency; accepts postgres:// URLs from hosts
   dependencies.py       get_current_user, require_platform_admin
   security.py           password hashing, JWT, refresh token, ticket code and campaign token generation
   qr.py                 QR codes: PNG for screens, a square matrix for PDFs (one place for the settings)
@@ -112,6 +117,7 @@ backend/
 - Statuses are plain strings. Event: `draft` / `published` / `cancelled`. Organizer profile: `pending` / `approved`. Order: `pending` (F5) / `confirmed` / `cancelled` / `refunded` / `expired` (F5). Ticket: `valid` / `checked_in` / `cancelled` / `refunded`.
 - **Inventory** changes only through the atomic reserve queries (`reserve_ticket_type_inventory`, `reserve_event_capacity`): one `UPDATE ... WHERE sold + n <= limit RETURNING`. Never check availability in Python and then write, because that double-sells under concurrency.
 - Orders copy `unit_price`, `buyer_name` and `buyer_email` at purchase time (snapshots), so later edits never rewrite history.
+- **User emails are lowercase.** `NormalizedEmail` in `schemas/user.py` lowercases input, `get_user_by_email` matches case-insensitively, and the unique index `ux_users_email_lower` on `lower(email)` is the final guarantee. Use `NormalizedEmail` for any new request field that holds a user's email.
 - **Concurrency patterns.**
   1. When check and change fit in one statement: an atomic `UPDATE ... WHERE <condition> RETURNING` (inventory, check-in, refresh tokens, promo code uses).
   2. When something must happen in between (charging a payment): lock the row with `SELECT ... FOR UPDATE` **plus `.execution_options(populate_existing=True)`**. Without it, SQLAlchemy may return a stale cached copy after waiting for the lock.
@@ -187,6 +193,7 @@ Done:
   - **Phase 1 (core ticketing) is complete.**
   - `payments` table: all payments are `provider = "simulated"`, `is_simulated = true`, with `SIM-` references. Failed attempts are committed before raising so they stay on record.
 - All repositories flush and all services commit (see Conventions → Transactions)
+- Deployment: `GET /health` (503 if the database is down), migrations at container start, `CORS_ORIGINS`, `render.yaml` and `docs/deploy.md` for the shared test server.
 - `GET /auth/me`: `id`, `email`, `is_platform_admin`, `email_verified`, `organizer` (`{id, user_id, status}` or null) and `is_event_staff` (assigned to at least one non-draft event, the same rule as `GET /staff/events`). The apps call it after login to pick which screens to show; an organizer can scan their own events even when `is_event_staff` is false.
 - Email outbox (Feature 7): `queue_email(...)`, the `email_outbox` table, and the background SMTP sender with retries, templates for every `EMAIL_TEMPLATES` key, Mailpit in Docker Compose (see Conventions → Emails). Registration queues the verification email.
 - Email verification and password reset (Feature 7, `account_tokens` table): register queues a `verify_email` link (24 h); `POST /auth/verify-email` `{token}`, `POST /auth/resend-verification` (signed in; 409 if already verified), `POST /auth/forgot-password` `{email}` (always the same 200, so it reveals nothing), `POST /auth/reset-password` `{token, new_password}` (1 h link; signs out every session). Tokens are stored as SHA-256 hashes and used up atomically (`DELETE ... RETURNING`); a new link replaces the old one. Bad, expired or used links: 400 `InvalidAccountTokenError`. `users.email_verified_at` is recorded but **not enforced** yet (open decision: must users verify before ordering?).
@@ -214,6 +221,7 @@ Done:
   - Demo data: `scripts/seed_demo.py`.
   - PATCH semantics: a field left out keeps its value, `null` clears an optional field, and required fields refuse `null` (422). Services read `model_dump(exclude_unset=True)`; see `schemas/partial.py`.
   - SRS gaps closed after a line-by-line check: `GET /events/{id}/orders` (organizer: orders with payment reference and refund details, `status`/`q`/paging); `attendee_names` per order item (stored on `order_items` until tickets are issued); `GET /events/{id}/manage` (preview a draft); `refunded` and `checked_in` per ticket type in `/sales`; `absent` in analytics; platform admins can read event history; the Campaign QR PNG has an orange frame and a "NOT AN ENTRY TICKET" caption.
+- Case-insensitive emails: `Ann@x.com` and `ann@x.com` are one account (register, login, staff assignment, order snapshots). Simultaneous sign-ups with the same address give one 201 and 409s instead of a 500.
 
 Roadmap (build in this order; each feature must work end to end before the next):
 
@@ -246,6 +254,5 @@ Known issues / polish later:
 - Private events can't be reached by anyone except the organizer; invite links would be a later feature.
 - Analytics money is per order, so the ticket-type filter doesn't split gross or discounts (a discount covers the whole order). Documented in `schemas/analytics.py`.
 - Client-facing auth and permission rules are documented in `docs/auth-and-roles.md`. Update it when permissions change.
-- **Email case** (`Ann@x.com` vs `ann@x.com` are different accounts): fixed in Dev B's open PR #13.
 - `users.email_verified_at` is recorded but not enforced. Decision: attendees don't have to verify before ordering.
 - Review follow-ups for Dev B: CSV exports must neutralize cells starting with `=`, `+`, `-` or `@` (formula injection), and `reserve_event_capacity` plus `pay_order_service` must refuse suspended events (race between the check and the reservation).

@@ -53,6 +53,8 @@ ERRORS = {
     OrderExpiredError: (409, "Checkout Time Expired"),
     OrderNotCancellableError: (409, "Order Can Not Be Cancelled"),
     OrderNotRefundableError: (409, "Order Can Not Be Refunded"),
+    # deployment
+    DatabaseUnavailableError: (503, "Database Unavailable"),
     # authentication (dependencies.py)
     NotAuthenticatedError: (401, "Not Authenticated"),
     InvalidTokenError: (401, "Invalid Or Expired Token"),

@@ -1,7 +1,7 @@
 """add attendee names to order items
 
 Revision ID: 888f416ce654
-Revises: af3060d15bd6
+Revises: ce8874a248b9
 Create Date: 2026-11-25 01:09:28.572985
 
 """
@@ -13,7 +13,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '888f416ce654'
-down_revision: Union[str, Sequence[str], None] = 'af3060d15bd6'
+down_revision: Union[str, Sequence[str], None] = 'ce8874a248b9'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

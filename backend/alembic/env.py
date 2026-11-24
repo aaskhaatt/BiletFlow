@@ -5,7 +5,7 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from database import Base
+from database import Base, DATABASE_URL
 import os
 from dotenv import load_dotenv
 import models
@@ -13,10 +13,11 @@ import models
 # access to the values within the .ini file in use.
 
 load_dotenv()
-DATABASE_URL = os.getenv("DATABASE_URL")
+# the same URL the app uses: database.py has already turned the host's "postgres://" into "postgresql://"
 
 config = context.config
-config.set_main_option("sqlalchemy.url", DATABASE_URL)
+# "%" is special in Alembic's config file format, so a "%" in a password must be doubled
+config.set_main_option("sqlalchemy.url", DATABASE_URL.replace("%", "%%"))
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
