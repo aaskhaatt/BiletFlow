@@ -27,6 +27,8 @@ alembic upgrade head                     # apply migrations
 uvicorn main:app --reload                # API on http://localhost:8000, docs at /docs
 ```
 
+Demo data: `python scripts/seed_demo.py` (from `backend/`) creates an admin, an organizer, staff, 10 attendees and 4 events (paid with promo codes, live with check-ins, completed, draft) through the real services. `--reset` recreates it, `--clear` removes it. Accounts are `@demo.example.com`; the shared password is `DEMO_PASSWORD` in the script. It refuses non-local databases unless given `--allow-remote`.
+
 Full stack in Docker: `docker compose up --build` (from the repo root).
 
 ### Tests
@@ -58,6 +60,7 @@ Optional, with defaults:
 - `ORDER_HOLD_MINUTES` (10): how long a paid checkout holds its tickets. `ORDER_SWEEP_INTERVAL_SECONDS` (60): how often the background sweeper releases expired holds; tests set it to 1.
 - `FRONTEND_URL` (`http://localhost:5173`): the web app's address. Campaign QR links (and Dev B's email links) point there; use the HTTPS address once deployed.
 - `S3_ENDPOINT_URL`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET` (`biletflow-images`), `S3_REGION`, `S3_PUBLIC_URL`: event image storage, any S3-compatible service. Locally the `storage` service in docker-compose (RustFS; MinIO no longer publishes images): `docker compose up -d storage`. Without `S3_ENDPOINT_URL`, uploads answer 503 and the image tests skip. `S3_PUBLIC_URL` is only needed when browsers reach storage at another address than the API (inside Docker).
+- Email: `SMTP_HOST` turns the email sender on (unset = emails stay `pending`); `SMTP_PORT` (1025, Mailpit), `MAIL_FROM` (`BiletFlow <no-reply@biletflow.local>`), `FRONTEND_URL` (`http://localhost:5173`, used for links in emails), `EMAIL_SEND_INTERVAL_SECONDS` (5).
 
 ## Project structure
 
@@ -94,6 +97,8 @@ backend/
 - Register every new exception in the `ERRORS` dict in `exception_handlers.py` with `(status_code, message)`, or it becomes a 500.
 - Error response body: `{"error": "<ExceptionName>", "message": "...", "fields": null}`.
 - Validation errors return 422 with `{"error": "VALIDATION_ERROR", "message": "Invalid data", "fields": {field: msg}}`.
+- Auth errors from `dependencies.py` use the same body: 401 `NotAuthenticatedError` (no token) or `InvalidTokenError` (bad, expired or forged token, or the user was deleted), both with `WWW-Authenticate: Bearer`; 403 `PlatformAdminRequiredError`. Clients refresh the token on any 401 from a protected endpoint.
+- FastAPI's own errors (unknown URL, wrong method) are converted too: `{"error": "NOT_FOUND" | "METHOD_NOT_ALLOWED" | ..., "message": ..., "fields": null}`. No response anywhere uses `{"detail": ...}`.
 - `get_*_by_id`-style repository functions raise `<Entity>NotFoundError` instead of returning `None`.
 
 **Authorization.**
@@ -134,6 +139,14 @@ backend/
 - For updates, collect "old -> new" for important fields (price, capacity) **before** calling the repository, then put them in the description.
 - Audit rows are never updated or deleted by the app.
 
+**Emails.**
+- Any action that should email someone calls `queue_email(db, to, template, data)` from `services/email_service.py`, **before** the commit, exactly like `log_action`.
+- It only saves a row in `email_outbox` (status `pending`) in the same transaction, so a rolled-back action never emails anyone. The background sender (`send_due_emails`, started by `main.py` only when `SMTP_HOST` is set) sends them every few seconds, oldest first, and retries failures with backoff (1, 2, 4, 8 min; `failed` after 5 attempts). Subjects and bodies live in `services/email_templates.py`.
+- `template` must be a key of `EMAIL_TEMPLATES`, which also lists the `data` keys each template uses. Agree on a new name with the other developer before adding one.
+- `data` must be JSON-safe: pass ids, strings and numbers, and datetimes as `.isoformat()` strings. An unknown template or non-JSON data raises at once (a programming error, not a domain exception).
+- Local demo: `docker compose up -d mailpit`, put `SMTP_HOST=localhost` in `backend/.env`, and every email shows up at http://localhost:8025. The e2e test servers always run with the sender off.
+- Pass the address from the order snapshot (`order.buyer_email`), not from the current user, so history stays correct.
+
 ## Status (update as features land)
 
 Done:
@@ -142,7 +155,7 @@ Done:
 - Organizer apply and admin approve
 - Events: create, update, publish, unpublish, cancel, list published, list mine, public `GET /events/{id}`. Venue, category, capacity, visibility (public/unlisted/private) and a registration window. Publishing needs a venue; drafts and private events return 404 publicly.
 - Ticket types: create, list, update, hide and unhide, `max_per_order` (default 10)
-- Unified error format, CORS for `http://localhost:5173`
+- Unified error format for every error, including 401/403 from auth and FastAPI's 404/405; CORS for `http://localhost:5173`
 - Refresh tokens: stored as SHA-256 hashes, rotated on every refresh with an atomic `DELETE ... RETURNING`; logout always succeeds
 - Audit log (`audit_logs` table): every state change is logged in the same transaction as the change, and read back as the event timeline (`GET /events/{id}/history`).
 - Orders + free registration: `POST /events/{id}/orders`, `GET /orders/me`, `GET /orders/{id}`, `GET /events/{id}/attendees`. Tickets have random `T-` codes. Concurrency-tested: 20 simultaneous buyers for 5 tickets give exactly 5 tickets.
@@ -174,6 +187,20 @@ Done:
   - **Phase 1 (core ticketing) is complete.**
   - `payments` table: all payments are `provider = "simulated"`, `is_simulated = true`, with `SIM-` references. Failed attempts are committed before raising so they stay on record.
 - All repositories flush and all services commit (see Conventions → Transactions)
+- `GET /auth/me`: `id`, `email`, `is_platform_admin`, `email_verified`, `organizer` (`{id, user_id, status}` or null) and `is_event_staff` (assigned to at least one non-draft event, the same rule as `GET /staff/events`). The apps call it after login to pick which screens to show; an organizer can scan their own events even when `is_event_staff` is false.
+- Email outbox (Feature 7): `queue_email(...)`, the `email_outbox` table, and the background SMTP sender with retries, templates for every `EMAIL_TEMPLATES` key, Mailpit in Docker Compose (see Conventions → Emails). Registration queues the verification email.
+- Email verification and password reset (Feature 7, `account_tokens` table): register queues a `verify_email` link (24 h); `POST /auth/verify-email` `{token}`, `POST /auth/resend-verification` (signed in; 409 if already verified), `POST /auth/forgot-password` `{email}` (always the same 200, so it reveals nothing), `POST /auth/reset-password` `{token, new_password}` (1 h link; signs out every session). Tokens are stored as SHA-256 hashes and used up atomically (`DELETE ... RETURNING`); a new link replaces the old one. Bad, expired or used links: 400 `InvalidAccountTokenError`. `users.email_verified_at` is recorded but **not enforced** yet (open decision: must users verify before ordering?).
+- Support cases (Feature 10, `services/support_service.py`, `support_cases` + `support_messages`):
+  - `POST /support/cases` with `kind`: `attendee` (exactly one of `event_id` / `order_id` / `ticket_id`; the server fills in the rest and checks the user owns the order/ticket) or `platform` (organizers only, optional own `event_id`). Categories per kind are in `schemas/support.py`.
+  - `GET /support/cases/me`, `GET /support/cases/inbox?kind=&status=` (organizer: attendee cases about their events; platform admin: everything), `GET /support/cases/{id}` (case + thread; clients poll it), `POST .../messages`, `PATCH .../status`, `PATCH .../assignee` (`{user_id}` or null).
+  - Readers: the requester and the handlers (event organizer for attendee cases, platform admins for all). Anyone else gets 404. Only handlers change status/assignee (403 otherwise); assignees must be handlers. A requester's reply reopens a `waiting_for_customer` or `resolved` case.
+  - Emails: replies notify the other side (assignee first), status changes notify the requester, assignment notifies the assignee. Status changes and assignments are audit-logged (`support_case.status_changed`, `support_case.assigned`).
+- Admin suspensions (Feature 13, `services/admin_service.py`):
+  - `POST /admin/users/{id}/suspend` `{reason}` / `.../unsuspend`: sets `users.suspended_at` + `suspension_reason`, signs the user out everywhere. Suspended users get 403 `UserSuspendedError` at login (after the password check) and on every request (`get_current_user`). Admins can't suspend themselves.
+  - `POST /admin/events/{id}/suspend` `{reason}` / `.../unsuspend`: a suspended event is hidden from `GET /events` and `GET /events/{id}` (404) and takes no new orders (404); the organizer still sees it in `/events/me`; issued tickets still scan.
+  - All four and organizer approval are audit-logged (`user.suspended`, `event.suspended`, `organizer.approved`, ...).
+- Admin search and monitoring (Feature 13): `GET /admin/users` (`q`, `suspended`), `/admin/events` (`q`, `status`, `suspended`), `/admin/orders` (`q` = buyer email/name, `status`, `event_id`), `/admin/payments` (`status`, `purpose`, `event_id`; `status=failed` is the failed-payment monitor), `/admin/refunds` (`event_id`). All answer `{items, total}`, newest first, with `limit` (1–200, default 50) and `offset`; a numeric `q` also matches the id; `%`/`_` in `q` are literal. `?format=csv` downloads every matching row as UTF-8 CSV with a BOM (Excel-friendly).
+- Event reports (Feature 13, `event_reports`): `POST /events/{id}/reports` `{reason, details?}` (signed in, public events only; one per user per event, 409 `EventAlreadyReportedError`, guaranteed by a unique constraint). Admins: `GET /admin/event-reports?status=&event_id=` (same paging/CSV as the other admin lists) and `POST /admin/event-reports/{id}/review` `{status: dismissed|actioned, note?}`, audit-logged as `event_report.reviewed`. Suspending the event is a separate admin action.
 - Phase 2, Dev A:
   - Event search: `GET /events?q=&category=&date_from=&date_to=&include_past=&limit=&offset=` answers `{items, total}` (soonest first, ended events hidden by default); `GET /events/categories`.
   - Event cover images: `PUT/DELETE /events/{id}/image` (multipart `file`; JPEG, PNG or WebP, 5 MB; type checked from the bytes); `image_url` on every event. `image_key` is stored, the URL is built on read.
@@ -183,6 +210,7 @@ Done:
   - Campaign QR: an opaque `C-` token per campaign; `GET /campaigns/{id}/qr` (PNG, organizer), public `GET /campaign-links/{token}` (event + code to pre-fill, counts `link_opens`). The scanner rejects `C-` codes.
   - Organizer analytics: `GET /events/{id}/analytics?date_from=&date_to=&ticket_type_id=`: capacity, money (same definitions as `/sales`), check-in %, sales per day in UTC+5, per ticket type, per campaign.
   - Event history and lifecycle: `GET /events/{id}/history?type=&action=&date_from=&date_to=` over the audit log; `lifecycle` (draft/upcoming/active/completed/cancelled) on every event, filter `GET /events/me?lifecycle=`; `POST /events/{id}/duplicate` copies an event and its ticket types into a draft (optional new `start_time` shifts all dates; the image is copied, not shared).
+  - Order and event emails (`services/notification_service.py`): order confirmed, payment failed, order cancelled, order refunded, event updated (published event's start, end or venue; one email per ticket holder) and event cancelled (one per affected person, no extra per-order emails). Queued in the same transaction as the action.
   - Demo data: `scripts/seed_demo.py`.
   - PATCH semantics: a field left out keeps its value, `null` clears an optional field, and required fields refuse `null` (422). Services read `model_dump(exclude_unset=True)`; see `schemas/partial.py`.
 
@@ -197,13 +225,13 @@ Phase 1, core ticketing:
 6. Cancellations + refunds (4.9)
 
 Phase 2, rest of the required MVP:
-7. Email notifications + email verification + password reset (4.1, 4.10). Dev B, in review; then Dev A adds `queue_email` calls to orders, payments, cancellations and refunds.
+7. Email notifications + email verification + password reset (4.1, 4.10). Done (accounts and sender: Dev B; order and event emails: Dev A).
 8. Printable PDF tickets (4.7). Done.
 9. Promo codes + Campaign QR codes (4.14). Done.
-10. Support cases (4.13). Dev B, in review.
+10. Support cases (4.13). Done.
 11. Organizer analytics (4.15). Done.
 12. Event history, activity timeline, duplicate event (4.16). Done.
-13. Platform admin tools (4.12). Dev B, in review.
+13. Platform admin tools (4.12). Done (two review follow-ups open, see Known issues).
 
 Automated tests (API, payment, QR validation) are required (SRS §9) and should grow with each feature.
 
@@ -217,3 +245,6 @@ Known issues / polish later:
 - Private events can't be reached by anyone except the organizer; invite links would be a later feature.
 - Analytics money is per order, so the ticket-type filter doesn't split gross or discounts (a discount covers the whole order). Documented in `schemas/analytics.py`.
 - Client-facing auth and permission rules are documented in `docs/auth-and-roles.md`. Update it when permissions change.
+- **Email case** (`Ann@x.com` vs `ann@x.com` are different accounts): fixed in Dev B's open PR #13.
+- `users.email_verified_at` is recorded but not enforced. Decision: attendees don't have to verify before ordering.
+- Review follow-ups for Dev B: CSV exports must neutralize cells starting with `=`, `+`, `-` or `@` (formula injection), and `reserve_event_capacity` plus `pay_order_service` must refuse suspended events (race between the check and the reservation).

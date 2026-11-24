@@ -3,6 +3,7 @@ import logging
 import os
 from database import SessionLocal
 from services.order_service import expire_overdue_orders_service
+from services.email_service import send_due_emails
 
 logger = logging.getLogger("biletflow.background")
 
@@ -30,3 +31,27 @@ async def sweep_expired_orders_forever():
         except Exception:
             # one failed sweep (e.g. database briefly down) must not stop all future sweeps
             logger.exception("expired order sweep failed")
+
+
+# --- email outbox sender (Dev B, Feature 7) ---------------------------------------------------
+# main.py starts it only when SMTP_HOST is set, so tests and CI never try to reach a mail server
+EMAIL_SEND_INTERVAL_SECONDS = float(os.getenv("EMAIL_SEND_INTERVAL_SECONDS", "5"))
+
+
+def _send_emails_once():
+    db = SessionLocal()
+    try:
+        sent = send_due_emails(db)
+        if sent:
+            logger.info("sent %s email(s)", sent)
+    finally:
+        db.close()
+
+
+async def send_emails_forever():
+    while True:
+        await asyncio.sleep(EMAIL_SEND_INTERVAL_SECONDS)
+        try:
+            await asyncio.to_thread(_send_emails_once)
+        except Exception:
+            logger.exception("email sending failed")

@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
-from repositories.event_repository import lock_event, update_event_status
+from repositories.event_repository import lock_event, update_event_status, get_event_by_id
 from repositories.order_repository import get_order_by_id, lock_order, lock_open_orders_for_event
 from repositories.ticket_repository import set_order_tickets_status
 from repositories.payment_repository import get_succeeded_payment_for_order
@@ -8,6 +8,7 @@ from services.order_service import release_order_inventory
 from services.event_service import ensure_event_owner_service
 from services.payment_service import simulate_refund
 from services.audit_service import log_action
+from services.notification_service import notify_order_cancelled, notify_order_refunded, notify_event_cancelled
 from exceptions import (OrderNotFoundError, OrderNotCancellableError, OrderNotRefundableError, InvalidEventStatusError,
                         OrganizerNotFoundError, OrganizerNotApprovedError, EventAccessDeniedError)
 
@@ -33,7 +34,7 @@ def _lock_event_then_order(order_id: int, db: Session):
 
 
 
-def _cancel_order(order, actor_user_id: int, reason: str | None, db: Session):
+def _cancel_order(order, actor_user_id: int, reason: str | None, db: Session, notify: bool = True):
     # the order and its event must already be locked
     order.status = "cancelled"
     order.cancelled_at = datetime.now(timezone.utc)
@@ -43,10 +44,12 @@ def _cancel_order(order, actor_user_id: int, reason: str | None, db: Session):
     description = f"Cancelled order #{order.id}: {tickets} ticket(s) invalidated, {released} back on sale"
     log_action(db, actor_user_id, "order.cancelled", "order", order.id,
                description + (f" ({reason})" if reason else ""), event_id=order.event_id)
+    if notify:
+        notify_order_cancelled(db, order, get_event_by_id(order.event_id, db).title, reason)
 
 
 
-def _refund_order(order, actor_user_id: int, reason: str | None, db: Session):
+def _refund_order(order, actor_user_id: int, reason: str | None, db: Session, notify: bool = True):
     # the order and its event must already be locked; full refunds only (partial refunds are out of MVP scope)
     payment = get_succeeded_payment_for_order(order.id, db)
     refund = simulate_refund(order, payment, reason, actor_user_id, db)
@@ -59,6 +62,8 @@ def _refund_order(order, actor_user_id: int, reason: str | None, db: Session):
     log_action(db, actor_user_id, "order.refunded", "refund", refund.id,
                f"Refunded {order.total_amount} KZT for order #{order.id} ({refund.provider_reference}); "
                f"{tickets} ticket(s) invalidated" + (f" ({reason})" if reason else ""), event_id=order.event_id)
+    if notify:
+        notify_order_refunded(db, order, get_event_by_id(order.event_id, db).title, reason)
 
 
 
@@ -121,13 +126,17 @@ def cancel_event_service(user_id: int, event_id: int, db: Session):
     update_event_status(event, "cancelled", db)
 
     refunded, cancelled = 0, 0
+    # everyone affected gets ONE "event cancelled" email, instead of one per order on top of it
+    affected = set()
     for order in lock_open_orders_for_event(event.id, db):
+        affected.add(order.buyer_email)
         if order.status == "confirmed" and order.total_amount > 0:
-            _refund_order(order, user_id, "Event cancelled", db)
+            _refund_order(order, user_id, "Event cancelled", db, notify=False)
             refunded += 1
         else:
-            _cancel_order(order, user_id, "Event cancelled", db)
+            _cancel_order(order, user_id, "Event cancelled", db, notify=False)
             cancelled += 1
+    notify_event_cancelled(db, event, affected)
 
     log_action(db, user_id, "event.cancelled", "event", event.id,
                f'Cancelled event "{event.title}": {refunded} paid order(s) refunded, {cancelled} other order(s) cancelled',

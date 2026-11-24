@@ -13,6 +13,7 @@ from repositories.ticket_repository import create_ticket, get_attendees_by_event
 from repositories.paid_sales_repository import is_paid_sales_active
 from repositories.campaign_repository import redeem_campaign, release_campaign_redemption
 from services.campaign_service import resolve_promo_code
+from services.notification_service import notify_order_confirmed, notify_payment_failed
 from services.audit_service import log_action
 from services.organizer_service import ensure_organizer_approved_service
 from services.event_service import ensure_event_owner_service
@@ -85,8 +86,8 @@ def expire_overdue_orders_service(db: Session, event_id: int | None = None) -> i
 
 
 def _ensure_event_open(event, now: datetime):
-    # drafts and private events answer 404, the same as the public event page
-    if event.status != "published" or event.visibility == "private":
+    # drafts, private and suspended events answer 404, the same as the public event page
+    if event.status != "published" or event.visibility == "private" or event.suspended_at is not None:
         raise EventNotFoundError()
 
     if event.registration_opens_at is not None and now < event.registration_opens_at:
@@ -211,6 +212,7 @@ def create_order_service(user: User, event_id: int, order_data: OrderCreate, db:
     # SRS 4.6: tickets only exist after payment, so a paid order gets none yet
     if is_free:
         _issue_tickets(order, db)
+        notify_order_confirmed(db, order, event.title)
         description = f"Registered {total_quantity} free ticket(s), order #{order.id}"
     else:
         description = f"Started checkout for {total_quantity} ticket(s), {total_amount} KZT, order #{order.id}"
@@ -257,12 +259,14 @@ def pay_order_service(user_id: int, order_id: int, outcome: SimulatedOutcome, db
         log_action(db, user_id, "order.payment_failed", "payment", payment.id,
                    f"Simulated payment of {order.total_amount} KZT failed for order #{order.id}", event_id=order.event_id)
         # commit BEFORE raising so the failed attempt stays on record; the order stays pending and can be retried
+        notify_payment_failed(db, order, get_event_by_id(order.event_id, db).title)
         db.commit()
         raise PaymentFailedError()
 
     order.status = "confirmed"
     order.paid_at = now
     _issue_tickets(order, db)
+    notify_order_confirmed(db, order, get_event_by_id(order.event_id, db).title)
     log_action(db, user_id, "order.paid", "payment", payment.id,
                f"Paid {order.total_amount} KZT for order #{order.id} ({payment.provider_reference})", event_id=order.event_id)
 

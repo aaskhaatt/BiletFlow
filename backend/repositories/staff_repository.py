@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import select, delete, or_
+from sqlalchemy import select, delete, or_, exists
 from models import StaffAssignment, User, Event, OrganizerProfile
 
 
@@ -53,3 +53,13 @@ def get_events_for_staff(user_id: int, db: Session):
     )
 
     return db.scalars(stmt).all()
+
+
+def has_staff_assignments(user_id: int, db: Session) -> bool:
+    # same rule as get_events_for_staff: assignments to drafts don't count, the scanner can't see them
+    stmt = select(exists().where(
+        StaffAssignment.user_id == user_id,
+        StaffAssignment.event_id == Event.id,
+        Event.status != "draft",
+    ))
+    return db.scalar(stmt)
