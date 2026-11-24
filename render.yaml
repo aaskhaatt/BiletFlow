@@ -1,0 +1,39 @@
+# Render Blueprint for the shared test server: the API plus its own Postgres database.
+# How to use it: docs/deploy.md. Render creates both services from this file and
+# redeploys the API on every push to main.
+services:
+  - type: web
+    name: biletflow-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    autoDeploy: true
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: biletflow-db
+          property: connectionString
+      # Render generates a random value once and keeps it
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "30"
+      - key: REFRESH_TOKEN_EXPIRE_DAYS
+        value: "7"
+      # the hosted web app's address, filled in on the Render dashboard once it exists
+      - key: CORS_ORIGINS
+        sync: false
+
+databases:
+  - name: biletflow-db
+    plan: free
+    region: frankfurt
+    databaseName: biletflow
+    user: biletflow
+    postgresMajorVersion: "16"

@@ -25,6 +25,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 
   api:
@@ -36,11 +41,17 @@ services:
     env_file:
       - ./backend/.env
     environment:
+      # inside Docker the database host is the "postgres" service, not localhost from backend/.env
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/biletflow
       SMTP_HOST: mailpit
       SMTP_PORT: "1025"
     depends_on:
-      - postgres
-      - mailpit
+      postgres:
+        # start the API only when Postgres accepts connections; the API then applies migrations itself
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    restart: unless-stopped
 
 
   # fake inbox for the demo: every email the API sends shows up at http://localhost:8025

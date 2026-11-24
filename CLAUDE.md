@@ -29,7 +29,9 @@ uvicorn main:app --reload                # API on http://localhost:8000, docs at
 
 Demo data: `python scripts/seed_demo.py` (from `backend/`) creates an admin, an organizer, staff, 10 attendees and 4 events (paid with promo codes, live with check-ins, completed, draft) through the real services. `--reset` recreates it, `--clear` removes it. Accounts are `@demo.example.com`; the shared password is `DEMO_PASSWORD` in the script. It refuses non-local databases unless given `--allow-remote`.
 
-Full stack in Docker: `docker compose up --build` (from the repo root).
+Full stack in Docker: `docker compose up --build` (from the repo root). The API container applies migrations itself at start (`backend/start.sh`).
+
+Shared test server (Render, or any server with Docker): see `docs/deploy.md`. `render.yaml` at the repo root describes it.
 
 ### Tests
 
@@ -57,6 +59,7 @@ Start from the template: `cp .env.example .env` (in `backend/`), then set your o
 The app crashes at startup if any of these is missing.
 
 Optional, with defaults:
+- `CORS_ORIGINS` (`http://localhost:5173`): comma-separated web app addresses allowed to call the API from a browser (mobile apps don't need it). `PORT` (8000): only read by `start.sh` in the container.
 - `ORDER_HOLD_MINUTES` (10): how long a paid checkout holds its tickets. `ORDER_SWEEP_INTERVAL_SECONDS` (60): how often the background sweeper releases expired holds; tests set it to 1.
 - `FRONTEND_URL` (`http://localhost:5173`): the web app's address. Campaign QR links (and Dev B's email links) point there; use the HTTPS address once deployed.
 - `S3_ENDPOINT_URL`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET` (`biletflow-images`), `S3_REGION`, `S3_PUBLIC_URL`: event image storage, any S3-compatible service. Locally the `storage` service in docker-compose (RustFS; MinIO no longer publishes images): `docker compose up -d storage`. Without `S3_ENDPOINT_URL`, uploads answer 503 and the image tests skip. `S3_PUBLIC_URL` is only needed when browsers reach storage at another address than the API (inside Docker).
@@ -66,8 +69,10 @@ Optional, with defaults:
 
 ```
 backend/
-  main.py               app setup: routers, exception handlers, CORS
-  database.py           engine, SessionLocal, Base, get_db dependency
+  main.py               app setup: routers, exception handlers, CORS (from CORS_ORIGINS)
+  start.sh              container start: alembic upgrade head, then uvicorn on $PORT
+  Dockerfile            API image (runs as a non-root user); .dockerignore keeps .env/.venv/tests out
+  database.py           engine, SessionLocal, Base, get_db dependency; accepts postgres:// URLs from hosts
   dependencies.py       get_current_user, require_platform_admin
   security.py           password hashing, JWT, refresh token, ticket code and campaign token generation
   qr.py                 QR codes: PNG for screens, a square matrix for PDFs (one place for the settings)
@@ -188,6 +193,7 @@ Done:
   - **Phase 1 (core ticketing) is complete.**
   - `payments` table: all payments are `provider = "simulated"`, `is_simulated = true`, with `SIM-` references. Failed attempts are committed before raising so they stay on record.
 - All repositories flush and all services commit (see Conventions → Transactions)
+- Deployment: `GET /health` (503 if the database is down), migrations at container start, `CORS_ORIGINS`, `render.yaml` and `docs/deploy.md` for the shared test server.
 - `GET /auth/me`: `id`, `email`, `is_platform_admin`, `email_verified`, `organizer` (`{id, user_id, status}` or null) and `is_event_staff` (assigned to at least one non-draft event, the same rule as `GET /staff/events`). The apps call it after login to pick which screens to show; an organizer can scan their own events even when `is_event_staff` is false.
 - Email outbox (Feature 7): `queue_email(...)`, the `email_outbox` table, and the background SMTP sender with retries, templates for every `EMAIL_TEMPLATES` key, Mailpit in Docker Compose (see Conventions → Emails). Registration queues the verification email.
 - Email verification and password reset (Feature 7, `account_tokens` table): register queues a `verify_email` link (24 h); `POST /auth/verify-email` `{token}`, `POST /auth/resend-verification` (signed in; 409 if already verified), `POST /auth/forgot-password` `{email}` (always the same 200, so it reveals nothing), `POST /auth/reset-password` `{token, new_password}` (1 h link; signs out every session). Tokens are stored as SHA-256 hashes and used up atomically (`DELETE ... RETURNING`); a new link replaces the old one. Bad, expired or used links: 400 `InvalidAccountTokenError`. `users.email_verified_at` is recorded but **not enforced** yet (open decision: must users verify before ordering?).

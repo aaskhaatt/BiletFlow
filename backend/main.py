@@ -17,6 +17,7 @@ from routers.analytics import router as analytics_router
 from routers.admin import router as admin_router
 from routers.support import router as support_router  # Dev B
 from routers.reports import router as reports_router  # Dev B
+from routers.health import router as health_router
 from fastapi.exceptions import RequestValidationError
 from exception_handlers import ERRORS, exception_handler, validation_exception_handler, http_exception_handler
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -71,12 +72,15 @@ app.include_router(analytics_router)
 app.include_router(admin_router)
 app.include_router(support_router)  # Dev B
 app.include_router(reports_router)  # Dev B
+app.include_router(health_router)
+
+# web apps allowed to call the API from a browser: comma-separated, e.g.
+# "http://localhost:5173,https://biletflow-web.onrender.com". Mobile apps don't need CORS.
+CORS_ORIGINS = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",") if origin.strip()]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173"
-    ],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
