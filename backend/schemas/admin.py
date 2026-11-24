@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Generic, TypeVar
+from typing import Generic, Literal, TypeVar
 from pydantic import BaseModel, ConfigDict, Field
 
 T = TypeVar("T")
@@ -72,4 +72,29 @@ class AdminRefundRow(BaseModel):
     provider_reference: str
     reason: str | None
     initiated_by_user_id: int | None
+    created_at: datetime
+
+
+class EventReportCreate(BaseModel):
+    reason: Literal["fraud", "inappropriate", "misleading", "spam", "other"]
+    details: str | None = Field(default=None, max_length=2000)
+
+
+class EventReportReview(BaseModel):
+    status: Literal["dismissed", "actioned"]
+    note: str | None = Field(default=None, max_length=2000)
+
+
+class EventReportResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    event_id: int
+    reporter_user_id: int
+    reason: str
+    details: str | None
+    status: str
+    reviewed_by_user_id: int | None
+    reviewed_at: datetime | None
+    review_note: str | None
     created_at: datetime

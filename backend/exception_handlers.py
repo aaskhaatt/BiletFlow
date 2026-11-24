@@ -24,6 +24,8 @@ ERRORS = {
     InvalidSupportAssigneeError: (400, "This User Does Not Handle This Case"),
     UserSuspendedError: (403, "This Account Is Suspended"),
     CannotSuspendSelfError: (400, "Admins Can Not Suspend Themselves"),
+    EventAlreadyReportedError: (409, "You Already Reported This Event"),
+    EventReportNotFoundError: (404, "Event Report Not Found"),
     # --- end Dev B ---
     InvalidEventStatusError: (409, "Invalid Event Status"),
     EventNotReadyToPublishError: (400, "Event Not Ready To Publish"),
