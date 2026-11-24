@@ -117,6 +117,7 @@ backend/
 - Statuses are plain strings. Event: `draft` / `published` / `cancelled`. Organizer profile: `pending` / `approved`. Order: `pending` (F5) / `confirmed` / `cancelled` / `refunded` / `expired` (F5). Ticket: `valid` / `checked_in` / `cancelled` / `refunded`.
 - **Inventory** changes only through the atomic reserve queries (`reserve_ticket_type_inventory`, `reserve_event_capacity`): one `UPDATE ... WHERE sold + n <= limit RETURNING`. Never check availability in Python and then write, because that double-sells under concurrency.
 - Orders copy `unit_price`, `buyer_name` and `buyer_email` at purchase time (snapshots), so later edits never rewrite history.
+- **User emails are lowercase.** `NormalizedEmail` in `schemas/user.py` lowercases input, `get_user_by_email` matches case-insensitively, and the unique index `ux_users_email_lower` on `lower(email)` is the final guarantee. Use `NormalizedEmail` for any new request field that holds a user's email.
 - **Concurrency patterns.**
   1. When check and change fit in one statement: an atomic `UPDATE ... WHERE <condition> RETURNING` (inventory, check-in, refresh tokens, promo code uses).
   2. When something must happen in between (charging a payment): lock the row with `SELECT ... FOR UPDATE` **plus `.execution_options(populate_existing=True)`**. Without it, SQLAlchemy may return a stale cached copy after waiting for the lock.
@@ -219,6 +220,7 @@ Done:
   - Order and event emails (`services/notification_service.py`): order confirmed, payment failed, order cancelled, order refunded, event updated (published event's start, end or venue; one email per ticket holder) and event cancelled (one per affected person, no extra per-order emails). Queued in the same transaction as the action.
   - Demo data: `scripts/seed_demo.py`.
   - PATCH semantics: a field left out keeps its value, `null` clears an optional field, and required fields refuse `null` (422). Services read `model_dump(exclude_unset=True)`; see `schemas/partial.py`.
+- Case-insensitive emails: `Ann@x.com` and `ann@x.com` are one account (register, login, staff assignment, order snapshots). Simultaneous sign-ups with the same address give one 201 and 409s instead of a 500.
 
 Roadmap (build in this order; each feature must work end to end before the next):
 
@@ -251,6 +253,5 @@ Known issues / polish later:
 - Private events can't be reached by anyone except the organizer; invite links would be a later feature.
 - Analytics money is per order, so the ticket-type filter doesn't split gross or discounts (a discount covers the whole order). Documented in `schemas/analytics.py`.
 - Client-facing auth and permission rules are documented in `docs/auth-and-roles.md`. Update it when permissions change.
-- **Email case** (`Ann@x.com` vs `ann@x.com` are different accounts): fixed in Dev B's open PR #13.
 - `users.email_verified_at` is recorded but not enforced. Decision: attendees don't have to verify before ordering.
 - Review follow-ups for Dev B: CSV exports must neutralize cells starting with `=`, `+`, `-` or `@` (formula injection), and `reserve_event_capacity` plus `pay_order_service` must refuse suspended events (race between the check and the reservation).

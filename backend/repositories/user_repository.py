@@ -1,6 +1,6 @@
 from exceptions import UserNotFoundError
 from models import User
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 
@@ -17,7 +17,8 @@ def get_user_by_id(user_id: int, db: Session):
 
 
 def get_user_by_email(email: str, db: Session):
-    stmt = select(User).where(User.email == email)
+    # case-insensitive, so callers that didn't lowercase (e.g. staff assignment) still find the user
+    stmt = select(User).where(func.lower(User.email) == email.strip().lower())
 
     user = db.scalars(stmt).first()
 
