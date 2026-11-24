@@ -175,6 +175,7 @@ Done:
   - **Phase 1 (core ticketing) is complete.**
   - `payments` table: all payments are `provider = "simulated"`, `is_simulated = true`, with `SIM-` references. Failed attempts are committed before raising so they stay on record.
 - All repositories flush and all services commit (see Conventions → Transactions)
+- `GET /auth/me`: `id`, `email`, `is_platform_admin`, `email_verified`, `organizer` (`{id, user_id, status}` or null) and `is_event_staff` (assigned to at least one non-draft event, the same rule as `GET /staff/events`). The apps call it after login to pick which screens to show; an organizer can scan their own events even when `is_event_staff` is false.
 - Email outbox (Feature 7): `queue_email(...)`, the `email_outbox` table, and the background SMTP sender with retries, templates for every `EMAIL_TEMPLATES` key, Mailpit in Docker Compose (see Conventions → Emails). Registration queues the verification email.
 - Email verification and password reset (Feature 7, `account_tokens` table): register queues a `verify_email` link (24 h); `POST /auth/verify-email` `{token}`, `POST /auth/resend-verification` (signed in; 409 if already verified), `POST /auth/forgot-password` `{email}` (always the same 200, so it reveals nothing), `POST /auth/reset-password` `{token, new_password}` (1 h link; signs out every session). Tokens are stored as SHA-256 hashes and used up atomically (`DELETE ... RETURNING`); a new link replaces the old one. Bad, expired or used links: 400 `InvalidAccountTokenError`. `users.email_verified_at` is recorded but **not enforced** yet (open decision: must users verify before ordering?).
 - Support cases (Feature 10, `services/support_service.py`, `support_cases` + `support_messages`):
@@ -216,7 +217,6 @@ Known issues / polish later (features come first; fix these near the end):
 - Ticket-type URLs are inconsistent: `/events/{id}/ticket-type` (singular), `/ticket-types/{id}` and `/ticket_types/{id}/hide` (underscore). Fix together with the frontend developer.
 - Tests run against the development database. A separate test database would be safer.
 - Gaps found while documenting the API for the mobile app:
-  - No "current user" endpoint such as `GET /auth/me`.
   - `GET /events` has no search, filters or paging, and events have no images.
   - `GET /events/{id}/ticket-types` returns 404 for drafts and skips hidden types, even for the organizer.
   - Auth and admin errors return `{"detail": ...}` instead of the unified error format.
