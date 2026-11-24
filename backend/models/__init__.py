@@ -13,6 +13,7 @@ from .paid_sales_activation import PaidSalesActivation
 from .payout_account import PayoutAccount
 from .platform_setting import PlatformSetting
 from .refund import Refund
+from .promo_campaign import PromoCampaign
 from .email_outbox import EmailOutbox
 from .account_token import AccountToken
 from .support_case import SupportCase, SupportMessage

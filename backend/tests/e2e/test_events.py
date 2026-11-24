@@ -34,12 +34,13 @@ def main() -> bool:
         t.check("public GET /events/{id}, no login", s == 200, f"status {s}")
         s, _ = t.call("GET", "/events/me", token=org)
         t.check("GET /events/me still works (route order)", s == 200, f"status {s}")
-        s, events = t.call("GET", "/events")
-        t.check("public list contains it", any(e["id"] == eid for e in events))
+        # search by title, so other events in the database can't push this one off the first page
+        s, page = t.call("GET", "/events?q=E2E+concert+%28renamed%29&limit=100")
+        t.check("public list contains it", any(e["id"] == eid for e in page["items"]))
 
         t.call("PATCH", f"/events/{eid}", {"visibility": "unlisted"}, org)
-        s, events = t.call("GET", "/events")
-        t.check("unlisted: hidden from the public list", not any(e["id"] == eid for e in events))
+        s, page = t.call("GET", "/events?q=E2E+concert+%28renamed%29&limit=100")
+        t.check("unlisted: hidden from the public list", not any(e["id"] == eid for e in page["items"]))
         s, _ = t.call("GET", f"/events/{eid}")
         t.check("unlisted: still reachable by link", s == 200, f"status {s}")
         t.call("PATCH", f"/events/{eid}", {"visibility": "private"}, org)
@@ -48,6 +49,11 @@ def main() -> bool:
 
         tt = t.make_ticket_type(org, eid)
         t.check("create ticket type", isinstance(tt, int))
+        s, _ = t.call("GET", f"/events/{eid}/ticket-types")
+        t.check("private: its ticket types aren't public either", s == 404, f"status {s}")
+        t.call("PATCH", f"/events/{eid}", {"visibility": "unlisted"}, org)
+        s, types = t.call("GET", f"/events/{eid}/ticket-types")
+        t.check("unlisted: ticket types reachable by link", s == 200 and [x["id"] for x in types] == [tt], f"status {s}")
 
         s, body = t.call("PATCH", f"/events/{eid}/unpublish", token=org)
         t.check("unpublish", s == 200 and body["status"] == "draft", body.get("status"))
