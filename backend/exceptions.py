@@ -185,3 +185,7 @@ class InvalidTokenError(Exception):
 
 class PlatformAdminRequiredError(Exception):
     pass
+
+# --- deployment (Dev B) ---
+class DatabaseUnavailableError(Exception):
+    pass
