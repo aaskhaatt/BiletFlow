@@ -27,6 +27,11 @@ class Order(Base):
     buyer_name: Mapped[str] = mapped_column(nullable=False)
     buyer_email: Mapped[str] = mapped_column(nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    # promo code used, if any. The code and the discount are snapshots like the prices: later campaign edits don't change them.
+    # total_amount is already AFTER the discount; total_amount + discount_amount = the full ticket prices
+    campaign_id: Mapped[int | None] = mapped_column(ForeignKey("promo_campaigns.id", ondelete="SET NULL"), nullable=True, index=True)
+    promo_code: Mapped[str | None] = mapped_column(nullable=True)
+    discount_amount: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
 
     items: Mapped[list["OrderItem"]] = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
     tickets: Mapped[list["Ticket"]] = relationship("Ticket", back_populates="order", cascade="all, delete-orphan")

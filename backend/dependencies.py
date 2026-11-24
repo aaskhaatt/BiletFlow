@@ -3,7 +3,8 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 from database import get_db
 from security import decode_access_token
-from exceptions import UserNotFoundError, NotAuthenticatedError, InvalidTokenError, PlatformAdminRequiredError
+from exceptions import (UserNotFoundError, UserSuspendedError, NotAuthenticatedError, InvalidTokenError,
+                        PlatformAdminRequiredError)
 from repositories.user_repository import get_user_by_id
 from models.user import User
 
@@ -34,6 +35,10 @@ def get_current_user(token: str | None = Depends(oauth2_scheme), db: Session = D
     except UserNotFoundError:
         # the account was deleted after the token was issued: the token is no longer valid (401, not 404)
         raise InvalidTokenError()
+
+    # checked on every request, so a suspension takes effect at once, not when the token expires
+    if user.suspended_at is not None:
+        raise UserSuspendedError()
 
     return user
 

@@ -1,7 +1,8 @@
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from background import sweep_expired_orders_forever
+from background import send_emails_forever, sweep_expired_orders_forever
 from routers.auth import router as auth_router
 from routers.events import router as events_router
 from routers.organizers import router as organizers_router
@@ -11,7 +12,10 @@ from routers.tickets import router as tickets_router
 from routers.staff import router as staff_router
 from routers.check_in import router as check_in_router
 from routers.paid_sales import router as paid_sales_router
+from routers.campaigns import router as campaigns_router
 from routers.admin import router as admin_router
+from routers.support import router as support_router  # Dev B
+from routers.reports import router as reports_router  # Dev B
 from fastapi.exceptions import RequestValidationError
 from exception_handlers import ERRORS, exception_handler, validation_exception_handler, http_exception_handler
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -24,9 +28,14 @@ def custom_generate_unique_id(route):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # code before `yield` runs when the server starts, code after it when the server stops
-    sweeper = asyncio.create_task(sweep_expired_orders_forever())
+    tasks = [asyncio.create_task(sweep_expired_orders_forever())]
+    # --- Dev B: email sender, only when a mail server is configured ---
+    if os.getenv("SMTP_HOST"):
+        tasks.append(asyncio.create_task(send_emails_forever()))
+    # --- end Dev B ---
     yield
-    sweeper.cancel()
+    for task in tasks:
+        task.cancel()
 
 
 app = FastAPI(
@@ -56,7 +65,10 @@ app.include_router(tickets_router)
 app.include_router(staff_router)
 app.include_router(check_in_router)
 app.include_router(paid_sales_router)
+app.include_router(campaigns_router)
 app.include_router(admin_router)
+app.include_router(support_router)  # Dev B
+app.include_router(reports_router)  # Dev B
 
 app.add_middleware(
     CORSMiddleware,

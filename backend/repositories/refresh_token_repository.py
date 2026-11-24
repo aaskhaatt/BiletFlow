@@ -17,3 +17,8 @@ def consume_refresh_token(token_hash:str, db: Session):
     stmt = delete(RefreshToken).where(RefreshToken.token_hash == token_hash).returning(RefreshToken.user_id, RefreshToken.expires_at)
     return db.execute(stmt).first()
 
+
+
+def delete_user_refresh_tokens(user_id: int, db: Session):
+    # signs the user out everywhere, e.g. after a password reset
+    db.execute(delete(RefreshToken).where(RefreshToken.user_id == user_id))
