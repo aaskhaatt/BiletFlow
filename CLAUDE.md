@@ -36,6 +36,8 @@ python tests/run_all.py orders     # only test files whose name contains "orders
 
 These are end-to-end tests in `backend/tests/e2e/`, one `test_<feature>.py` per feature, using only the standard library. Each starts its own API server on port 8011 (override with `E2E_PORT`), calls it over HTTP, and deletes every user and event it created. They run against the database in `backend/.env`. Server errors during a run go to `tests/e2e/server.log`. **Every new feature adds a test file, and all tests must pass before committing.**
 
+**CI.** `.github/workflows/backend-tests.yml` runs on every pull request and on pushes to `main`: Python 3.12, a fresh Postgres 16, `alembic upgrade head`, then `tests/run_all.py`. It also fails if Alembic has more than one head (two branches added a migration on the same parent: pull `main` and regenerate yours). If tests fail, the run's `e2e-server-log` artifact holds the server errors. Merge only when CI is green.
+
 ### Environment variables (`backend/.env`, not committed)
 
 | Variable | Purpose |
