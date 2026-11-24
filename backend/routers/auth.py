@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Depends
-from schemas.user import UserCreate, UserResponse, UserLogin, VerifyEmailRequest, ForgotPasswordRequest, ResetPasswordRequest
+from schemas.user import (UserCreate, UserResponse, UserLogin, CurrentUserResponse, VerifyEmailRequest,
+                          ForgotPasswordRequest, ResetPasswordRequest)
 from schemas.token import RefreshTokenResponse, RefreshTokenRequest, LogoutResponse
 from sqlalchemy.orm import Session
 from database import get_db
 from dependencies import get_current_user
 from models import User
 from services.auth_service import (register_user_service, login_user_service, refresh_access_token_service, logout_service,
-                                   verify_email_service, resend_verification_service, forgot_password_service, reset_password_service)
+                                   get_current_user_profile_service, verify_email_service, resend_verification_service,
+                                   forgot_password_service, reset_password_service)
 
 
 
@@ -31,6 +33,12 @@ def refresh_token_router(data: RefreshTokenRequest, db: Session = Depends(get_db
 @router.post("/logout", response_model=LogoutResponse)
 def logout_router(data: RefreshTokenRequest, db: Session = Depends(get_db)):
     return logout_service(data.refresh_token, db)
+
+
+
+@router.get("/me", response_model=CurrentUserResponse)
+def get_me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return get_current_user_profile_service(current_user, db)
 
 
 # responses are {"message": ...}, the same shape as logout

@@ -5,7 +5,9 @@ from repositories.user_repository import create_user, get_user_by_email, get_use
 from exceptions import UserAlreadyExistsError, UserNotFoundError, InvalidCredentialsError, InvalidRefreshTokenError, InvalidAccountTokenError, EmailAlreadyVerifiedError, UserSuspendedError
 from repositories.refresh_token_repository import create_refresh_token, consume_refresh_token, delete_user_refresh_tokens
 from repositories.account_token_repository import create_account_token, consume_account_token, delete_account_tokens
+from repositories.staff_repository import has_staff_assignments
 from services.email_service import queue_email
+from models.user import User
 from security import hash_password, verify_password, create_access_token, generate_refresh_token, hash_refresh_token, REFRESH_TOKEN_EXPIRE_DAYS
 
 
@@ -93,6 +95,20 @@ def logout_service(token_value: str, db: Session):
     db.commit()
 
     return {"message": "Successfully logged out"}
+
+
+
+def get_current_user_profile_service(user: User, db: Session):
+    # one call after login tells the apps who this is and which roles they have
+    return {
+        "id": user.id,
+        "email": user.email,
+        "is_platform_admin": user.is_platform_admin,
+        "email_verified": user.email_verified_at is not None,
+        "organizer": user.organizer_profile,
+        "is_event_staff": has_staff_assignments(user.id, db),
+    }
+
 
 # --- email verification and password reset (Feature 7) -----------------------------------------
 
