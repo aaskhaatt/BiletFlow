@@ -221,7 +221,6 @@ Known issues / polish later (features come first; fix these near the end):
   - No "current user" endpoint such as `GET /auth/me`.
   - `GET /events` has no search, filters or paging, and events have no images.
   - `GET /events/{id}/ticket-types` returns 404 for drafts and skips hidden types, even for the organizer.
-  - Auth and admin errors return `{"detail": ...}` instead of the unified error format.
 - **Bug: email case.** Pydantic lowercases only the domain, so `Ann@x.com` and `ann@x.com` are different accounts, and login is case-sensitive before the `@`. Fix: lowercase emails in `UserCreate`/`UserLogin` (and existing rows) plus a case-insensitive unique index.
 - **Bug: private events leak ticket types.** `get_ticket_types_by_event_id_service` checks `status == published` but not `visibility != private`.
 - Client-facing auth and permission rules are documented in `docs/auth-and-roles.md`. Update it when permissions change.
