@@ -1,12 +1,15 @@
 from datetime import datetime
+from typing import Literal
 from fastapi import APIRouter, Depends, Query, UploadFile, File
-from schemas.event import EventResponse, EventCreate, EventUpdate, EventPage
+from schemas.event import EventResponse, EventCreate, EventUpdate, EventPage, EventDuplicate
+from schemas.history import HistoryPage
 from database import get_db
 from sqlalchemy.orm import Session
 from models.user import User
 from dependencies import get_current_user
 from services.event_service import (create_event_service, get_published_events_service, get_my_events_service, update_event_service,
-                                    publish_event_service, unpublish_event_service, get_public_event_service, get_event_categories_service)
+                                    publish_event_service, unpublish_event_service, get_public_event_service, get_event_categories_service,
+                                    get_event_history_service, duplicate_event_service)
 from services.cancellation_service import cancel_event_service
 from services.event_image_service import upload_event_image_service, delete_event_image_service
 from storage import MAX_IMAGE_BYTES
@@ -33,8 +36,9 @@ def get_events(q: str | None = Query(None, max_length=100, description="Text in 
 
 
 @router.get("/me", response_model=list[EventResponse])
-def get_my_events(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return get_my_events_service(current_user.id, db)
+def get_my_events(lifecycle: Literal["draft", "upcoming", "active", "completed", "cancelled"] | None = None,
+                  current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return get_my_events_service(current_user.id, db, lifecycle)
 
 
 # also above /{event_id}: the categories of upcoming public events, for the filter dropdown
@@ -84,3 +88,22 @@ def upload_event_image(event_id: int, file: UploadFile = File(...), current_user
 @router.delete("/{event_id}/image", response_model=EventResponse)
 def delete_event_image(event_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return delete_event_image_service(current_user.id, event_id, db)
+
+
+# the activity timeline (SRS 4.16): every change, sale, refund and check-in of the event, newest first. Organizer only.
+@router.get("/{event_id}/history", response_model=HistoryPage)
+def get_event_history(event_id: int,
+                      action_type: str | None = Query(None, alias="type", pattern=r"^[a-z_]{1,40}$",
+                                                      description="The part before the dot, e.g. order, ticket, campaign"),
+                      action: str | None = Query(None, max_length=64, description="One exact action, e.g. order.refunded"),
+                      date_from: datetime | None = Query(None), date_to: datetime | None = Query(None),
+                      limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),
+                      current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return get_event_history_service(current_user.id, event_id, action_type, action, date_from, date_to, limit, offset, db)
+
+
+# a new draft with the same details and ticket types; the body is optional
+@router.post("/{event_id}/duplicate", response_model=EventResponse, status_code=201)
+def duplicate_event(event_id: int, data: EventDuplicate | None = None, current_user: User = Depends(get_current_user),
+                    db: Session = Depends(get_db)):
+    return duplicate_event_service(current_user.id, event_id, data, db)
