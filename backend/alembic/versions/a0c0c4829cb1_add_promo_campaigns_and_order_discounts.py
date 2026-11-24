@@ -1,7 +1,7 @@
 """add promo campaigns and order discounts
 
 Revision ID: a0c0c4829cb1
-Revises: 1f151f9403a0
+Revises: 57dff7e40d7a
 Create Date: 2026-11-24 23:02:36.558831
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'a0c0c4829cb1'
-down_revision: Union[str, Sequence[str], None] = '1f151f9403a0'
+down_revision: Union[str, Sequence[str], None] = '57dff7e40d7a'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

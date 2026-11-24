@@ -106,6 +106,21 @@ class OrderNotCancellableError(Exception):
 class OrderNotRefundableError(Exception):
     pass
 
+class InvalidImageError(Exception):
+    pass
+
+class ImageTooLargeError(Exception):
+    pass
+
+class StorageNotConfiguredError(Exception):
+    pass
+
+class StorageUnavailableError(Exception):
+    pass
+
+class TicketNotPrintableError(Exception):
+    pass
+
 class CampaignNotFoundError(Exception):
     pass
 
