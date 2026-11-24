@@ -4,7 +4,8 @@ from database import get_db
 from sqlalchemy.orm import Session
 from models.user import User
 from schemas.ticket_type import TicketTypeCreate, TicketTypeResponse, TicketTypeUpdate
-from services.ticket_type_service import create_ticket_type_service, get_ticket_types_by_event_id_service, update_ticket_type_service, hide_ticket_type_service, unhide_ticket_type_service
+from services.ticket_type_service import (create_ticket_type_service, get_ticket_types_by_event_id_service, update_ticket_type_service,
+                                          hide_ticket_type_service, unhide_ticket_type_service, get_ticket_types_for_organizer_service)
 
 
 
@@ -21,6 +22,12 @@ def create_ticket_type_router(event_id: int, ticket_type_data: TicketTypeCreate,
 def get_ticket_types_by_event_id(event_id: int, db: Session = Depends(get_db)):
 
     return get_ticket_types_by_event_id_service(event_id, db)
+
+
+# the organizer's own list: includes hidden ticket types and works while the event is a draft
+@router.get("/events/{event_id}/ticket-types/manage", response_model=list[TicketTypeResponse])
+def get_ticket_types_for_organizer(event_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return get_ticket_types_for_organizer_service(current_user.id, event_id, db)
 
 
 @router.patch("/ticket-types/{ticket_type_id}", response_model=TicketTypeResponse)
