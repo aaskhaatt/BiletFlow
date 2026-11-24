@@ -41,6 +41,13 @@ def get_ticket_types_by_event_id(event_id: int, db: Session) -> list[TicketType]
     return ticket_types
 
 
+def get_all_ticket_types_by_event_id(event_id: int, db: Session) -> list[TicketType]:
+    # the organizer's view: hidden ticket types included, oldest first
+    stmt = select(TicketType).where(TicketType.event_id == event_id).order_by(TicketType.id)
+
+    return db.scalars(stmt).all()
+
+
 def update_ticket_type(ticket_type: TicketType, name: str, description: str | None, price: int, quantity: int, sales_start: datetime, sales_end: datetime, max_per_order: int, db: Session):
     
     ticket_type.name = name
