@@ -54,6 +54,8 @@ class EventResponse(BaseModel):
     registration_opens_at: datetime | None = None
     registration_closes_at: datetime | None = None
     refund_policy: str | None = None
+    # public address of the cover image, null when there is none
+    image_url: str | None = None
 
 
 class EventPage(BaseModel):
