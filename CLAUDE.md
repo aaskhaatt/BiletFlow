@@ -161,6 +161,7 @@ Done:
   - **Phase 1 (core ticketing) is complete.**
   - `payments` table: all payments are `provider = "simulated"`, `is_simulated = true`, with `SIM-` references. Failed attempts are committed before raising so they stay on record.
 - All repositories flush and all services commit (see Conventions → Transactions)
+- `GET /auth/me`: `id`, `email`, `is_platform_admin`, `organizer` (`{id, user_id, status}` or null) and `is_event_staff` (assigned to at least one non-draft event, the same rule as `GET /staff/events`). The apps call it after login to pick which screens to show; an organizer can scan their own events even when `is_event_staff` is false.
 
 Roadmap (build in this order; each feature must work end to end before the next):
 

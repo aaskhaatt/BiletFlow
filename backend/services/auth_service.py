@@ -4,6 +4,8 @@ from datetime import datetime, timezone, timedelta
 from repositories.user_repository import create_user, get_user_by_email
 from exceptions import UserAlreadyExistsError, UserNotFoundError, InvalidCredentialsError, InvalidRefreshTokenError
 from repositories.refresh_token_repository import create_refresh_token, consume_refresh_token
+from repositories.staff_repository import has_staff_assignments
+from models.user import User
 from security import hash_password, verify_password, create_access_token, generate_refresh_token, hash_refresh_token, REFRESH_TOKEN_EXPIRE_DAYS
 
 
@@ -86,3 +88,15 @@ def logout_service(token_value: str, db: Session):
     db.commit()
 
     return {"message": "Successfully logged out"}
+
+
+
+def get_current_user_profile_service(user: User, db: Session):
+    # one call after login tells the apps who this is and which roles they have
+    return {
+        "id": user.id,
+        "email": user.email,
+        "is_platform_admin": user.is_platform_admin,
+        "organizer": user.organizer_profile,
+        "is_event_staff": has_staff_assignments(user.id, db),
+    }
