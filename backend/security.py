@@ -57,3 +57,8 @@ def hash_refresh_token(token: str) -> str:
 
 def generate_ticket_code() -> str:
     return "T-" + secrets.token_urlsafe(16)
+
+
+def generate_campaign_token() -> str:
+    # "C-" for campaign: the scanner only admits "T-" codes, so a Campaign QR can never open the door
+    return "C-" + secrets.token_urlsafe(16)

@@ -21,13 +21,15 @@ def apply_for_organizer_service(user_id: int, db: Session):
     raise OrganizerProfileAlreadyExistsError()
 
 
-def approve_organizer_service(user_id: int, db: Session):
+def approve_organizer_service(admin_user_id: int, user_id: int, db: Session):
     organizer = get_organizer_by_user_id(user_id, db)
 
     if organizer.status == "approved":
         return organizer
     
     update_organizer_status(organizer, "approved", db)
+    log_action(db, admin_user_id, "organizer.approved", "organizer", organizer.id,
+               f"Approved organizer for user {user_id}")
     db.commit()
     db.refresh(organizer)
 

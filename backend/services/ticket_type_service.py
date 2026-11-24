@@ -1,10 +1,13 @@
 from sqlalchemy.orm import Session
+from services.event_service import ensure_event_owner_service
 from schemas.ticket_type import TicketTypeCreate, TicketTypeUpdate
-from repositories.ticket_type_repository import create_ticket_type, get_ticket_types_by_event_id, update_ticket_type, get_ticket_type_by_id, update_ticket_type_visibility
+from repositories.ticket_type_repository import (create_ticket_type, get_ticket_types_by_event_id, update_ticket_type, get_ticket_type_by_id,
+                                                 update_ticket_type_visibility, get_all_ticket_types_by_event_id)
 from services.organizer_service import ensure_organizer_approved_service
 from services.audit_service import log_action
+from services.event_service import get_public_event_service
 from repositories.event_repository import get_event_by_id
-from exceptions import InvalidTicketSalesTimeError, EventAccessDeniedError, EventNotFoundError, QuantityBelowSoldError
+from exceptions import InvalidTicketSalesTimeError, EventAccessDeniedError, QuantityBelowSoldError
 from models.ticket_type import TicketType
 
 
@@ -44,12 +47,10 @@ def create_ticket_type_service(user_id: int, event_id: int, ticket_type_data: Ti
 
 
 def get_ticket_types_by_event_id_service(event_id: int, db: Session):
-    event = get_event_by_id(event_id, db)
+    # same visibility rule as the public event page: drafts and private events answer 404
+    event = get_public_event_service(event_id, db)
 
-    if event.status != "published":
-        raise EventNotFoundError()
-
-    return get_ticket_types_by_event_id(event_id, db)
+    return get_ticket_types_by_event_id(event.id, db)
 
 
 def update_ticket_type_service(user_id: int, ticket_type_id: int, ticket_type_data: TicketTypeUpdate, db: Session):
@@ -131,3 +132,10 @@ def unhide_ticket_type_service(user_id: int, ticket_type_id: int, db: Session):
     db.refresh(ticket_type)
 
     return ticket_type
+
+
+def get_ticket_types_for_organizer_service(user_id: int, event_id: int, db: Session):
+    # the organizer sees every ticket type of their own event: hidden ones too, and also while it's a draft
+    event = ensure_event_owner_service(user_id, event_id, db)
+
+    return get_all_ticket_types_by_event_id(event.id, db)

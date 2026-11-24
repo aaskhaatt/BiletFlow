@@ -57,7 +57,8 @@ class E2E:
             [sys.executable, "-m", "uvicorn", "main:app", "--port", str(PORT), "--log-level", "warning"],
             cwd=BACKEND, stdout=subprocess.DEVNULL, stderr=self._log,
             # release expired checkout holds every second instead of every minute
-            env={**os.environ, "ORDER_SWEEP_INTERVAL_SECONDS": "1"},
+            # SMTP_HOST="" keeps the email sender off, so test emails stay pending for the tests to inspect
+            env={**os.environ, "ORDER_SWEEP_INTERVAL_SECONDS": "1", "SMTP_HOST": ""},
         )
         for _ in range(100):
             try:
@@ -80,6 +81,8 @@ class E2E:
                     c.execute(text("delete from audit_logs where event_id = any(:ids)"), {"ids": self.event_ids})
                 # deleting the users cascades to their organizer profile, events, orders and tickets
                 c.execute(text("delete from users where email = any(:emails)"), {"emails": self.emails})
+                # queued emails aren't linked to users (they keep the address as sent), so delete them too
+                c.execute(text("delete from email_outbox where to_email = any(:emails)"), {"emails": self.emails})
         finally:
             self.server.terminate()
             self.server.wait()

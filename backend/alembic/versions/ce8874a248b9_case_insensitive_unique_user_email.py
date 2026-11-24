@@ -1,7 +1,7 @@
 """case insensitive unique user email
 
 Revision ID: ce8874a248b9
-Revises: 1f151f9403a0
+Revises: af3060d15bd6
 Create Date: 2026-11-24 12:12:09.174308
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'ce8874a248b9'
-down_revision: Union[str, Sequence[str], None] = '1f151f9403a0'
+down_revision: Union[str, Sequence[str], None] = 'af3060d15bd6'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

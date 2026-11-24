@@ -7,7 +7,8 @@ from exceptions import OrderNotFoundError
 
 
 def create_order(user_id: int, event_id: int, status: str, total_amount: int, processing_fee: int,
-                 expires_at: datetime | None, buyer_name: str, buyer_email: str, db: Session):
+                 expires_at: datetime | None, buyer_name: str, buyer_email: str, db: Session,
+                 campaign_id: int | None = None, promo_code: str | None = None, discount_amount: int = 0):
     order = Order(
         user_id = user_id,
         event_id = event_id,
@@ -16,7 +17,10 @@ def create_order(user_id: int, event_id: int, status: str, total_amount: int, pr
         processing_fee = processing_fee,
         expires_at = expires_at,
         buyer_name = buyer_name,
-        buyer_email = buyer_email
+        buyer_email = buyer_email,
+        campaign_id = campaign_id,
+        promo_code = promo_code,
+        discount_amount = discount_amount
     )
 
     db.add(order)
@@ -100,6 +104,8 @@ def get_sales_totals(event_id: int, db: Session):
         # fees only on orders that stay paid: a refund returns the processing fee as well
         func.coalesce(func.sum(case((Order.status == "confirmed", Order.processing_fee), else_=0)), 0).label("processing_fees"),
         func.coalesce(func.sum(case((Order.status == "refunded", Order.total_amount), else_=0)), 0).label("refunds"),
+        # discounts on orders that stay paid
+        func.coalesce(func.sum(case((Order.status == "confirmed", Order.discount_amount), else_=0)), 0).label("discounts"),
         func.count().filter(Order.status == "confirmed", Order.total_amount > 0).label("paid_orders"),
     ).where(Order.event_id == event_id)
 
@@ -142,3 +148,17 @@ def get_events_with_overdue_orders(event_id: int | None, db: Session) -> list[in
         stmt = stmt.where(Order.event_id == event_id)
 
     return list(db.scalars(stmt).all())
+
+
+# when an order counts as a sale: the payment moment, or the registration moment for free orders (they have no paid_at)
+ORDER_SALE_TIME = func.coalesce(Order.paid_at, Order.created_at)
+
+
+def sold_between(sold_from: datetime | None, sold_to: datetime | None) -> list:
+    # conditions for "sold in this period"; empty when no dates are given
+    conditions = []
+    if sold_from is not None:
+        conditions.append(ORDER_SALE_TIME >= sold_from)
+    if sold_to is not None:
+        conditions.append(ORDER_SALE_TIME < sold_to)
+    return conditions
