@@ -2,12 +2,12 @@ from datetime import datetime
 from sqlalchemy import select, update, func, or_
 from sqlalchemy.orm import Session, selectinload
 from models import PromoCampaign, Order, OrderItem, TicketType
-from exceptions import CampaignNotFoundError, PromoCodeNotFoundError
+from exceptions import CampaignNotFoundError, PromoCodeNotFoundError, CampaignLinkNotFoundError
 
 
 def create_campaign(event_id: int, name: str, code: str, discount_type: str, discount_value: int,
                     starts_at: datetime | None, ends_at: datetime | None, max_redemptions: int | None,
-                    ticket_types: list[TicketType], db: Session) -> PromoCampaign:
+                    ticket_types: list[TicketType], qr_token: str, db: Session) -> PromoCampaign:
     campaign = PromoCampaign(
         event_id=event_id,
         name=name,
@@ -18,6 +18,7 @@ def create_campaign(event_id: int, name: str, code: str, discount_type: str, dis
         ends_at=ends_at,
         max_redemptions=max_redemptions,
         ticket_types=ticket_types,
+        qr_token=qr_token,
     )
 
     db.add(campaign)
@@ -126,3 +127,18 @@ def get_campaign_stats(event_id: int, db: Session) -> dict[int, dict]:
 
     return {row.id: {"orders": row.orders, "tickets": row.tickets, "gross": row.gross,
                      "discount": row.discount, "net": row.net} for row in db.execute(stmt)}
+
+
+def get_campaign_by_token(qr_token: str, db: Session) -> PromoCampaign:
+    campaign = db.scalars(select(PromoCampaign).where(PromoCampaign.qr_token == qr_token)).first()
+
+    if campaign is None:
+        raise CampaignLinkNotFoundError()
+
+    return campaign
+
+
+def count_link_open(campaign_id: int, db: Session):
+    # +1 inside the database, so two people scanning at the same moment both count
+    db.execute(update(PromoCampaign).where(PromoCampaign.id == campaign_id)
+               .values(link_opens=PromoCampaign.link_opens + 1))

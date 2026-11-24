@@ -36,6 +36,11 @@ class PromoCampaign(Base):
     redemptions_count: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
     # the organizer can switch a code off without deleting its history
     is_active: Mapped[bool] = mapped_column(nullable=False, default=True, server_default=true())
+    # the random value inside the Campaign QR's link ("C-..."): reveals nothing about the discount,
+    # and never starts with "T-", so the check-in scanner can't mistake it for a ticket
+    qr_token: Mapped[str] = mapped_column(unique=True, nullable=False)
+    # how many times the Campaign QR's link was opened; changed only by an atomic +1
+    link_opens: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     ticket_types: Mapped[list["TicketType"]] = relationship("TicketType", secondary=promo_campaign_ticket_types)

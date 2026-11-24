@@ -51,7 +51,8 @@ ERRORS = {
     PromoCodeNotFoundError: (404, "Promo Code Not Found"),
     PromoCodeNotActiveError: (409, "Promo Code Is Not Active"),
     PromoCodeUsedUpError: (409, "Promo Code Has Been Used Up"),
-    PromoCodeNotApplicableError: (409, "Promo Code Does Not Apply To These Tickets")
+    PromoCodeNotApplicableError: (409, "Promo Code Does Not Apply To These Tickets"),
+    CampaignLinkNotFoundError: (404, "Campaign Link Not Found")
 }
 
 async def exception_handler(request: Request, exc):

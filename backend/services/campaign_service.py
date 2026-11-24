@@ -1,20 +1,28 @@
 """Promo code campaigns (SRS 4.14): the organizer's side, plus the discount rules checkout uses."""
+import os
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from models import PromoCampaign, TicketType
 from schemas.campaign import CampaignCreate, CampaignUpdate
 from repositories.campaign_repository import (create_campaign, get_campaign_by_id, lock_campaign, get_campaign_by_code,
-                                              get_campaigns_by_event_id, update_campaign, get_campaign_stats)
+                                              get_campaigns_by_event_id, update_campaign, get_campaign_stats,
+                                              get_campaign_by_token, count_link_open)
 from repositories.ticket_type_repository import get_ticket_type_by_id
 from services.audit_service import log_action
-from services.event_service import ensure_event_owner_service
+from services.event_service import ensure_event_owner_service, get_public_event_service
+from security import generate_campaign_token
+from qr import make_qr_png
 from exceptions import (InvalidCampaignError, InvalidEventStatusError, PromoCodeAlreadyExistsError, PromoCodeNotActiveError,
-                        PromoCodeUsedUpError, PromoCodeNotApplicableError, TicketTypeNotFoundError)
+                        PromoCodeUsedUpError, PromoCodeNotApplicableError, TicketTypeNotFoundError, EventNotFoundError,
+                        CampaignLinkNotFoundError)
 
 # no 0/O or 1/I/L, so a code read off a poster is typed correctly
 CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+
+# the web app's address, the same setting the email links use; HTTPS once deployed
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 
 
 def generate_promo_code() -> str:
@@ -50,7 +58,12 @@ def resolve_promo_code(event_id: int, code: str, requested: list[tuple[TicketTyp
     """Finds the code and checks it for this order. These checks give clear errors early; the atomic
     redeem_campaign during checkout is what really guarantees the limit when buyers race."""
     campaign = get_campaign_by_code(event_id, code, db)
+    ensure_usable(campaign, now)
 
+    return campaign, calculate_discount(campaign, requested)
+
+
+def ensure_usable(campaign: PromoCampaign, now: datetime):
     if (not campaign.is_active or (campaign.starts_at and now < campaign.starts_at)
             or (campaign.ends_at and now >= campaign.ends_at)):
         raise PromoCodeNotActiveError()
@@ -58,10 +71,13 @@ def resolve_promo_code(event_id: int, code: str, requested: list[tuple[TicketTyp
     if campaign.max_redemptions is not None and campaign.redemptions_count >= campaign.max_redemptions:
         raise PromoCodeUsedUpError()
 
-    return campaign, calculate_discount(campaign, requested)
-
 
 # --- the organizer's side -----------------------------------------------------------------------------------------
+
+def campaign_link(campaign: PromoCampaign) -> str:
+    # what the Campaign QR contains: the event page with an opaque token, never the code or the discount
+    return f"{FRONTEND_URL}/events/{campaign.event_id}?campaign={campaign.qr_token}"
+
 
 def _response(campaign: PromoCampaign, stats: dict | None) -> dict:
     return {
@@ -76,6 +92,8 @@ def _response(campaign: PromoCampaign, stats: dict | None) -> dict:
         "max_redemptions": campaign.max_redemptions,
         "redemptions_count": campaign.redemptions_count,
         "is_active": campaign.is_active,
+        "link": campaign_link(campaign),
+        "link_opens": campaign.link_opens,
         "ticket_type_ids": campaign.ticket_type_ids,
         "created_at": campaign.created_at,
         "stats": stats or {"orders": 0, "tickets": 0, "gross": 0, "discount": 0, "net": 0},
@@ -106,7 +124,8 @@ def create_campaign_service(user_id: int, event_id: int, data: CampaignCreate, d
             # SAVEPOINT: a duplicate code undoes only this insert, not the whole transaction
             with db.begin_nested():
                 campaign = create_campaign(event.id, data.name, code, data.discount_type, data.discount_value,
-                                           data.starts_at, data.ends_at, data.max_redemptions, ticket_types, db)
+                                           data.starts_at, data.ends_at, data.max_redemptions, ticket_types,
+                                           generate_campaign_token(), db)
             break
         except IntegrityError:
             if data.code:
@@ -176,3 +195,41 @@ def update_campaign_service(user_id: int, campaign_id: int, data: CampaignUpdate
     db.refresh(campaign)
 
     return _response(campaign, get_campaign_stats(campaign.event_id, db).get(campaign.id))
+
+
+# --- the Campaign QR ----------------------------------------------------------------------------------------------
+
+def get_campaign_qr_service(user_id: int, campaign_id: int, db: Session) -> bytes:
+    # a PNG for posters and flyers; organizer only, like the rest of the campaign
+    campaign = get_campaign_by_id(campaign_id, db)
+    ensure_event_owner_service(user_id, campaign.event_id, db)
+
+    return make_qr_png(campaign_link(campaign))
+
+
+def open_campaign_link_service(qr_token: str, db: Session) -> dict:
+    """Called by the web or mobile app when someone opens a Campaign QR link: which event, and which code to pre-fill."""
+    campaign = get_campaign_by_token(qr_token, db)
+
+    # the same visibility rule as the public event page: drafts and private events stay hidden
+    try:
+        event = get_public_event_service(campaign.event_id, db)
+    except EventNotFoundError:
+        raise CampaignLinkNotFoundError()
+
+    # a switched-off, ended or used-up code still opens the event page, just without the discount
+    try:
+        ensure_usable(campaign, datetime.now(timezone.utc))
+        usable = True
+    except (PromoCodeNotActiveError, PromoCodeUsedUpError):
+        usable = False
+
+    count_link_open(campaign.id, db)
+    db.commit()
+
+    return {
+        "event_id": event.id,
+        "promo_code": campaign.code if usable else None,
+        "discount_type": campaign.discount_type if usable else None,
+        "discount_value": campaign.discount_value if usable else None,
+    }
