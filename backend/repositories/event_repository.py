@@ -68,8 +68,8 @@ def update_event(event: Event, title: str, description: str | None, start_time: 
 def get_published_events(db: Session, q: str | None = None, category: str | None = None,
                          date_from: datetime | None = None, date_to: datetime | None = None,
                          ended_before: datetime | None = None, limit: int = 20, offset: int = 0) -> tuple[list[Event], int]:
-    # the public catalogue: only published, public events. Returns (one page of events, total matching events)
-    stmt = select(Event).where(Event.status == "published", Event.visibility == "public")
+    # the public catalogue: only published, public, not suspended events. Returns (one page of events, total matching events)
+    stmt = select(Event).where(Event.status == "published", Event.visibility == "public", Event.suspended_at.is_(None))
 
     if q:
         # case-insensitive "contains"; autoescape makes % and _ typed by the user literal characters
@@ -100,7 +100,7 @@ def get_published_categories(now: datetime, db: Session) -> list[str]:
     # categories that have at least one upcoming public event, for the filter dropdown
     stmt = (
         select(Event.category)
-        .where(Event.status == "published", Event.visibility == "public",
+        .where(Event.status == "published", Event.visibility == "public", Event.suspended_at.is_(None),
                Event.category.is_not(None), Event.end_time > now)
         .distinct()
         .order_by(Event.category)

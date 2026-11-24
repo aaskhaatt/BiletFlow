@@ -34,6 +34,37 @@ class InvalidTicketSalesTimeError(Exception):
 class InvalidRefreshTokenError(Exception):
     pass
 
+# --- Dev B: email verification and password reset (Feature 7) ---
+class InvalidAccountTokenError(Exception):
+    pass
+
+class EmailAlreadyVerifiedError(Exception):
+    pass
+
+# support cases (Feature 10)
+class SupportCaseNotFoundError(Exception):
+    pass
+
+class SupportCaseAccessDeniedError(Exception):
+    pass
+
+class InvalidSupportAssigneeError(Exception):
+    pass
+
+# admin tools (Feature 13)
+class UserSuspendedError(Exception):
+    pass
+
+class CannotSuspendSelfError(Exception):
+    pass
+
+class EventAlreadyReportedError(Exception):
+    pass
+
+class EventReportNotFoundError(Exception):
+    pass
+# --- end Dev B ---
+
 class InvalidEventStatusError(Exception):
     pass
 

@@ -108,6 +108,8 @@ def reset(domain: str) -> int:
         # the demo events' rows, and rows the demo accounts wrote outside any event (identity, payout account)
         c.execute(text("delete from audit_logs where event_id = any(:ids) or actor_user_id in "
                        "(select id from users where email like :p)"), {"ids": list(event_ids), "p": pattern})
+        # emails queued for demo accounts (verification, order confirmations) aren't linked to users
+        c.execute(text("delete from email_outbox where to_email like :p"), {"p": pattern})
         # deleting the users cascades to their organizer profile, events, ticket types, orders and tickets
         return c.execute(text("delete from users where email like :p"), {"p": pattern}).rowcount
 
@@ -122,11 +124,13 @@ def seed(domain: str) -> dict:
         s.sql("update users set is_platform_admin = true where id = :i", i=admin.id)
         org = s.user("organizer")
         apply_for_organizer_service(org.id, db)
-        approve_organizer_service(org.id, db)
+        approve_organizer_service(admin.id, org.id, db)
         verify_identity_service(org.id, "TOO Dala Events", "+77011234567", db)
         set_payout_account_service(org.id, "TOO Dala Events", "Halyk Bank", "KZ86125KZT5004100100", db)
         staff = s.user("staff")
         people = [(s.user(login), name) for login, name in ATTENDEES]
+        # demo addresses can't receive the verification link, so the accounts start out verified
+        s.sql("update users set email_verified_at = now() where email like :p", p=f"%@{domain}")
 
         # --- 1. a paid concert, upcoming, with promo codes ---------------------------------------------
         jazz = s.event(org, title="Astana Jazz Night", category="Music",

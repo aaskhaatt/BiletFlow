@@ -40,6 +40,8 @@ python tests/run_all.py orders     # only test files whose name contains "orders
 
 These are end-to-end tests in `backend/tests/e2e/`, one `test_<feature>.py` per feature, using only the standard library. Each starts its own API server on port 8011 (override with `E2E_PORT`), calls it over HTTP, and deletes every user and event it created. They run against the database in `backend/.env`. Server errors during a run go to `tests/e2e/server.log`. **Every new feature adds a test file, and all tests must pass before committing.**
 
+**CI.** `.github/workflows/backend-tests.yml` runs on every pull request and on pushes to `main`: Python 3.12, a fresh Postgres 16, `alembic upgrade head`, then `tests/run_all.py`. It also fails if Alembic has more than one head (two branches added a migration on the same parent: pull `main` and regenerate yours). If tests fail, the run's `e2e-server-log` artifact holds the server errors. Merge only when CI is green.
+
 ### Environment variables (`backend/.env`, not committed)
 
 | Variable | Purpose |
@@ -51,6 +53,8 @@ These are end-to-end tests in `backend/tests/e2e/`, one `test_<feature>.py` per 
 | `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token lifetime |
 
 The app crashes at startup if any of these is missing.
+
+Email (optional): `SMTP_HOST` turns the email sender on (unset = emails stay `pending`); `SMTP_PORT` (1025, Mailpit), `MAIL_FROM` (`BiletFlow <no-reply@biletflow.local>`), `FRONTEND_URL` (`http://localhost:5173`, used for links in emails), `EMAIL_SEND_INTERVAL_SECONDS` (5).
 
 Optional, with defaults: `ORDER_HOLD_MINUTES` (10) is how long a paid checkout holds its tickets. `ORDER_SWEEP_INTERVAL_SECONDS` (60) is how often the background sweeper releases expired holds; tests set it to 1.
 
@@ -125,6 +129,14 @@ backend/
 - For updates, collect "old -> new" for important fields (price, capacity) **before** calling the repository, then put them in the description.
 - Audit rows are never updated or deleted by the app.
 
+**Emails.**
+- Any action that should email someone calls `queue_email(db, to, template, data)` from `services/email_service.py`, **before** the commit, exactly like `log_action`.
+- It only saves a row in `email_outbox` (status `pending`) in the same transaction, so a rolled-back action never emails anyone. The background sender (`send_due_emails`, started by `main.py` only when `SMTP_HOST` is set) sends them every few seconds, oldest first, and retries failures with backoff (1, 2, 4, 8 min; `failed` after 5 attempts). Subjects and bodies live in `services/email_templates.py`.
+- `template` must be a key of `EMAIL_TEMPLATES`, which also lists the `data` keys each template uses. Agree on a new name with the other developer before adding one.
+- `data` must be JSON-safe: pass ids, strings and numbers, and datetimes as `.isoformat()` strings. An unknown template or non-JSON data raises at once (a programming error, not a domain exception).
+- Local demo: `docker compose up -d mailpit`, put `SMTP_HOST=localhost` in `backend/.env`, and every email shows up at http://localhost:8025. The e2e test servers always run with the sender off.
+- Pass the address from the order snapshot (`order.buyer_email`), not from the current user, so history stays correct.
+
 ## Status (update as features land)
 
 Done:
@@ -165,6 +177,19 @@ Done:
   - **Phase 1 (core ticketing) is complete.**
   - `payments` table: all payments are `provider = "simulated"`, `is_simulated = true`, with `SIM-` references. Failed attempts are committed before raising so they stay on record.
 - All repositories flush and all services commit (see Conventions → Transactions)
+- Email outbox (Feature 7): `queue_email(...)`, the `email_outbox` table, and the background SMTP sender with retries, templates for every `EMAIL_TEMPLATES` key, Mailpit in Docker Compose (see Conventions → Emails). Registration queues the verification email.
+- Email verification and password reset (Feature 7, `account_tokens` table): register queues a `verify_email` link (24 h); `POST /auth/verify-email` `{token}`, `POST /auth/resend-verification` (signed in; 409 if already verified), `POST /auth/forgot-password` `{email}` (always the same 200, so it reveals nothing), `POST /auth/reset-password` `{token, new_password}` (1 h link; signs out every session). Tokens are stored as SHA-256 hashes and used up atomically (`DELETE ... RETURNING`); a new link replaces the old one. Bad, expired or used links: 400 `InvalidAccountTokenError`. `users.email_verified_at` is recorded but **not enforced** yet (open decision: must users verify before ordering?).
+- Support cases (Feature 10, `services/support_service.py`, `support_cases` + `support_messages`):
+  - `POST /support/cases` with `kind`: `attendee` (exactly one of `event_id` / `order_id` / `ticket_id`; the server fills in the rest and checks the user owns the order/ticket) or `platform` (organizers only, optional own `event_id`). Categories per kind are in `schemas/support.py`.
+  - `GET /support/cases/me`, `GET /support/cases/inbox?kind=&status=` (organizer: attendee cases about their events; platform admin: everything), `GET /support/cases/{id}` (case + thread; clients poll it), `POST .../messages`, `PATCH .../status`, `PATCH .../assignee` (`{user_id}` or null).
+  - Readers: the requester and the handlers (event organizer for attendee cases, platform admins for all). Anyone else gets 404. Only handlers change status/assignee (403 otherwise); assignees must be handlers. A requester's reply reopens a `waiting_for_customer` or `resolved` case.
+  - Emails: replies notify the other side (assignee first), status changes notify the requester, assignment notifies the assignee. Status changes and assignments are audit-logged (`support_case.status_changed`, `support_case.assigned`).
+- Admin suspensions (Feature 13, `services/admin_service.py`):
+  - `POST /admin/users/{id}/suspend` `{reason}` / `.../unsuspend`: sets `users.suspended_at` + `suspension_reason`, signs the user out everywhere. Suspended users get 403 `UserSuspendedError` at login (after the password check) and on every request (`get_current_user`). Admins can't suspend themselves.
+  - `POST /admin/events/{id}/suspend` `{reason}` / `.../unsuspend`: a suspended event is hidden from `GET /events` and `GET /events/{id}` (404) and takes no new orders (404); the organizer still sees it in `/events/me`; issued tickets still scan.
+  - All four and organizer approval are audit-logged (`user.suspended`, `event.suspended`, `organizer.approved`, ...).
+- Admin search and monitoring (Feature 13): `GET /admin/users` (`q`, `suspended`), `/admin/events` (`q`, `status`, `suspended`), `/admin/orders` (`q` = buyer email/name, `status`, `event_id`), `/admin/payments` (`status`, `purpose`, `event_id`; `status=failed` is the failed-payment monitor), `/admin/refunds` (`event_id`). All answer `{items, total}`, newest first, with `limit` (1–200, default 50) and `offset`; a numeric `q` also matches the id; `%`/`_` in `q` are literal. `?format=csv` downloads every matching row as UTF-8 CSV with a BOM (Excel-friendly).
+- Event reports (Feature 13, `event_reports`): `POST /events/{id}/reports` `{reason, details?}` (signed in, public events only; one per user per event, 409 `EventAlreadyReportedError`, guaranteed by a unique constraint). Admins: `GET /admin/event-reports?status=&event_id=` (same paging/CSV as the other admin lists) and `POST /admin/event-reports/{id}/review` `{status: dismissed|actioned, note?}`, audit-logged as `event_report.reviewed`. Suspending the event is a separate admin action.
 
 Roadmap (build in this order; each feature must work end to end before the next):
 
@@ -203,7 +228,6 @@ Known issues / polish later (features come first; fix these near the end):
 - No `.env.example`.
 - `AccessTokenResponse` in `schemas/token.py` is unused.
 - Expired refresh tokens are only deleted when someone tries to use them; there's no cleanup job.
-- Organizer approval isn't audit-logged yet, because `approve_organizer_service` doesn't receive the admin's user id.
 - Update endpoints use "value if not None else old value", so a field can never be cleared back to null (e.g. removing a category). Fix with `model_dump(exclude_unset=True)`.
 - Private events can't be reached by anyone except the organizer yet; invite links are a later feature.
 - Endpoint function names are inconsistent (`user_login` vs `refresh_token_router`). Renaming changes operation IDs, so coordinate with the frontend.
