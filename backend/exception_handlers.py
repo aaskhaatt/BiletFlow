@@ -39,7 +39,8 @@ ERRORS = {
     OrderNotPayableError: (409, "Order Can Not Be Paid"),
     OrderExpiredError: (409, "Checkout Time Expired"),
     OrderNotCancellableError: (409, "Order Can Not Be Cancelled"),
-    OrderNotRefundableError: (409, "Order Can Not Be Refunded")
+    OrderNotRefundableError: (409, "Order Can Not Be Refunded"),
+    TicketNotPrintableError: (409, "Only Valid Tickets Can Be Printed")
 }
 
 async def exception_handler(request: Request, exc):

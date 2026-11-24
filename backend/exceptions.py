@@ -105,3 +105,6 @@ class OrderNotCancellableError(Exception):
 
 class OrderNotRefundableError(Exception):
     pass
+
+class TicketNotPrintableError(Exception):
+    pass
