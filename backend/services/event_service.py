@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from schemas.event import EventCreate, EventUpdate
 from services.organizer_service import ensure_organizer_approved_service
 from services.audit_service import log_action
+from services.notification_service import notify_event_updated, format_moment
 from repositories.event_repository import (create_event, update_event, get_event_by_id, update_event_status, get_events_by_organizer_id,
                                            get_published_events, get_published_categories)
 from exceptions import InvalidEventTimeError, EventAccessDeniedError, InvalidEventStatusError, EventNotReadyToPublishError, EventNotFoundError, QuantityBelowSoldError
@@ -78,6 +79,18 @@ def update_event_service(user_id: int, event_id: int, event_data: EventUpdate, d
     if visibility != event.visibility:
         changes.append(f"visibility {event.visibility} -> {visibility}")
 
+    # what attendees need to know, collected before update_event overwrites the old values
+    attendee_changes = []
+    if start_time != event.start_time:
+        attendee_changes.append(f"Starts: {format_moment(event.start_time)} -> {format_moment(start_time)}")
+    if end_time != event.end_time:
+        attendee_changes.append(f"Ends: {format_moment(event.end_time)} -> {format_moment(end_time)}")
+    old_venue = ", ".join(part for part in (event.venue_name, event.venue_address) if part)
+    new_venue = ", ".join(part for part in (venue_name, venue_address) if part)
+    if new_venue != old_venue:
+        attendee_changes.append(f"Where: {old_venue or 'not set'} -> {new_venue or 'not set'}")
+    was_published = event.status == "published"
+
     update_event(event, title, description, start_time, end_time, category, venue_name, venue_address, capacity, visibility, registration_opens_at, registration_closes_at, db)
     event.refund_policy = refund_policy
 
@@ -86,6 +99,10 @@ def update_event_service(user_id: int, event_id: int, event_data: EventUpdate, d
         description_text += ": " + ", ".join(changes)
 
     log_action(db, user_id, "event.updated", "event", event.id, description_text, event_id=event.id)
+
+    # only a published event has attendees to tell; a typo fix in the description emails nobody
+    if was_published and attendee_changes:
+        notify_event_updated(db, event, attendee_changes)
 
     db.commit()
     db.refresh(event)
