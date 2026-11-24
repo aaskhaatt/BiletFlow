@@ -8,7 +8,7 @@ from repositories.event_repository import get_event_by_id, reserve_event_capacit
 from repositories.ticket_type_repository import get_ticket_type_by_id, reserve_ticket_type_inventory, release_ticket_type_inventory
 from repositories.order_repository import (create_order, create_order_item, get_order_by_id, get_orders_by_user_id, lock_order,
                                            get_order_items, claim_overdue_orders, get_sales_totals, get_ticket_type_sales,
-                                           get_events_with_overdue_orders)
+                                           get_events_with_overdue_orders, get_ticket_status_counts, get_event_orders)
 from repositories.ticket_repository import create_ticket, get_attendees_by_event_id
 from repositories.paid_sales_repository import is_paid_sales_active
 from repositories.campaign_repository import redeem_campaign, release_campaign_redemption
@@ -40,8 +40,11 @@ def calculate_processing_fee(total_amount: int) -> int:
 def _issue_tickets(order, db: Session):
     # one ticket per seat; only ever called for confirmed orders (free, or paid successfully)
     for item in get_order_items(order.id, db):
-        for _ in range(item.quantity):
-            create_ticket(generate_ticket_code(), order.id, item.id, item.ticket_type_id, order.event_id, order.buyer_name, db)
+        names = item.attendee_names or []
+        for number in range(item.quantity):
+            # the name given for this ticket, or the buyer's
+            name = names[number] if number < len(names) else order.buyer_name
+            create_ticket(generate_ticket_code(), order.id, item.id, item.ticket_type_id, order.event_id, name, db)
 
 
 
@@ -206,8 +209,9 @@ def create_order_service(user: User, event_id: int, order_data: OrderCreate, db:
         discount_amount = discount,
     )
 
+    names = {item.ticket_type_id: item.attendee_names for item in order_data.items}
     for ticket_type, quantity in requested:
-        create_order_item(order.id, ticket_type.id, quantity, ticket_type.price, db)
+        create_order_item(order.id, ticket_type.id, quantity, ticket_type.price, db, names.get(ticket_type.id))
 
     # SRS 4.6: tickets only exist after payment, so a paid order gets none yet
     if is_free:
@@ -308,6 +312,7 @@ def get_event_sales_service(user_id: int, event_id: int, db: Session):
     # SRS 4.6: organizers see gross sales, fees, refunds and estimated payouts (all simulated money)
     event = ensure_event_owner_service(user_id, event_id, db)
     totals = get_sales_totals(event.id, db)
+    ticket_counts = get_ticket_status_counts(event.id, db)
 
     return {
         "event_id": event.id,
@@ -328,7 +333,37 @@ def get_event_sales_service(user_id: int, event_id: int, db: Session):
                 "sold": row.sold,
                 "reserved": row.reserved,
                 "available": row.quantity - row.sold_count,
+                "refunded": ticket_counts.get((row.ticket_type_id, "refunded"), 0),
+                "checked_in": ticket_counts.get((row.ticket_type_id, "checked_in"), 0),
             }
             for row in get_ticket_type_sales(event.id, db)
         ],
+    }
+
+
+def get_event_orders_service(user_id: int, event_id: int, status: str | None, q: str | None, limit: int, offset: int,
+                             db: Session) -> dict:
+    """The organizer's order list (SRS 4.16, success criterion "payment and refund records"): every order of the
+    event with its money, payment reference and refund details. Newest first."""
+    event = ensure_event_owner_service(user_id, event_id, db)
+    rows, total = get_event_orders(event.id, status, q.strip() if q else None, limit, offset, db)
+
+    return {
+        "items": [
+            {
+                "id": row.Order.id, "status": row.Order.status, "buyer_name": row.Order.buyer_name,
+                "buyer_email": row.Order.buyer_email, "created_at": row.Order.created_at, "paid_at": row.Order.paid_at,
+                "cancelled_at": row.Order.cancelled_at, "refunded_at": row.Order.refunded_at,
+                "total_amount": row.Order.total_amount, "discount_amount": row.Order.discount_amount,
+                "promo_code": row.Order.promo_code, "processing_fee": row.Order.processing_fee,
+                "tickets": row.tickets or 0, "payment_reference": row.payment_reference,
+                "refund": None if row.Refund is None else {
+                    "amount": row.Refund.amount, "reason": row.Refund.reason,
+                    "provider_reference": row.Refund.provider_reference, "created_at": row.Refund.created_at,
+                },
+                "is_simulated": True,
+            }
+            for row in rows
+        ],
+        "total": total,
     }

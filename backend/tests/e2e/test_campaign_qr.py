@@ -2,7 +2,7 @@
 import sys
 import threading
 from helpers import E2E
-from qr import make_qr_png
+from qr import make_campaign_qr_png, make_qr_png
 
 
 def main() -> bool:
@@ -34,7 +34,8 @@ def main() -> bool:
         s, kind, png = t.call_raw("GET", f"/campaigns/{summer['id']}/qr", token=org)
         t.check("organizer gets a PNG", s == 200 and kind == "image/png" and png.startswith(b"\x89PNG"), f"status {s}")
         # the same text always gives the same PNG, so this proves the QR contains exactly the link
-        t.check("the QR contains exactly the link", png == make_qr_png(link))
+        t.check("the QR contains exactly the link", png == make_campaign_qr_png(link, "SUMMER20"))
+        t.check("it doesn't look like a ticket QR (frame and caption)", png != make_qr_png(link) and len(png) > 0)
         s, b = t.call("GET", f"/campaigns/{summer['id']}/qr", token=other_org)
         t.check("another organizer can't get it", s == 403 and b["error"] == "EventAccessDeniedError", f"status {s}")
         s, b = t.call("GET", f"/campaigns/{summer['id']}/qr", token=alice)

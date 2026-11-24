@@ -1,4 +1,5 @@
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Annotated
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 from datetime import datetime
 from typing import Literal
 
@@ -6,6 +7,14 @@ from typing import Literal
 class OrderItemCreate(BaseModel):
     ticket_type_id: int
     quantity: int = Field(ge=1)
+    # optional, one per ticket (SRS 4.6): printed on each ticket. Missing ones get the buyer's name.
+    attendee_names: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]] | None = None
+
+    @model_validator(mode="after")
+    def not_more_names_than_tickets(self):
+        if self.attendee_names and len(self.attendee_names) > self.quantity:
+            raise ValueError("more attendee_names than tickets")
+        return self
 
 
 class OrderCreate(BaseModel):
@@ -85,6 +94,9 @@ class TicketTypeSales(BaseModel):
     sold: int
     reserved: int
     available: int
+    # tickets of this type that were refunded, and that were scanned in (SRS 4.3)
+    refunded: int
+    checked_in: int
 
 
 class SalesSummaryResponse(BaseModel):
@@ -107,3 +119,34 @@ class CancelOrderRequest(BaseModel):
 
 class RefundOrderRequest(BaseModel):
     reason: str = Field(min_length=3, max_length=500)
+
+
+class EventOrderRefund(BaseModel):
+    amount: int
+    reason: str | None
+    provider_reference: str     # "SIM-R-..." (simulated)
+    created_at: datetime
+
+
+class EventOrderRow(BaseModel):
+    id: int
+    status: str
+    buyer_name: str
+    buyer_email: str
+    created_at: datetime
+    paid_at: datetime | None
+    cancelled_at: datetime | None
+    refunded_at: datetime | None
+    total_amount: int           # what the buyer paid, after any discount
+    discount_amount: int
+    promo_code: str | None
+    processing_fee: int
+    tickets: int                # issued tickets (0 for a checkout that wasn't paid)
+    payment_reference: str | None   # "SIM-..." of the successful payment; null for free or unpaid orders
+    refund: EventOrderRefund | None
+    is_simulated: bool          # every payment is a demonstration, never real money (SRS 4.6)
+
+
+class EventOrderPage(BaseModel):
+    items: list[EventOrderRow]
+    total: int

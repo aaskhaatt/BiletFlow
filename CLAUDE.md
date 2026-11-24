@@ -213,6 +213,7 @@ Done:
   - Order and event emails (`services/notification_service.py`): order confirmed, payment failed, order cancelled, order refunded, event updated (published event's start, end or venue; one email per ticket holder) and event cancelled (one per affected person, no extra per-order emails). Queued in the same transaction as the action.
   - Demo data: `scripts/seed_demo.py`.
   - PATCH semantics: a field left out keeps its value, `null` clears an optional field, and required fields refuse `null` (422). Services read `model_dump(exclude_unset=True)`; see `schemas/partial.py`.
+  - SRS gaps closed after a line-by-line check: `GET /events/{id}/orders` (organizer: orders with payment reference and refund details, `status`/`q`/paging); `attendee_names` per order item (stored on `order_items` until tickets are issued); `GET /events/{id}/manage` (preview a draft); `refunded` and `checked_in` per ticket type in `/sales`; `absent` in analytics; platform admins can read event history; the Campaign QR PNG has an orange frame and a "NOT AN ENTRY TICKET" caption.
 
 Roadmap (build in this order; each feature must work end to end before the next):
 

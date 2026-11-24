@@ -13,7 +13,7 @@ from repositories.ticket_type_repository import get_ticket_type_by_id
 from services.audit_service import log_action
 from services.event_service import ensure_event_owner_service, get_public_event_service
 from security import generate_campaign_token
-from qr import make_qr_png
+from qr import make_campaign_qr_png
 from exceptions import (InvalidCampaignError, InvalidEventStatusError, PromoCodeAlreadyExistsError, PromoCodeNotActiveError,
                         PromoCodeUsedUpError, PromoCodeNotApplicableError, TicketTypeNotFoundError, EventNotFoundError,
                         CampaignLinkNotFoundError)
@@ -204,7 +204,7 @@ def get_campaign_qr_service(user_id: int, campaign_id: int, db: Session) -> byte
     campaign = get_campaign_by_id(campaign_id, db)
     ensure_event_owner_service(user_id, campaign.event_id, db)
 
-    return make_qr_png(campaign_link(campaign))
+    return make_campaign_qr_png(campaign_link(campaign), campaign.code)
 
 
 def open_campaign_link_service(qr_token: str, db: Session) -> dict:

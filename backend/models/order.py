@@ -1,5 +1,6 @@
 from database import Base
 from sqlalchemy import ForeignKey, DateTime, Index, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
 
@@ -46,6 +47,8 @@ class OrderItem(Base):
     quantity: Mapped[int] = mapped_column(nullable=False)
     # snapshot of the price at purchase time; later price changes must not rewrite old orders
     unit_price: Mapped[int] = mapped_column(nullable=False)
+    # one name per ticket, kept until the tickets are issued (at payment for paid orders); missing ones use the buyer's
+    attendee_names: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
 
     order: Mapped["Order"] = relationship("Order", back_populates="items")
     ticket_type: Mapped["TicketType"] = relationship("TicketType")
