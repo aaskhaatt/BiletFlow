@@ -1,8 +1,10 @@
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from schemas.event import EventCreate, EventUpdate
 from services.organizer_service import ensure_organizer_approved_service
 from services.audit_service import log_action
-from repositories.event_repository import create_event, update_event, get_event_by_id, update_event_status, get_events_by_organizer_id, get_published_events
+from repositories.event_repository import (create_event, update_event, get_event_by_id, update_event_status, get_events_by_organizer_id,
+                                           get_published_events, get_published_categories)
 from exceptions import InvalidEventTimeError, EventAccessDeniedError, InvalidEventStatusError, EventNotReadyToPublishError, EventNotFoundError, QuantityBelowSoldError
 
 
@@ -139,8 +141,30 @@ def get_my_events_service(user_id: int, db: Session):
     return get_events_by_organizer_id(organizer.id, db)
 
 
-def get_published_events_service(db: Session):
-    return get_published_events(db)
+def _as_utc(moment: datetime | None) -> datetime | None:
+    # a date sent without a timezone ("2026-12-01T00:00:00") is read as UTC, so comparisons never mix the two kinds
+    if moment is not None and moment.tzinfo is None:
+        return moment.replace(tzinfo=timezone.utc)
+    return moment
+
+
+def get_published_events_service(db: Session, q: str | None = None, category: str | None = None,
+                                 date_from: datetime | None = None, date_to: datetime | None = None,
+                                 include_past: bool = False, limit: int = 20, offset: int = 0) -> dict:
+    q = q.strip() if q else None
+    category = category.strip() if category else None
+    # by default the catalogue shows only events that haven't ended yet
+    ended_before = None if include_past else datetime.now(timezone.utc)
+
+    items, total = get_published_events(db, q=q or None, category=category or None,
+                                        date_from=_as_utc(date_from), date_to=_as_utc(date_to),
+                                        ended_before=ended_before, limit=limit, offset=offset)
+
+    return {"items": items, "total": total}
+
+
+def get_event_categories_service(db: Session) -> list[str]:
+    return get_published_categories(datetime.now(timezone.utc), db)
 
 
 def get_public_event_service(event_id: int, db: Session):

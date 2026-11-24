@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from models import Event
 from exceptions import EventNotFoundError
 from datetime import datetime
-from sqlalchemy import select, update, or_
+from sqlalchemy import select, update, or_, func
 
 
 
@@ -65,12 +65,48 @@ def update_event(event: Event, title: str, description: str | None, start_time: 
 
 
 
-def get_published_events(db: Session):
+def get_published_events(db: Session, q: str | None = None, category: str | None = None,
+                         date_from: datetime | None = None, date_to: datetime | None = None,
+                         ended_before: datetime | None = None, limit: int = 20, offset: int = 0) -> tuple[list[Event], int]:
+    # the public catalogue: only published, public, not suspended events. Returns (one page of events, total matching events)
     stmt = select(Event).where(Event.status == "published", Event.visibility == "public", Event.suspended_at.is_(None))
 
-    published_events = db.scalars(stmt).all()
+    if q:
+        # case-insensitive "contains"; autoescape makes % and _ typed by the user literal characters
+        stmt = stmt.where(or_(Event.title.icontains(q, autoescape=True),
+                              Event.description.icontains(q, autoescape=True),
+                              Event.venue_name.icontains(q, autoescape=True),
+                              Event.venue_address.icontains(q, autoescape=True)))
+    if category:
+        stmt = stmt.where(func.lower(Event.category) == category.lower())
+    if date_from:
+        stmt = stmt.where(Event.start_time >= date_from)
+    if date_to:
+        stmt = stmt.where(Event.start_time < date_to)
+    if ended_before:
+        # hides events that are already over
+        stmt = stmt.where(Event.end_time > ended_before)
 
-    return published_events
+    # count with the same filters, before paging
+    total = db.scalar(select(func.count()).select_from(stmt.subquery()))
+
+    # soonest first; id breaks ties so pages never overlap or skip an event
+    stmt = stmt.order_by(Event.start_time, Event.id).limit(limit).offset(offset)
+
+    return list(db.scalars(stmt)), total
+
+
+def get_published_categories(now: datetime, db: Session) -> list[str]:
+    # categories that have at least one upcoming public event, for the filter dropdown
+    stmt = (
+        select(Event.category)
+        .where(Event.status == "published", Event.visibility == "public", Event.suspended_at.is_(None),
+               Event.category.is_not(None), Event.end_time > now)
+        .distinct()
+        .order_by(Event.category)
+    )
+
+    return list(db.scalars(stmt))
 
 
 def get_events_by_organizer_id(organizer_id: int, db: Session):
@@ -122,5 +158,13 @@ def lock_event(event_id: int, db: Session) -> Event:
 
     if event is None:
         raise EventNotFoundError()
+
+    return event
+
+
+def update_event_image(event: Event, image_key: str | None, db: Session) -> Event:
+    event.image_key = image_key
+
+    db.flush()
 
     return event

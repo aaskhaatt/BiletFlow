@@ -63,7 +63,9 @@ def main() -> bool:
         t.check("they can sign in again", status == 200, status)
 
         # 2. suspending an event
-        event_id = t.make_event(org)
+        event_id = t.make_event(org, category="Suspended-only")
+        _, categories = t.call("GET", "/events/categories")
+        t.check("before: its category is in the filter", "Suspended-only" in categories, categories)
         ticket_type = t.make_ticket_type(org, event_id)
         _, early = t.order(nobody, event_id, [(ticket_type, 1)])
 
@@ -72,8 +74,12 @@ def main() -> bool:
         t.check("audit: event.suspended", audited("event.suspended", event_id) == 1)
         status, _ = t.call("GET", f"/events/{event_id}")
         t.check("public event page: 404", status == 404, status)
-        _, catalog = t.call("GET", "/events")
-        t.check("gone from the catalog", event_id not in [e["id"] for e in catalog])
+        _, catalog = t.call("GET", "/events?limit=100")
+        t.check("gone from the catalog", event_id not in [e["id"] for e in catalog["items"]])
+        _, categories = t.call("GET", "/events/categories")
+        t.check("its category isn't offered in the filter", "Suspended-only" not in categories, categories)
+        status, _ = t.call("POST", f"/events/{event_id}/orders/preview", {"items": [{"ticket_type_id": ticket_type, "quantity": 1}]}, nobody)
+        t.check("the checkout preview refuses it too: 404", status == 404, status)
         status, _ = t.order(nobody, event_id, [(ticket_type, 1)])
         t.check("no new orders: 404", status == 404, status)
         _, mine = t.call("GET", "/events/me", token=org)

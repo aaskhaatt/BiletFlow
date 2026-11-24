@@ -1,7 +1,7 @@
 """add email outbox table
 
 Revision ID: f8839974b276
-Revises: 1f151f9403a0
+Revises: c4ed30810163
 Create Date: 2026-11-24 09:33:28.576543
 
 """
@@ -13,7 +13,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = 'f8839974b276'
-down_revision: Union[str, Sequence[str], None] = '1f151f9403a0'
+down_revision: Union[str, Sequence[str], None] = 'c4ed30810163'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
