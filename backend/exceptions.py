@@ -117,3 +117,6 @@ class StorageNotConfiguredError(Exception):
 
 class StorageUnavailableError(Exception):
     pass
+
+class TicketNotPrintableError(Exception):
+    pass

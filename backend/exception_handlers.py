@@ -43,7 +43,8 @@ ERRORS = {
     InvalidImageError: (415, "File Must Be A JPEG, PNG Or WebP Image"),
     ImageTooLargeError: (413, "Image Is Larger Than 5 MB"),
     StorageNotConfiguredError: (503, "File Storage Is Not Configured"),
-    StorageUnavailableError: (503, "File Storage Is Unavailable")
+    StorageUnavailableError: (503, "File Storage Is Unavailable"),
+    TicketNotPrintableError: (409, "Only Valid Tickets Can Be Printed")
 }
 
 async def exception_handler(request: Request, exc):
