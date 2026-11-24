@@ -51,20 +51,23 @@ def update_event_service(user_id: int, event_id: int, event_data: EventUpdate, d
     if organizer.id != event.organizer_id:
         raise EventAccessDeniedError()
 
-    title = event_data.title if event_data.title is not None else event.title
-    start_time = event_data.start_time if event_data.start_time is not None else event.start_time
-    end_time = event_data.end_time if event_data.end_time is not None else event.end_time
-    description = event_data.description if event_data.description is not None else event.description
-    category = event_data.category if event_data.category is not None else event.category
-    venue_name = event_data.venue_name if event_data.venue_name is not None else event.venue_name
-    venue_address = event_data.venue_address if event_data.venue_address is not None else event.venue_address
-    capacity = event_data.capacity if event_data.capacity is not None else event.capacity
-    visibility = event_data.visibility if event_data.visibility is not None else event.visibility
-    registration_opens_at =event_data.registration_opens_at if event_data.registration_opens_at is not None else event.registration_opens_at
-    registration_closes_at = event_data.registration_closes_at if event_data.registration_closes_at is not None else event.registration_closes_at
-    refund_policy = event_data.refund_policy if event_data.refund_policy is not None else event.refund_policy
+    # only the fields that were sent: one left out keeps its value, one sent as null is cleared
+    sent = event_data.model_dump(exclude_unset=True)
+
+    def new(field: str):
+        return sent[field] if field in sent else getattr(event, field)
+
+    title, start_time, end_time = new("title"), new("start_time"), new("end_time")
+    description, category, capacity, visibility = new("description"), new("category"), new("capacity"), new("visibility")
+    venue_name, venue_address = new("venue_name"), new("venue_address")
+    registration_opens_at, registration_closes_at = new("registration_opens_at"), new("registration_closes_at")
+    refund_policy = new("refund_policy")
 
     validate_event_times(start_time, end_time, registration_opens_at, registration_closes_at)
+
+    # publishing needs a venue, so a published event can't lose it
+    if event.status == "published" and (not venue_name or not venue_address):
+        raise EventNotReadyToPublishError()
 
     if capacity is not None and capacity < event.tickets_sold:
         raise QuantityBelowSoldError()

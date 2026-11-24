@@ -1,4 +1,5 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from schemas.partial import reject_nulls
 from datetime import datetime
 from typing import Literal
 
@@ -33,6 +34,11 @@ class EventUpdate(BaseModel):
     registration_opens_at: datetime | None = None
     registration_closes_at: datetime | None = None
     refund_policy: str | None = Field(default=None, max_length=2000)
+
+    # send only what changes; null clears an optional field (category, venue, capacity, dates, refund policy)
+    @model_validator(mode="after")
+    def required_fields_not_null(self):
+        return reject_nulls(self, ("title", "start_time", "end_time", "visibility"))
 
 
 
