@@ -95,6 +95,18 @@ def search_refunds_service(q, event_id, limit, offset, db: Session):
     return search_rows(Refund, db, filters, q, [Refund.provider_reference, Refund.reason], limit, offset)
 
 
+# Excel and LibreOffice run a cell starting with one of these as a formula. Users type buyer names, reasons and
+# report details, so "=HYPERLINK(...)" in a name would run on an admin's computer when they open the export.
+FORMULA_START = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _safe_cell(value):
+    # a leading ' makes spreadsheets show the text as text (the OWASP advice for CSV injection)
+    if isinstance(value, str) and value.startswith(FORMULA_START):
+        return "'" + value
+    return value
+
+
 def rows_to_csv(rows, schema) -> str:
     """The schema's fields as columns. Starts with a BOM so Excel opens Cyrillic text correctly."""
     out = io.StringIO()
@@ -104,7 +116,7 @@ def rows_to_csv(rows, schema) -> str:
     writer.writerow(columns)
     for row in rows:
         data = schema.model_validate(row).model_dump(mode="json")
-        writer.writerow([data[c] for c in columns])
+        writer.writerow([_safe_cell(data[c]) for c in columns])
     return out.getvalue()
 
 

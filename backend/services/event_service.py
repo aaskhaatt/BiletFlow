@@ -91,13 +91,13 @@ def update_event_service(user_id: int, event_id: int, event_data: EventUpdate, d
     # what attendees need to know, collected before update_event overwrites the old values
     attendee_changes = []
     if start_time != event.start_time:
-        attendee_changes.append(f"Starts: {format_moment(event.start_time)} -> {format_moment(start_time)}")
+        attendee_changes.append(f"Басталуы / Начало / Starts: {format_moment(event.start_time)} -> {format_moment(start_time)}")
     if end_time != event.end_time:
-        attendee_changes.append(f"Ends: {format_moment(event.end_time)} -> {format_moment(end_time)}")
+        attendee_changes.append(f"Аяқталуы / Окончание / Ends: {format_moment(event.end_time)} -> {format_moment(end_time)}")
     old_venue = ", ".join(part for part in (event.venue_name, event.venue_address) if part)
     new_venue = ", ".join(part for part in (venue_name, venue_address) if part)
     if new_venue != old_venue:
-        attendee_changes.append(f"Where: {old_venue or 'not set'} -> {new_venue or 'not set'}")
+        attendee_changes.append(f"Өтетін орны / Место / Where: {old_venue or '—'} -> {new_venue or '—'}")
     was_published = event.status == "published"
 
     update_event(event, title, description, start_time, end_time, category, venue_name, venue_address, capacity, visibility, registration_opens_at, registration_closes_at, db)

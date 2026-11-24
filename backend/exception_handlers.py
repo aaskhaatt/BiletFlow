@@ -11,7 +11,7 @@ ERRORS = {
     InvalidCredentialsError: (401, "Invalid Credentials"),
     OrganizerProfileAlreadyExistsError: (409, "Organizer Profile Already Exists"),
     OrganizerNotFoundError: (404, "Organizer Not Found"),
-    OrganizerNotApprovedError: (403, "Organizer Not Aproved"),
+    OrganizerNotApprovedError: (403, "Organizer Not Approved"),
     EventNotFoundError: (404, "Event Not Found"),
     EventAccessDeniedError: (403, "Event Access Denied"),
     InvalidEventTimeError: (400, "Invalid Event Time"),

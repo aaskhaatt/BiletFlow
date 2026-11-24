@@ -69,12 +69,13 @@ Never run two refreshes with the same refresh token. The second one fails and, w
 
 | Situation | Status | Body |
 |---|---|---|
-| No `Authorization` header | 401 | `{"detail": "Not authenticated"}` |
-| Malformed, wrong signature or expired token | 401 | `{"detail": "Invalid token"}` |
-| Token valid, but the user no longer exists | **404** | `{"detail": "User Not Found"}`. Treat it like 401: log out. |
+| No `Authorization` header | 401 | `NotAuthenticatedError` |
+| Malformed, wrong signature or expired token | 401 | `InvalidTokenError` |
+| Token valid, but the account was deleted | 401 | `InvalidTokenError`: the token is no longer valid |
+| The account is suspended by a platform admin | 403 | `UserSuspendedError`, on every request (and at login, after the password check). Its sessions were already signed out. |
 | OK | | The user is loaded from the database; then the endpoint's own checks run |
 
-These bodies use `detail`. Every error raised later in the request uses the normal format `{"error", "message", "fields"}`, so the client must handle both shapes.
+Every error, these included, has the same body: `{"error": "<Name>", "message": "...", "fields": null}`. The two 401s also send `WWW-Authenticate: Bearer`.
 
 ---
 
@@ -84,19 +85,19 @@ These bodies use `detail`. Every error raised later in the request uses the norm
 |---|---|---|---|
 | Anonymous | No token | | |
 | User | Valid access token | `users` | Has tokens. Id from JWT `sub`. |
-| Organizer applicant | Has an organizer profile with `status = "pending"` | `organizer_profiles` | `GET /organizers/me` → `status: "pending"` |
-| Approved organizer | Organizer profile with `status = "approved"` | `organizer_profiles` | `GET /organizers/me` → `status: "approved"` |
+| Organizer applicant | Has an organizer profile with `status = "pending"` | `organizer_profiles` | `GET /auth/me` → `organizer.status: "pending"` |
+| Approved organizer | Organizer profile with `status = "approved"` | `organizer_profiles` | `GET /auth/me` → `organizer.status: "approved"` |
 | Event owner | Approved organizer **and** `event.organizer_id == organizer_profile.id` | `events.organizer_id` | Compare `event.organizer_id` with `GET /organizers/me` → `id` |
-| Event staff | A row `(event_id, user_id)` exists | `staff_assignments` | The event appears in `GET /staff/events` |
+| Event staff | A row `(event_id, user_id)` exists | `staff_assignments` | `GET /auth/me` → `is_event_staff`; the event appears in `GET /staff/events` |
 | Buyer (of an order) | `order.user_id == current user id` | `orders.user_id` | The order appears in `GET /orders/me` |
-| Platform admin | `users.is_platform_admin = true` | `users` | **Not exposed in any response.** Probe `GET /admin/settings`: 200 means admin, 403 means not. |
+| Platform admin | `users.is_platform_admin = true` | `users` | `GET /auth/me` → `is_platform_admin` |
 
 Important details:
 
 - **`event.organizer_id` is an organizer profile id, not a user id.** Comparing it with the JWT `sub` is a bug.
 - Roles **combine**. A user can be an approved organizer, staff for someone else's event and a buyer at the same time. An organizer can also buy tickets to their own event.
 - **Staff doesn't require being an organizer.** Any user can be assigned by email.
-- **A platform admin has no extra power outside the admin endpoints.** On organizer, buyer or staff endpoints an admin is treated like any other user. For example, an admin with no organizer profile gets `404 OrganizerNotFoundError` on `GET /events/{id}/sales`.
+- **A platform admin has few extra powers outside the admin endpoints:** they can read any event's history (`GET /events/{id}/history`) and handle every support case. On other organizer, buyer or staff endpoints an admin is treated like any other user; for example, an admin with no organizer profile gets `404 OrganizerNotFoundError` on `GET /events/{id}/sales`.
 - Becoming admin is only possible directly in the database; there's no endpoint for it.
 
 ### Organizer lifecycle
@@ -150,15 +151,15 @@ The order's (or the ticket's order's) `user_id` must equal the current user. Oth
 
 ### E. Platform admin: `require_platform_admin` (`dependencies.py`)
 
-Not an admin → `403 {"detail": "Access denied"}`, in the `detail` shape.
+Not an admin → `403 PlatformAdminRequiredError`.
 
 ---
 
-## 5. Permission matrix (all 48 endpoints)
+## 5. Permission matrix (all 92 endpoints)
 
 Check letters refer to section 4. "Status rules" (wrong event or order status) come after the permission check and are listed in the API reference.
 
-### Accounts: public
+### Accounts
 
 | Endpoint | Who | Notes |
 |---|---|---|
@@ -166,25 +167,38 @@ Check letters refer to section 4. "Status rules" (wrong event or order status) c
 | `POST /auth/login` | Anyone | `401 InvalidCredentialsError` for an unknown email **or** a wrong password; you can't tell which |
 | `POST /auth/refresh` | Anyone holding a refresh token | No access token needed |
 | `POST /auth/logout` | Anyone holding a refresh token | Always 200 |
+| `GET /auth/me` | Any user | Who am I: email, `is_platform_admin`, `organizer` (or null), `is_event_staff`, `email_verified` |
+| `POST /auth/verify-email` | Anyone with the emailed link's token | `400 InvalidAccountTokenError` for a bad, used or expired link |
+| `POST /auth/resend-verification` | Any user | `409 EmailAlreadyVerifiedError` if already verified |
+| `POST /auth/forgot-password` | Anyone | Always the same 200, so it doesn't reveal which emails have accounts |
+| `POST /auth/reset-password` | Anyone with the emailed link's token | Signs out every session of the account |
 
 ### Events
 
 | Endpoint | Who | Denied with |
 |---|---|---|
-| `GET /events` | Anyone | Returns only `status = published` **and** `visibility = public` |
-| `GET /events/{id}` | Anyone | `404 EventNotFoundError` if not published, or if `private`. `unlisted` is returned. |
+| `GET /events` | Anyone | Only published, `public`, not suspended; ended events only with `include_past=true`. Paged `{items, total}`. |
+| `GET /events/categories` | Anyone | |
+| `GET /events/{id}` | Anyone | `404 EventNotFoundError` if not published, `private` or suspended. `unlisted` is returned. |
+| `GET /events/{id}/manage` | Owner (B) | Any status: the preview of a draft |
 | `GET /events/me` | Approved organizer (A) | Own events, any status and visibility |
 | `POST /events` | Approved organizer (A) | |
 | `PATCH /events/{id}` | Owner (B) | |
 | `PATCH /events/{id}/publish` | Owner (B) | |
 | `PATCH /events/{id}/unpublish` | Owner (B) | |
 | `PATCH /events/{id}/cancel` | Owner (B) | |
+| `PUT /events/{id}/image`, `DELETE /events/{id}/image` | Owner (B) | |
+| `POST /events/{id}/duplicate` | Owner (B) | |
+| `GET /events/{id}/history` | Owner (B) **or** platform admin | |
+| `GET /events/{id}/analytics` | Owner (B) | |
+| `POST /events/{id}/reports` | Any user | Only events visible to the public; one report per user per event (`409 EventAlreadyReportedError`) |
 
 ### Ticket types
 
 | Endpoint | Who | Denied with |
 |---|---|---|
-| `GET /events/{id}/ticket-types` | Anyone | `404 EventNotFoundError` unless the event is published. Visibility **isn't** checked (see section 9). Hidden types are left out, even for the owner. |
+| `GET /events/{id}/ticket-types` | Anyone | The same rule as `GET /events/{id}`. Hidden types are left out, even for the owner. |
+| `GET /events/{id}/ticket-types/manage` | Owner (B) | Hidden types and drafts included |
 | `POST /events/{id}/ticket-type` | Owner (B) | |
 | `PATCH /ticket-types/{id}` | Owner (B, by ticket type) | |
 | `PATCH /ticket_types/{id}/hide` | Owner (B, by ticket type) | |
@@ -194,14 +208,17 @@ Check letters refer to section 4. "Status rules" (wrong event or order status) c
 
 | Endpoint | Who | Denied with |
 |---|---|---|
-| `POST /events/{id}/orders` | Any user | `404 EventNotFoundError` if the event isn't published or is `private` |
+| `POST /events/{id}/orders` | Any user | `404 EventNotFoundError` if the event isn't published, is `private` or suspended |
+| `POST /events/{id}/orders/preview` | Any user | The same rules as ordering; reserves nothing |
 | `GET /orders/me` | Any user | Only the caller's orders |
 | `GET /orders/{id}` | Buyer (D) | `404 OrderNotFoundError` for everyone else, including the organizer |
 | `POST /orders/{id}/pay` | Buyer (D) | `404 OrderNotFoundError` |
 | `POST /orders/{id}/cancel` | Buyer (D) **or** owner (B) | `404 OrderNotFoundError` if neither |
 | `POST /orders/{id}/refund` | Owner (B) only | Buyer who isn't the owner → `403 EventAccessDeniedError`. Anyone else → `404 OrderNotFoundError`. |
 | `GET /tickets/{id}/qr` | Buyer (D) | `404 TicketNotFoundError` for everyone else, including the organizer |
+| `GET /tickets/{id}/pdf`, `GET /orders/{id}/pdf` | Buyer (D) | `404` for everyone else, including the organizer |
 | `GET /events/{id}/attendees` | Owner (B) | |
+| `GET /events/{id}/orders` | Owner (B) | Orders with payment and refund details |
 | `GET /events/{id}/sales` | Owner (B) | |
 
 ### Staff and scanning
@@ -235,6 +252,24 @@ Check letters refer to section 4. "Status rules" (wrong event or order status) c
 | `POST /events/{id}/paid-sales/pay-fee` | Owner (B) |
 | `POST /events/{id}/paid-sales/activate` | Owner (B) |
 
+### Promo codes
+
+| Endpoint | Who | Denied with |
+|---|---|---|
+| `POST /events/{id}/campaigns`, `GET /events/{id}/campaigns` | Owner (B) | |
+| `GET /campaigns/{id}`, `PATCH /campaigns/{id}`, `GET /campaigns/{id}/qr` | Owner (B, by campaign) | `404 CampaignNotFoundError` if it doesn't exist |
+| `GET /campaign-links/{token}` | Anyone | `404 CampaignLinkNotFoundError` for an unknown token, or a draft, private or suspended event |
+
+### Support cases
+
+| Endpoint | Who | Denied with |
+|---|---|---|
+| `POST /support/cases` | Any user | `kind: attendee`: the order or ticket must be yours (`404` otherwise). `kind: platform`: organizers only. |
+| `GET /support/cases/me` | Any user | Only the caller's own cases |
+| `GET /support/cases/inbox` | Approved organizer (attendee cases about their events) or platform admin (all) | `403 SupportCaseAccessDeniedError` |
+| `GET /support/cases/{id}`, `POST /support/cases/{id}/messages` | The requester, or a handler (the event's owner for attendee cases; platform admins for all) | `404 SupportCaseNotFoundError` for everyone else |
+| `PATCH /support/cases/{id}/status`, `PATCH /support/cases/{id}/assignee` | A handler | The requester gets `403`; an assignee must be a handler too |
+
 ### Platform admin
 
 | Endpoint | Who | Notes |
@@ -243,8 +278,14 @@ Check letters refer to section 4. "Status rules" (wrong event or order status) c
 | `GET /admin/paid-sales` | Admin (E) | |
 | `POST /admin/events/{id}/paid-sales/suspend` | Admin (E) | |
 | `POST /admin/events/{id}/paid-sales/reinstate` | Admin (E) | |
-| `GET /admin/settings` | Admin (E) | Also the way to detect admin status |
+| `GET /admin/settings` | Admin (E) | |
 | `PUT /admin/settings/activation-fee` | Admin (E) | |
+| `GET /admin/users`, `/admin/events`, `/admin/orders`, `/admin/payments`, `/admin/refunds`, `/admin/campaigns`, `/admin/event-reports` | Admin (E) | Paged `{items, total}`; `?format=csv` downloads every matching row |
+| `POST /admin/event-reports/{id}/review` | Admin (E) | |
+| `POST /admin/users/{id}/suspend`, `.../unsuspend` | Admin (E) | `400 CannotSuspendSelfError` for your own account |
+| `POST /admin/events/{id}/suspend`, `.../unsuspend` | Admin (E) | |
+
+`GET /health` is public: it answers `{"status": "ok", "database": "ok"}` for the hosting platform's checks.
 
 ---
 
@@ -255,10 +296,11 @@ Check letters refer to section 4. "Status rules" (wrong event or order status) c
 | `draft` | any | No | 404 | No (404) | 404 |
 | `published` | `public` | Yes | Yes | Yes | Yes |
 | `published` | `unlisted` | No | Yes, by id or link | Yes | Yes |
-| `published` | `private` | No | 404 | No (404) | **Yes** (inconsistency, section 9) |
+| `published` | `private` | No | 404 | No (404) | 404 |
 | `cancelled` | any | No | 404 | No (404) | 404 |
+| suspended by an admin | any | No | 404 | No (404) | 404 |
 
-The owner sees all their events through `GET /events/me`.
+The owner sees all their events through `GET /events/me`, and any one of them through `GET /events/{id}/manage`.
 
 ---
 
@@ -268,14 +310,14 @@ UI gating is cosmetic, and the server enforces everything. Always handle 401, 40
 
 ```
 after login (and when the app returns to the foreground):
-    userId          = int(decodeJwtPayload(accessToken).sub)
-    organizer       = GET /organizers/me           // 404 → null
-    organizerState  = organizer?.status ?? "none"  // "none" | "pending" | "approved"
-    scannerEvents   = GET /staff/events            // [] → hide the scanner tab
-    isAdmin         = (GET /admin/settings).status == 200   // only if the app has admin screens
+    me              = GET /auth/me
+    organizerState  = me.organizer?.status ?? "none"   // "none" | "pending" | "approved"
+    isAdmin         = me.is_platform_admin
+    showScanner     = me.is_event_staff || organizerState == "approved"   // owners can scan their own events
+    scannerEvents   = GET /staff/events              // when the scanner opens
 
 per event:
-    isOwner  = organizerState == "approved" && event.organizer_id == organizer.id
+    isOwner  = organizerState == "approved" && event.organizer_id == me.organizer.id
     canScan  = scannerEvents.some(e => e.id == event.id)
 
 per order:
@@ -296,29 +338,27 @@ Notes:
 
 | Response | Meaning | Client action |
 |---|---|---|
-| `401 {"detail": ...}` | Missing, invalid or expired access token | Refresh once (section 1), retry, else log out |
+| `401 NotAuthenticatedError` / `InvalidTokenError` | Missing, invalid or expired access token, or a deleted account | Refresh once (section 1), retry, else log out |
+| `403 UserSuspendedError` | The account is suspended | Log out; show "Your account is suspended" |
 | `401 InvalidRefreshTokenError` | Refresh token used, expired or unknown | Log out |
 | `401 InvalidCredentialsError` | Wrong email or password | Show "Wrong email or password" |
-| `404 {"detail": "User Not Found"}` | The account was deleted | Log out |
 | `404 OrganizerNotFoundError` | Not an organizer | Show the "Become an organizer" flow |
 | `403 OrganizerNotApprovedError` | Waiting for approval | Show "Pending approval" |
 | `403 EventAccessDeniedError` | Not the owner | Hide organizer actions for this event |
 | `403 NotEventStaffError` | Not staff here (or removed) | Leave the scanner; refresh `GET /staff/events` |
-| `403 {"detail": "Access denied"}` | Not a platform admin | Hide admin screens |
+| `403 PlatformAdminRequiredError` | Not a platform admin | Hide admin screens |
 | `404 OrderNotFoundError` / `TicketNotFoundError` | Not yours, or doesn't exist | Show "not found" |
 
-The `message` field is a fixed English label (one even has a typo: "Organizer Not Aproved"). Base logic on `error`, never on `message`.
+The `message` field is a fixed English label. Base logic on `error`, never on `message`.
 
 ---
 
 ## 9. Current inconsistencies to code around
 
-These are backend issues and may be fixed later.
+Fixed since the first version of this document: email addresses are case-insensitive, private events no longer
+show their ticket types, every error has one body shape, `GET /auth/me` exists, and the owner can list hidden
+ticket types and drafts (`/ticket-types/manage`, `/events/{id}/manage`). Still true:
 
-1. **Email case sensitivity.** Pydantic lowercases only the domain (`Ann@Example.com` is stored as `Ann@example.com`). The part before `@` stays case-sensitive: logging in as `ann@example.com` returns 401, and registering `ann@example.com` creates a **second account**. **Client: `trim()` and lowercase the email before register and login.**
-2. **Private events leak their ticket types.** `GET /events/{id}/ticket-types` checks only `status == published`, not visibility. Don't rely on it for privacy.
-3. **Two error body shapes:** `detail` for authentication and admin errors, `error` for everything else.
-4. **No current-user endpoint.** Get the id from the JWT, the organizer state from `GET /organizers/me`, and the admin flag by probing. No endpoint returns the logged-in user's own profile, so store the email the user logged in with.
-5. **Organizers get 403 for other organizers' events**, while attendees get 404 for other people's orders.
-6. **Hidden ticket types and draft events.** The owner can't list hidden ticket types, or any ticket types of a draft event, through the API. Keep ids from the create responses.
-7. **No organizer rejection or revocation.** An applicant stays `pending` until approved.
+1. **Organizers get 403 for other organizers' events**, while attendees get 404 for other people's orders.
+2. **No organizer rejection or revocation.** An applicant stays `pending` until approved.
+3. **Ticket-type URLs are inconsistent:** `/events/{id}/ticket-type` (singular), `/ticket-types/{id}`, and `/ticket_types/{id}/hide` with an underscore. Renaming them would break the generated clients, so they stay.

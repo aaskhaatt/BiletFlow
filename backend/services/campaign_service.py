@@ -8,7 +8,7 @@ from models import PromoCampaign, TicketType
 from schemas.campaign import CampaignCreate, CampaignUpdate
 from repositories.campaign_repository import (create_campaign, get_campaign_by_id, lock_campaign, get_campaign_by_code,
                                               get_campaigns_by_event_id, update_campaign, get_campaign_stats,
-                                              get_campaign_by_token, count_link_open)
+                                              get_campaign_by_token, count_link_open, search_campaigns)
 from repositories.ticket_type_repository import get_ticket_type_by_id
 from services.audit_service import log_action
 from services.event_service import ensure_event_owner_service, get_public_event_service
@@ -233,3 +233,21 @@ def open_campaign_link_service(qr_token: str, db: Session) -> dict:
         "discount_type": campaign.discount_type if usable else None,
         "discount_value": campaign.discount_value if usable else None,
     }
+
+
+# --- platform admin: promo-code activity across all events (SRS 4.12) --------------------------------------------
+
+def search_campaigns_service(q: str | None, event_id: int | None, active: bool | None, limit: int | None, offset: int,
+                             db: Session) -> tuple[list[dict], int]:
+    rows, total = search_campaigns(q.strip() if q else None, event_id, active, limit, offset, db)
+    items = [
+        {"id": row.PromoCampaign.id, "event_id": row.PromoCampaign.event_id, "event_title": row.event_title,
+         "code": row.PromoCampaign.code, "name": row.PromoCampaign.name,
+         "discount_type": row.PromoCampaign.discount_type, "discount_value": row.PromoCampaign.discount_value,
+         "is_active": row.PromoCampaign.is_active, "max_redemptions": row.PromoCampaign.max_redemptions,
+         "redemptions_count": row.PromoCampaign.redemptions_count, "link_opens": row.PromoCampaign.link_opens,
+         "orders": row.orders, "tickets": row.tickets, "gross": row.gross, "discount": row.discount, "net": row.net,
+         "created_at": row.PromoCampaign.created_at}
+        for row in rows
+    ]
+    return items, total

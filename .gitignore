@@ -6,3 +6,6 @@ __pycache__/
 .env
 # end-to-end test server output
 backend/tests/e2e/server.log
+
+# database backups hold personal data: never commit them
+backups/

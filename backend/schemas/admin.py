@@ -98,3 +98,24 @@ class EventReportResponse(BaseModel):
     reviewed_at: datetime | None
     review_note: str | None
     created_at: datetime
+
+
+class AdminCampaignRow(BaseModel):
+    # one promo code, with what it did: paid orders that used it, and their money (SRS 4.12, 4.14)
+    id: int
+    event_id: int
+    event_title: str
+    code: str
+    name: str
+    discount_type: str
+    discount_value: int
+    is_active: bool
+    max_redemptions: int | None
+    redemptions_count: int
+    link_opens: int
+    orders: int
+    tickets: int
+    gross: int
+    discount: int
+    net: int
+    created_at: datetime

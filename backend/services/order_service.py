@@ -171,9 +171,9 @@ def create_order_service(user: User, event_id: int, order_data: OrderCreate, db:
     # if anything below raises, nothing was committed, so get_db rolls these reservations back too
     total_quantity = sum(quantity for _, quantity in requested)
     if reserve_event_capacity(event.id, total_quantity, db) is None:
-        # either full, or the event was cancelled while we waited for its lock: re-read it to know which
+        # either full, or the event was cancelled or suspended while we waited for its lock: re-read it to know which
         db.refresh(event)
-        if event.status != "published":
+        if event.status != "published" or event.suspended_at is not None:
             raise EventNotFoundError()
         raise EventSoldOutError()
 
@@ -256,6 +256,10 @@ def pay_order_service(user_id: int, order_id: int, outcome: SimulatedOutcome, db
     # an admin may have suspended paid sales while the attendee was paying
     if not is_paid_sales_active(order.event_id, db):
         raise PaidSalesNotActiveError()
+
+    # ...or the whole event: no money is taken for a suspended event (its hold simply expires)
+    if get_event_by_id(order.event_id, db).suspended_at is not None:
+        raise OrderNotPayableError()
 
     payment = simulate_payment("order", order.total_amount, outcome, user_id, order.event_id, db, order_id=order.id)
 

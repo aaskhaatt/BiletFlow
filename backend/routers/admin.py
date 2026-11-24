@@ -10,6 +10,8 @@ from services.paid_sales_service import list_activations_service, suspend_paid_s
 from services.settings_service import get_settings_service, set_activation_fee_service
 # --- Dev B: admin tools (Feature 13) ---
 from fastapi import Query, Response
+from services.campaign_service import search_campaigns_service
+from schemas.admin import AdminCampaignRow
 from schemas.admin import (AdminOrderRow, AdminPaymentRow, AdminRefundRow, AdminUserResponse, EventReportResponse,
                            EventReportReview, Page, SuspendRequest)
 from schemas.event import EventResponse
@@ -143,3 +145,13 @@ def search_event_reports(status: Literal["open", "dismissed", "actioned"] | None
 def review_event_report(report_id: int, data: EventReportReview, admin: User = Depends(require_platform_admin),
                         db: Session = Depends(get_db)):
     return review_event_report_service(admin.id, report_id, data.status, data.note, db)
+
+
+# --- promo-code activity across all events (SRS 4.12) ---
+
+@router.get("/campaigns", response_model=Page[AdminCampaignRow])
+def search_campaigns(q: str | None = Query(None, max_length=100, description="Code, campaign name or event title"),
+                     event_id: int | None = None, active: bool | None = None, limit: int = Limit, offset: int = Offset,
+                     format: Format = "json", admin: User = Depends(require_platform_admin), db: Session = Depends(get_db)):
+    return _page(search_campaigns_service(q, event_id, active, _limit(format, limit), offset, db),
+                 AdminCampaignRow, format, "campaigns")

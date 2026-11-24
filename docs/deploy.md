@@ -77,6 +77,39 @@ There is no endpoint for this on purpose. Connect to the database (Render: the d
 update users set is_platform_admin = true where email = 'someone@example.com';
 ```
 
+## Backups and recovery
+
+SRS §7 asks for regular backups and a recovery procedure. Both are in the repository and were tested by
+restoring a backup into an empty database (every table matched).
+
+**Daily, automatic.** `.github/workflows/db-backup.yml` dumps the hosted database every night at 02:00 Kazakhstan
+time and keeps each backup for 30 days (Actions tab → "Database backup" → a run → Artifacts). The repository is
+public, so every backup is encrypted with AES-256 before upload. It needs two repository secrets
+(Settings → Secrets and variables → Actions):
+
+- `BACKUP_DATABASE_URL`: the database's **External** connection string (Render: the database page).
+- `BACKUP_PASSPHRASE`: a long random passphrase. Keep a copy outside GitHub: without it no backup can be opened.
+
+Until both are set, the job skips with a notice. Run it once by hand ("Run workflow") to check it.
+
+**By hand, any time** (from `backend/`, needs Docker):
+
+```bash
+DATABASE_URL='<connection string>' ./scripts/backup_db.sh            # writes backups/biletflow-<time>.dump
+```
+
+**Recovery:**
+
+```bash
+gpg --decrypt --output biletflow.dump biletflow-<time>.dump.gpg       # only for the daily (encrypted) backups
+DATABASE_URL='<connection string>' ./scripts/restore_db.sh biletflow.dump
+DATABASE_URL='<connection string>' alembic upgrade head                # if the backup is older than the code
+```
+
+`restore_db.sh` replaces everything in the target database and asks you to type `yes` first. Practise on a local
+database before you ever need it on the server. Backups hold emails and password hashes: `backups/` is in
+`.gitignore`; never commit or share them.
+
 ## Don't
 
 - Don't run `tests/run_all.py` against the shared database. The tests use `backend/.env`; keep that pointing

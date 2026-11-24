@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import select, update, func, or_, and_
 from sqlalchemy.orm import Session, selectinload
-from models import PromoCampaign, Order, OrderItem, TicketType
+from models import PromoCampaign, Order, OrderItem, TicketType, Event
 from exceptions import CampaignNotFoundError, PromoCodeNotFoundError, CampaignLinkNotFoundError
 from repositories.order_repository import sold_between
 
@@ -145,3 +145,42 @@ def count_link_open(campaign_id: int, db: Session):
     # +1 inside the database, so two people scanning at the same moment both count
     db.execute(update(PromoCampaign).where(PromoCampaign.id == campaign_id)
                .values(link_opens=PromoCampaign.link_opens + 1))
+
+
+def search_campaigns(q: str | None, event_id: int | None, active: bool | None, limit: int | None, offset: int,
+                     db: Session) -> tuple[list, int]:
+    """Every campaign of every event, newest first, with its event title and paid-order stats. (page, total);
+    limit=None returns every row (CSV export)."""
+    quantities = (select(OrderItem.order_id, func.sum(OrderItem.quantity).label("tickets"))
+                  .group_by(OrderItem.order_id).subquery())
+    stats = (
+        select(PromoCampaign.id.label("campaign_id"),
+               func.count(Order.id).label("orders"),
+               func.coalesce(func.sum(quantities.c.tickets), 0).label("tickets"),
+               func.coalesce(func.sum(Order.total_amount + Order.discount_amount), 0).label("gross"),
+               func.coalesce(func.sum(Order.discount_amount), 0).label("discount"),
+               func.coalesce(func.sum(Order.total_amount), 0).label("net"))
+        .select_from(PromoCampaign)
+        .outerjoin(Order, (Order.campaign_id == PromoCampaign.id) & (Order.status == "confirmed"))
+        .outerjoin(quantities, quantities.c.order_id == Order.id)
+        .group_by(PromoCampaign.id)
+        .subquery()
+    )
+    stmt = (select(PromoCampaign, Event.title.label("event_title"), stats)
+            .join(Event, Event.id == PromoCampaign.event_id)
+            .join(stats, stats.c.campaign_id == PromoCampaign.id))
+    if event_id is not None:
+        stmt = stmt.where(PromoCampaign.event_id == event_id)
+    if active is not None:
+        stmt = stmt.where(PromoCampaign.is_active.is_(active))
+    if q:
+        stmt = stmt.where(or_(PromoCampaign.code.icontains(q, autoescape=True),
+                              PromoCampaign.name.icontains(q, autoescape=True),
+                              Event.title.icontains(q, autoescape=True)))
+
+    total = db.scalar(select(func.count()).select_from(stmt.subquery()))
+    stmt = stmt.order_by(PromoCampaign.id.desc()).offset(offset)
+    if limit is not None:
+        stmt = stmt.limit(limit)
+
+    return db.execute(stmt).all(), total

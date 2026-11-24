@@ -132,7 +132,7 @@ def reserve_event_capacity(event_id: int, quantity: int, db: Session) -> int | N
     stmt = (
         update(Event)
         # status check: a buyer waiting behind an event cancellation must not get in once it's cancelled
-        .where(Event.id == event_id, Event.status == "published",
+        .where(Event.id == event_id, Event.status == "published", Event.suspended_at.is_(None),
                or_(Event.capacity.is_(None), Event.tickets_sold + quantity <= Event.capacity))
         .values(tickets_sold=Event.tickets_sold + quantity)
         .returning(Event.tickets_sold)

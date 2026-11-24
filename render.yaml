@@ -25,9 +25,30 @@ services:
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: "30"
       - key: REFRESH_TOKEN_EXPIRE_DAYS
-        value: "7"
+        value: "30"   # the same as locally
       # the hosted web app's address, filled in on the Render dashboard once it exists
       - key: CORS_ORIGINS
+        sync: false
+      # the same web app address, used in email links and Campaign QR links (https://...)
+      - key: FRONTEND_URL
+        sync: false
+      # optional, filled in on the dashboard. Without SMTP_HOST emails wait in the outbox;
+      # without S3_ENDPOINT_URL event image uploads answer 503 (e.g. Cloudflare R2's free tier works)
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_PUBLIC_URL
         sync: false
 
 databases:

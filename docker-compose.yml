@@ -45,11 +45,16 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/biletflow
       SMTP_HOST: mailpit
       SMTP_PORT: "1025"
+      # the same for file storage: the API reaches it as "storage", browsers still at localhost:9000
+      S3_ENDPOINT_URL: http://storage:9000
+      S3_PUBLIC_URL: http://localhost:9000/biletflow-images
     depends_on:
       postgres:
         # start the API only when Postgres accepts connections; the API then applies migrations itself
         condition: service_healthy
       mailpit:
+        condition: service_started
+      storage:
         condition: service_started
     restart: unless-stopped
 

@@ -44,7 +44,8 @@ def notify_event_cancelled(db: Session, event: Event, emails: set[str]):
 
 
 def format_moment(moment: datetime) -> str:
-    return moment.astimezone(KZ_TIME).strftime("%a, %d %b %Y, %H:%M") + " (UTC+5)"
+    # numbers only, so the same text reads correctly in Kazakh, Russian and English
+    return moment.astimezone(KZ_TIME).strftime("%d.%m.%Y %H:%M") + " (UTC+5)"
 
 
 def notify_event_updated(db: Session, event: Event, changes: list[str]) -> int:

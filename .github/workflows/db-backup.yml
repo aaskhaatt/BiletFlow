@@ -1,0 +1,54 @@
+# Daily backup of the hosted database (SRS 7: regular backups and recovery procedures).
+# Setup and restore steps: docs/deploy.md, "Backups". Needs two repository secrets:
+#   BACKUP_DATABASE_URL  the hosted database's EXTERNAL connection string (Render: database page, "External URL")
+#   BACKUP_PASSPHRASE    a long random passphrase; keep a copy somewhere safe, without it a backup can't be opened
+# The repository is public, so the dump is encrypted (AES-256) before it's uploaded: it holds emails and password hashes.
+name: Database backup
+
+on:
+  schedule:
+    - cron: "0 21 * * *"   # every day at 02:00 Kazakhstan time (21:00 UTC)
+  workflow_dispatch:         # and on demand: Actions tab, "Run workflow"
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+      PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Skip until the secrets are set
+        id: ready
+        run: |
+          if [ -z "$DATABASE_URL" ] || [ -z "$PASSPHRASE" ]; then
+            echo "::notice::BACKUP_DATABASE_URL or BACKUP_PASSPHRASE isn't set; skipping (see docs/deploy.md, Backups)"
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.ready.outputs.go == 'true'
+
+      - name: Dump, then encrypt
+        if: steps.ready.outputs.go == 'true'
+        run: |
+          sh backend/scripts/backup_db.sh backups
+          for f in backups/*.dump; do
+            gpg --batch --yes --pinentry-mode loopback --passphrase "$PASSPHRASE" \
+                --symmetric --cipher-algo AES256 --output "$f.gpg" "$f"
+            rm "$f"
+          done
+          ls -l backups
+
+      - uses: actions/upload-artifact@v4
+        if: steps.ready.outputs.go == 'true'
+        with:
+          name: biletflow-db-${{ github.run_id }}
+          path: backups/*.gpg
+          retention-days: 30
+          if-no-files-found: error

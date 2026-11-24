@@ -27,6 +27,8 @@ alembic upgrade head                     # apply migrations
 uvicorn main:app --reload                # API on http://localhost:8000, docs at /docs
 ```
 
+Backups: `scripts/backup_db.sh` and `scripts/restore_db.sh` (Docker only), plus a nightly encrypted backup of the hosted database (`.github/workflows/db-backup.yml`). Setup and recovery: `docs/deploy.md`, "Backups and recovery".
+
 Demo data: `python scripts/seed_demo.py` (from `backend/`) creates an admin, an organizer, staff, 10 attendees and 4 events (paid with promo codes, live with check-ins, completed, draft) through the real services. `--reset` recreates it, `--clear` removes it. Accounts are `@demo.example.com`; the shared password is `DEMO_PASSWORD` in the script. It refuses non-local databases unless given `--allow-remote`.
 
 Full stack in Docker: `docker compose up --build` (from the repo root). The API container applies migrations itself at start (`backend/start.sh`).
@@ -196,7 +198,7 @@ Done:
 - Deployment: `GET /health` (503 if the database is down), migrations at container start, `CORS_ORIGINS`, `render.yaml` and `docs/deploy.md` for the shared test server.
 - `GET /auth/me`: `id`, `email`, `is_platform_admin`, `email_verified`, `organizer` (`{id, user_id, status}` or null) and `is_event_staff` (assigned to at least one non-draft event, the same rule as `GET /staff/events`). The apps call it after login to pick which screens to show; an organizer can scan their own events even when `is_event_staff` is false.
 - Email outbox (Feature 7): `queue_email(...)`, the `email_outbox` table, and the background SMTP sender with retries, templates for every `EMAIL_TEMPLATES` key, Mailpit in Docker Compose (see Conventions → Emails). Registration queues the verification email.
-- Email verification and password reset (Feature 7, `account_tokens` table): register queues a `verify_email` link (24 h); `POST /auth/verify-email` `{token}`, `POST /auth/resend-verification` (signed in; 409 if already verified), `POST /auth/forgot-password` `{email}` (always the same 200, so it reveals nothing), `POST /auth/reset-password` `{token, new_password}` (1 h link; signs out every session). Tokens are stored as SHA-256 hashes and used up atomically (`DELETE ... RETURNING`); a new link replaces the old one. Bad, expired or used links: 400 `InvalidAccountTokenError`. `users.email_verified_at` is recorded but **not enforced** yet (open decision: must users verify before ordering?).
+- Email verification and password reset (Feature 7, `account_tokens` table): register queues a `verify_email` link (24 h); `POST /auth/verify-email` `{token}`, `POST /auth/resend-verification` (signed in; 409 if already verified), `POST /auth/forgot-password` `{email}` (always the same 200, so it reveals nothing), `POST /auth/reset-password` `{token, new_password}` (1 h link; signs out every session). Tokens are stored as SHA-256 hashes and used up atomically (`DELETE ... RETURNING`); a new link replaces the old one. Bad, expired or used links: 400 `InvalidAccountTokenError`. `users.email_verified_at` is recorded but not enforced: attendees don't have to verify before ordering (decided).
 - Support cases (Feature 10, `services/support_service.py`, `support_cases` + `support_messages`):
   - `POST /support/cases` with `kind`: `attendee` (exactly one of `event_id` / `order_id` / `ticket_id`; the server fills in the rest and checks the user owns the order/ticket) or `platform` (organizers only, optional own `event_id`). Categories per kind are in `schemas/support.py`.
   - `GET /support/cases/me`, `GET /support/cases/inbox?kind=&status=` (organizer: attendee cases about their events; platform admin: everything), `GET /support/cases/{id}` (case + thread; clients poll it), `POST .../messages`, `PATCH .../status`, `PATCH .../assignee` (`{user_id}` or null).
@@ -222,6 +224,7 @@ Done:
   - PATCH semantics: a field left out keeps its value, `null` clears an optional field, and required fields refuse `null` (422). Services read `model_dump(exclude_unset=True)`; see `schemas/partial.py`.
   - SRS gaps closed after a line-by-line check: `GET /events/{id}/orders` (organizer: orders with payment reference and refund details, `status`/`q`/paging); `attendee_names` per order item (stored on `order_items` until tickets are issued); `GET /events/{id}/manage` (preview a draft); `refunded` and `checked_in` per ticket type in `/sales`; `absent` in analytics; platform admins can read event history; the Campaign QR PNG has an orange frame and a "NOT AN ENTRY TICKET" caption.
 - Case-insensitive emails: `Ann@x.com` and `ann@x.com` are one account (register, login, staff assignment, order snapshots). Simultaneous sign-ups with the same address give one 201 and 409s instead of a 500.
+- Final audit fixes (the whole backend checked against SRS v0.3): CSV exports put a `'` before cells starting with `=`, `+`, `-`, `@` (formula injection); suspended events are refused by the atomic reservation itself and at payment (409 `OrderNotPayableError`); `GET /admin/campaigns` shows promo-code activity across events (paged, CSV); every email is in Kazakh, Russian and English (`services/email_templates.py`; Kazakh first; have a native speaker check the texts); the Docker Compose API reaches storage as `storage:9000`; database backups and recovery.
 
 Roadmap (build in this order; each feature must work end to end before the next):
 
@@ -255,4 +258,3 @@ Known issues / polish later:
 - Analytics money is per order, so the ticket-type filter doesn't split gross or discounts (a discount covers the whole order). Documented in `schemas/analytics.py`.
 - Client-facing auth and permission rules are documented in `docs/auth-and-roles.md`. Update it when permissions change.
 - `users.email_verified_at` is recorded but not enforced. Decision: attendees don't have to verify before ordering.
-- Review follow-ups for Dev B: CSV exports must neutralize cells starting with `=`, `+`, `-` or `@` (formula injection), and `reserve_event_capacity` plus `pay_order_service` must refuse suspended events (race between the check and the reservation).
