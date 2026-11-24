@@ -186,6 +186,7 @@ Done:
   - `POST /admin/users/{id}/suspend` `{reason}` / `.../unsuspend`: sets `users.suspended_at` + `suspension_reason`, signs the user out everywhere. Suspended users get 403 `UserSuspendedError` at login (after the password check) and on every request (`get_current_user`). Admins can't suspend themselves.
   - `POST /admin/events/{id}/suspend` `{reason}` / `.../unsuspend`: a suspended event is hidden from `GET /events` and `GET /events/{id}` (404) and takes no new orders (404); the organizer still sees it in `/events/me`; issued tickets still scan.
   - All four and organizer approval are audit-logged (`user.suspended`, `event.suspended`, `organizer.approved`, ...).
+- Admin search and monitoring (Feature 13): `GET /admin/users` (`q`, `suspended`), `/admin/events` (`q`, `status`, `suspended`), `/admin/orders` (`q` = buyer email/name, `status`, `event_id`), `/admin/payments` (`status`, `purpose`, `event_id`; `status=failed` is the failed-payment monitor), `/admin/refunds` (`event_id`). All answer `{items, total}`, newest first, with `limit` (1–200, default 50) and `offset`; a numeric `q` also matches the id; `%`/`_` in `q` are literal. `?format=csv` downloads every matching row as UTF-8 CSV with a BOM (Excel-friendly).
 
 Roadmap (build in this order; each feature must work end to end before the next):
 

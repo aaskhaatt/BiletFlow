@@ -1,7 +1,11 @@
 """Platform admin tools (SRS 4.12). Every action here is audit-logged in the same transaction."""
+import csv
+import io
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from exceptions import CannotSuspendSelfError
+from models import Event, Order, Payment, Refund, User
+from repositories.admin_repository import search_rows
 from repositories.event_repository import get_event_by_id
 from repositories.refresh_token_repository import delete_user_refresh_tokens
 from repositories.user_repository import get_user_by_id
@@ -53,3 +57,50 @@ def unsuspend_event_service(admin_user_id: int, event_id: int, db: Session):
         db.commit()
         db.refresh(event)
     return event
+
+
+# --- search and monitoring lists (SRS 4.12) ----------------------------------------------------
+
+def _only(*conditions):
+    # drops the filters the admin didn't set (None)
+    return [condition for value, condition in conditions if value is not None]
+
+
+def search_users_service(q, suspended, limit, offset, db: Session):
+    filters = _only((suspended, User.suspended_at.is_not(None) if suspended else User.suspended_at.is_(None)))
+    return search_rows(User, db, filters, q, [User.email], limit, offset)
+
+
+def search_events_service(q, status, suspended, limit, offset, db: Session):
+    filters = _only((status, Event.status == status),
+                    (suspended, Event.suspended_at.is_not(None) if suspended else Event.suspended_at.is_(None)))
+    return search_rows(Event, db, filters, q, [Event.title, Event.venue_name], limit, offset)
+
+
+def search_orders_service(q, status, event_id, limit, offset, db: Session):
+    filters = _only((status, Order.status == status), (event_id, Order.event_id == event_id))
+    return search_rows(Order, db, filters, q, [Order.buyer_email, Order.buyer_name], limit, offset)
+
+
+def search_payments_service(q, status, purpose, event_id, limit, offset, db: Session):
+    filters = _only((status, Payment.status == status), (purpose, Payment.purpose == purpose),
+                    (event_id, Payment.event_id == event_id))
+    return search_rows(Payment, db, filters, q, [Payment.provider_reference], limit, offset)
+
+
+def search_refunds_service(q, event_id, limit, offset, db: Session):
+    filters = _only((event_id, Refund.event_id == event_id))
+    return search_rows(Refund, db, filters, q, [Refund.provider_reference, Refund.reason], limit, offset)
+
+
+def rows_to_csv(rows, schema) -> str:
+    """The schema's fields as columns. Starts with a BOM so Excel opens Cyrillic text correctly."""
+    out = io.StringIO()
+    out.write("﻿")
+    writer = csv.writer(out)
+    columns = list(schema.model_fields)
+    writer.writerow(columns)
+    for row in rows:
+        data = schema.model_validate(row).model_dump(mode="json")
+        writer.writerow([data[c] for c in columns])
+    return out.getvalue()
