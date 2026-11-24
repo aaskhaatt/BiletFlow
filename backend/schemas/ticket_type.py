@@ -1,4 +1,5 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from schemas.partial import reject_nulls
 from datetime import datetime
 
 
@@ -21,6 +22,11 @@ class TicketTypeUpdate(BaseModel):
     sales_start: datetime | None = None
     sales_end: datetime | None = None
     max_per_order: int | None = Field(default=None, ge=1)
+
+    # send only what changes; null clears the description, every other field must keep a value
+    @model_validator(mode="after")
+    def required_fields_not_null(self):
+        return reject_nulls(self, ("name", "price", "quantity", "sales_start", "sales_end", "max_per_order"))
 
 
 
