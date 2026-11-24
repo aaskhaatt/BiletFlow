@@ -121,6 +121,13 @@ backend/
 - For updates, collect "old -> new" for important fields (price, capacity) **before** calling the repository, then put them in the description.
 - Audit rows are never updated or deleted by the app.
 
+**Emails.**
+- Any action that should email someone calls `queue_email(db, to, template, data)` from `services/email_service.py`, **before** the commit, exactly like `log_action`.
+- It only saves a row in `email_outbox` (status `pending`) in the same transaction, so a rolled-back action never emails anyone. A background sender (Feature 7) sends pending rows; nothing is sent until it exists.
+- `template` must be a key of `EMAIL_TEMPLATES`, which also lists the `data` keys each template uses. Agree on a new name with the other developer before adding one.
+- `data` must be JSON-safe: pass ids, strings and numbers, and datetimes as `.isoformat()` strings. An unknown template or non-JSON data raises at once (a programming error, not a domain exception).
+- Pass the address from the order snapshot (`order.buyer_email`), not from the current user, so history stays correct.
+
 ## Status (update as features land)
 
 Done:
@@ -161,6 +168,7 @@ Done:
   - **Phase 1 (core ticketing) is complete.**
   - `payments` table: all payments are `provider = "simulated"`, `is_simulated = true`, with `SIM-` references. Failed attempts are committed before raising so they stay on record.
 - All repositories flush and all services commit (see Conventions → Transactions)
+- Email outbox stub (start of Feature 7): `queue_email(...)` and the `email_outbox` table (see Conventions → Emails). Nothing calls it or sends emails yet.
 
 Roadmap (build in this order; each feature must work end to end before the next):
 
