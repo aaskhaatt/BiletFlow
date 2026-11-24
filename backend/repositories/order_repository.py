@@ -148,3 +148,17 @@ def get_events_with_overdue_orders(event_id: int | None, db: Session) -> list[in
         stmt = stmt.where(Order.event_id == event_id)
 
     return list(db.scalars(stmt).all())
+
+
+# when an order counts as a sale: the payment moment, or the registration moment for free orders (they have no paid_at)
+ORDER_SALE_TIME = func.coalesce(Order.paid_at, Order.created_at)
+
+
+def sold_between(sold_from: datetime | None, sold_to: datetime | None) -> list:
+    # conditions for "sold in this period"; empty when no dates are given
+    conditions = []
+    if sold_from is not None:
+        conditions.append(ORDER_SALE_TIME >= sold_from)
+    if sold_to is not None:
+        conditions.append(ORDER_SALE_TIME < sold_to)
+    return conditions
