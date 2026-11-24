@@ -85,8 +85,8 @@ def expire_overdue_orders_service(db: Session, event_id: int | None = None) -> i
 
 
 def _ensure_event_open(event, now: datetime):
-    # drafts and private events answer 404, the same as the public event page
-    if event.status != "published" or event.visibility == "private":
+    # drafts, private and suspended events answer 404, the same as the public event page
+    if event.status != "published" or event.visibility == "private" or event.suspended_at is not None:
         raise EventNotFoundError()
 
     if event.registration_opens_at is not None and now < event.registration_opens_at:

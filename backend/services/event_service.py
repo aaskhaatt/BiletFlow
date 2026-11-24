@@ -171,7 +171,7 @@ def get_public_event_service(event_id: int, db: Session):
     event = get_event_by_id(event_id, db)
 
     # 404 instead of 403, so strangers can't tell that a draft or private event exists
-    if event.status != "published" or event.visibility == "private":
+    if event.status != "published" or event.visibility == "private" or event.suspended_at is not None:
         raise EventNotFoundError()
 
     return event

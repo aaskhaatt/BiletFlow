@@ -3,7 +3,7 @@ from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from security import decode_access_token
-from exceptions import UserNotFoundError
+from exceptions import UserNotFoundError, UserSuspendedError
 from repositories.user_repository import get_user_by_id
 from models.user import User
 
@@ -27,6 +27,10 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
     except UserNotFoundError:
         raise HTTPException(status_code=404, detail = "User Not Found")
+
+    # checked on every request, so a suspension takes effect at once, not when the token expires
+    if user.suspended_at is not None:
+        raise UserSuspendedError()
 
     return user
 

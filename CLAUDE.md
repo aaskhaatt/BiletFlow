@@ -182,6 +182,10 @@ Done:
   - `GET /support/cases/me`, `GET /support/cases/inbox?kind=&status=` (organizer: attendee cases about their events; platform admin: everything), `GET /support/cases/{id}` (case + thread; clients poll it), `POST .../messages`, `PATCH .../status`, `PATCH .../assignee` (`{user_id}` or null).
   - Readers: the requester and the handlers (event organizer for attendee cases, platform admins for all). Anyone else gets 404. Only handlers change status/assignee (403 otherwise); assignees must be handlers. A requester's reply reopens a `waiting_for_customer` or `resolved` case.
   - Emails: replies notify the other side (assignee first), status changes notify the requester, assignment notifies the assignee. Status changes and assignments are audit-logged (`support_case.status_changed`, `support_case.assigned`).
+- Admin suspensions (Feature 13, `services/admin_service.py`):
+  - `POST /admin/users/{id}/suspend` `{reason}` / `.../unsuspend`: sets `users.suspended_at` + `suspension_reason`, signs the user out everywhere. Suspended users get 403 `UserSuspendedError` at login (after the password check) and on every request (`get_current_user`). Admins can't suspend themselves.
+  - `POST /admin/events/{id}/suspend` `{reason}` / `.../unsuspend`: a suspended event is hidden from `GET /events` and `GET /events/{id}` (404) and takes no new orders (404); the organizer still sees it in `/events/me`; issued tickets still scan.
+  - All four and organizer approval are audit-logged (`user.suspended`, `event.suspended`, `organizer.approved`, ...).
 
 Roadmap (build in this order; each feature must work end to end before the next):
 
@@ -220,7 +224,6 @@ Known issues / polish later (features come first; fix these near the end):
 - No `.env.example`.
 - `AccessTokenResponse` in `schemas/token.py` is unused.
 - Expired refresh tokens are only deleted when someone tries to use them; there's no cleanup job.
-- Organizer approval isn't audit-logged yet, because `approve_organizer_service` doesn't receive the admin's user id.
 - Update endpoints use "value if not None else old value", so a field can never be cleared back to null (e.g. removing a category). Fix with `model_dump(exclude_unset=True)`.
 - Private events can't be reached by anyone except the organizer yet; invite links are a later feature.
 - Endpoint function names are inconsistent (`user_login` vs `refresh_token_router`). Renaming changes operation IDs, so coordinate with the frontend.
