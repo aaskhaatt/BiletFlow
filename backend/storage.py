@@ -122,3 +122,18 @@ def delete_file(key: str | None):
         _get_client().delete_object(Bucket=S3_BUCKET, Key=key)
     except (BotoCoreError, ClientError):
         logger.warning("could not delete %s", key, exc_info=True)
+
+
+def copy_file(source_key: str, new_key: str) -> bool:
+    """Copies a file inside storage (no download). Returns False instead of raising: a duplicated event
+    is still useful without its image, so a storage problem must not stop the copy."""
+    if not storage_configured():
+        return False
+    try:
+        client = _get_client()
+        client.copy_object(Bucket=S3_BUCKET, Key=new_key, CopySource={"Bucket": S3_BUCKET, "Key": source_key},
+                           CacheControl="public, max-age=31536000, immutable", MetadataDirective="COPY")
+        return True
+    except (BotoCoreError, ClientError, StorageNotConfiguredError):
+        logger.warning("could not copy %s to %s", source_key, new_key, exc_info=True)
+        return False
