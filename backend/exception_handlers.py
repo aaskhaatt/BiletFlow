@@ -39,7 +39,11 @@ ERRORS = {
     OrderNotPayableError: (409, "Order Can Not Be Paid"),
     OrderExpiredError: (409, "Checkout Time Expired"),
     OrderNotCancellableError: (409, "Order Can Not Be Cancelled"),
-    OrderNotRefundableError: (409, "Order Can Not Be Refunded")
+    OrderNotRefundableError: (409, "Order Can Not Be Refunded"),
+    InvalidImageError: (415, "File Must Be A JPEG, PNG Or WebP Image"),
+    ImageTooLargeError: (413, "Image Is Larger Than 5 MB"),
+    StorageNotConfiguredError: (503, "File Storage Is Not Configured"),
+    StorageUnavailableError: (503, "File Storage Is Unavailable")
 }
 
 async def exception_handler(request: Request, exc):

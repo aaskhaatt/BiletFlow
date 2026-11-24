@@ -160,3 +160,11 @@ def lock_event(event_id: int, db: Session) -> Event:
         raise EventNotFoundError()
 
     return event
+
+
+def update_event_image(event: Event, image_key: str | None, db: Session) -> Event:
+    event.image_key = image_key
+
+    db.flush()
+
+    return event

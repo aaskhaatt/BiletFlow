@@ -1,5 +1,5 @@
 from datetime import datetime
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, UploadFile, File
 from schemas.event import EventResponse, EventCreate, EventUpdate, EventPage
 from database import get_db
 from sqlalchemy.orm import Session
@@ -8,6 +8,8 @@ from dependencies import get_current_user
 from services.event_service import (create_event_service, get_published_events_service, get_my_events_service, update_event_service,
                                     publish_event_service, unpublish_event_service, get_public_event_service, get_event_categories_service)
 from services.cancellation_service import cancel_event_service
+from services.event_image_service import upload_event_image_service, delete_event_image_service
+from storage import MAX_IMAGE_BYTES
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -69,3 +71,16 @@ def cancel_event(event_id: int, current_user: User = Depends(get_current_user), 
 @router.patch("/{event_id}/unpublish", response_model=EventResponse)
 def unpublish_event(event_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return unpublish_event_service(current_user.id, event_id, db)
+
+
+# multipart/form-data with the image in a field named "file": JPEG, PNG or WebP, at most 5 MB. Replaces any old image.
+@router.put("/{event_id}/image", response_model=EventResponse)
+def upload_event_image(event_id: int, file: UploadFile = File(...), current_user: User = Depends(get_current_user),
+                       db: Session = Depends(get_db)):
+    # read one byte more than allowed, so a too-large file is detected without reading all of it
+    return upload_event_image_service(current_user.id, event_id, file.file.read(MAX_IMAGE_BYTES + 1), db)
+
+
+@router.delete("/{event_id}/image", response_model=EventResponse)
+def delete_event_image(event_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return delete_event_image_service(current_user.id, event_id, db)
