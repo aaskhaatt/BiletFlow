@@ -40,6 +40,16 @@ class InvalidAccountTokenError(Exception):
 
 class EmailAlreadyVerifiedError(Exception):
     pass
+
+# support cases (Feature 10)
+class SupportCaseNotFoundError(Exception):
+    pass
+
+class SupportCaseAccessDeniedError(Exception):
+    pass
+
+class InvalidSupportAssigneeError(Exception):
+    pass
 # --- end Dev B ---
 
 class InvalidEventStatusError(Exception):
