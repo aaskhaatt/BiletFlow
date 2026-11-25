@@ -1,0 +1,54 @@
+/*
+ * Design tokens: the Figma variables collection "BiletFlow tokens".
+ * Names follow Figma, with "/" turned into "-": "text/ink" is --bf-text-ink.
+ * This is the only file with raw color values. Components use the Tailwind
+ * names from index.css (bg-paper, text-ink, border-line, ...), never hex.
+ */
+:root {
+  /* text */
+  --bf-text-ink: #17171c;
+  --bf-text-ink-2: #4a4a55;
+  --bf-text-muted: #6b6b76;
+  --bf-text-on-dark: #ffffff;
+
+  /* backgrounds */
+  --bf-bg-paper: #f6f3ec;
+  --bf-bg-surface: #ffffff;
+  --bf-bg-sidebar: #17171c;
+  --bf-bg-sidebar-soft: #26262d;
+
+  /* lines */
+  --bf-line-default: #e3ded2;
+  --bf-line-soft: #efebe2;
+  --bf-line-field: #cfc8b8;
+
+  /* brand */
+  --bf-brand-primary: #3b2fd0;
+  --bf-brand-primary-press: #2a2199;
+  --bf-brand-primary-soft: #eceafe;
+  --bf-brand-stub: #f2b233;
+
+  /* status */
+  --bf-status-ok-bg: #e3f4ea;
+  --bf-status-ok-fg: #14663c;
+  --bf-status-info-bg: #e4eefb;
+  --bf-status-info-fg: #1a4e9c;
+  --bf-status-danger-bg: #fde8e6;
+  --bf-status-danger-fg: #9e1f14;
+  --bf-status-neutral-bg: #ededef;
+  --bf-status-neutral-fg: #45454f;
+  --bf-status-warn-bg: #fff1cc;
+  --bf-status-warn-line: #f0d48a;
+  --bf-status-warn-fg: #6b4100;
+
+  /* radii */
+  --bf-radius-small: 8px; /* badges, checkboxes, small chips */
+  --bf-radius-control: 12px; /* buttons and fields */
+  --bf-radius-card: 16px; /* cards and dialogs */
+  --bf-radius-ticket: 20px; /* the ticket stub */
+
+  /*
+   * Grid: 4 px. Tailwind's spacing step is already 0.25rem (4 px), so p-1 = 4 px,
+   * p-4 = 16 px. Buttons and fields are 44-56 px tall (h-11, h-12, h-14).
+   */
+}

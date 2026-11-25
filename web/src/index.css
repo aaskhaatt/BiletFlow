@@ -1,0 +1,148 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+@import './styles/tokens.css';
+
+/*
+ * No dark theme for now: "dark:" classes in shadcn components only apply under
+ * a .dark parent, which the app never sets (instead of following the OS setting).
+ */
+@custom-variant dark (&:is(.dark *));
+
+/* Only our tokens exist: Tailwind's default palette and radii are switched off. */
+@theme {
+  --color-*: initial;
+  --radius-*: initial;
+}
+
+@theme inline {
+  /* text/* */
+  --color-ink: var(--bf-text-ink);
+  --color-ink-2: var(--bf-text-ink-2);
+  --color-ink-muted: var(--bf-text-muted);
+  --color-on-dark: var(--bf-text-on-dark);
+
+  /* bg/* */
+  --color-paper: var(--bf-bg-paper);
+  --color-surface: var(--bf-bg-surface);
+  --color-sidebar: var(--bf-bg-sidebar);
+  --color-sidebar-soft: var(--bf-bg-sidebar-soft);
+
+  /* line/* */
+  --color-line: var(--bf-line-default);
+  --color-line-soft: var(--bf-line-soft);
+  --color-line-field: var(--bf-line-field);
+
+  /* brand/* */
+  --color-brand: var(--bf-brand-primary);
+  --color-brand-press: var(--bf-brand-primary-press);
+  --color-brand-soft: var(--bf-brand-primary-soft);
+  --color-stub: var(--bf-brand-stub);
+
+  /* status/* */
+  --color-status-ok-bg: var(--bf-status-ok-bg);
+  --color-status-ok-fg: var(--bf-status-ok-fg);
+  --color-status-info-bg: var(--bf-status-info-bg);
+  --color-status-info-fg: var(--bf-status-info-fg);
+  --color-status-danger-bg: var(--bf-status-danger-bg);
+  --color-status-danger-fg: var(--bf-status-danger-fg);
+  --color-status-neutral-bg: var(--bf-status-neutral-bg);
+  --color-status-neutral-fg: var(--bf-status-neutral-fg);
+  --color-status-warn-bg: var(--bf-status-warn-bg);
+  --color-status-warn-line: var(--bf-status-warn-line);
+  --color-status-warn-fg: var(--bf-status-warn-fg);
+
+  /*
+   * The names shadcn/ui components use (bg-primary, border-input, ...),
+   * pointed at the same tokens.
+   */
+  --color-background: var(--bf-bg-paper);
+  --color-foreground: var(--bf-text-ink);
+  --color-card: var(--bf-bg-surface);
+  --color-card-foreground: var(--bf-text-ink);
+  --color-popover: var(--bf-bg-surface);
+  --color-popover-foreground: var(--bf-text-ink);
+  --color-primary: var(--bf-brand-primary);
+  --color-primary-foreground: var(--bf-text-on-dark);
+  --color-secondary: var(--bf-brand-primary-soft);
+  --color-secondary-foreground: var(--bf-brand-primary);
+  --color-muted: var(--bf-line-soft);
+  --color-muted-foreground: var(--bf-text-muted);
+  --color-accent: var(--bf-brand-primary-soft);
+  --color-accent-foreground: var(--bf-text-ink);
+  --color-destructive: var(--bf-status-danger-fg);
+  --color-border: var(--bf-line-default);
+  --color-input: var(--bf-line-field);
+  --color-ring: var(--bf-brand-primary);
+
+  /* radii: rounded-sm 8, rounded-md 12, rounded-lg 16, rounded-xl 20 */
+  --radius-sm: var(--bf-radius-small);
+  --radius-md: var(--bf-radius-control);
+  --radius-lg: var(--bf-radius-card);
+  --radius-xl: var(--bf-radius-ticket);
+
+  /*
+   * fonts: font-sans is the default for all text, font-display is for headings.
+   * Unbounded lacks the Kazakh letters Ә Ғ Қ Ң Ө Ұ Ү Һ: the browser takes them
+   * from Golos Text (our own font) instead of a system font.
+   */
+  --font-sans: 'Golos Text', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Unbounded', 'Golos Text', ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-display);
+}
+
+/* Text styles from Figma (size / line height). rem keeps the user's browser font size. */
+@utility type-page-title {
+  /* Unbounded Bold 30/120% */
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.875rem;
+  line-height: 1.2;
+}
+@utility type-event-title {
+  /* Unbounded Bold 26/122% */
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.625rem;
+  line-height: 1.22;
+}
+@utility type-card-title {
+  /* Unbounded Medium 18/130% */
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1.125rem;
+  line-height: 1.3;
+}
+@utility type-body {
+  /* Golos Text Regular 15/140% */
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+@utility type-label {
+  /* Golos Text Medium 14/140% */
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+@utility type-small {
+  /* Golos Text Regular 13/140% */
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+  }
+  body {
+    @apply type-body bg-paper text-ink;
+  }
+}
