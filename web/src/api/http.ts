@@ -1,4 +1,4 @@
-import { getRequestSession, type RequestSession } from '@/api/access-token'
+import { checkSession, getRequestSession, needsAccessRefresh } from '@/api/access-token'
 import { ApiError, errorFromResponse, networkError } from '@/api/errors'
 import { getApiUrl } from '@/lib/env'
 
@@ -8,8 +8,6 @@ import { getApiUrl } from '@/lib/env'
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type ErrorType<_Error> = ApiError
-
-const REFRESH_MARGIN_MS = 60_000
 
 async function request(path: string, init: RequestInit, token: string | null): Promise<Response> {
   const headers = new Headers(init.headers)
@@ -29,13 +27,6 @@ async function checked(response: Response): Promise<Response> {
   return response
 }
 
-function checkSession(session: RequestSession, generation: number, signal?: AbortSignal | null) {
-  signal?.throwIfAborted()
-  if (session.getCredentials().generation !== generation) {
-    throw new DOMException('The session changed', 'AbortError')
-  }
-}
-
 /** Sends authenticated requests and replays an unauthorized request at most once. */
 async function send(path: string, init: RequestInit = {}): Promise<Response> {
   const session = getRequestSession()
@@ -51,12 +42,9 @@ async function send(path: string, init: RequestInit = {}): Promise<Response> {
     return checked(await request(path, init, token))
   }
 
-  const { generation, expiresAt, canRefresh } = credentials
+  const { generation } = credentials
   checkSession(session, generation, init.signal)
-  if (
-    canRefresh &&
-    (token === null || (expiresAt !== null && expiresAt - Date.now() < REFRESH_MARGIN_MS))
-  ) {
+  if (needsAccessRefresh(credentials)) {
     token = await session.refresh()
     checkSession(session, generation, init.signal)
   }
