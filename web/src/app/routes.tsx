@@ -131,7 +131,7 @@ export const routes: RouteObject[] = [
               {
                 path: 'become-organizer',
                 lazy: async () => ({
-                  Component: (await import('@/auth/route-guards')).BecomeOrganizerPage,
+                  Component: (await import('@/pages/BecomeOrganizerPage')).default,
                 }),
               },
             ],
@@ -144,13 +144,45 @@ export const routes: RouteObject[] = [
         path: 'organizer',
         lazy: workspaceLayout('organizer'),
         children: [
-          { index: true, ...stub('organizer-events') },
-          { path: 'events/new', ...stub('organizer-event-new') },
-          { path: 'events/:eventId', ...stub('organizer-event') },
-          { path: 'events/:eventId/edit', ...stub('organizer-event-edit') },
+          {
+            index: true,
+            lazy: async () => ({
+              Component: (await import('@/pages/organizer/OrganizerEventsPage')).default,
+            }),
+          },
+          {
+            path: 'events/new',
+            lazy: async () => ({
+              Component: (await import('@/pages/organizer/EventFormPage')).NewEventPage,
+            }),
+          },
+          {
+            path: 'events/:eventId',
+            lazy: async () => ({
+              Component: (await import('@/pages/organizer/EventPage')).default,
+            }),
+          },
+          {
+            path: 'events/:eventId/edit',
+            lazy: async () => ({
+              Component: (await import('@/pages/organizer/EventFormPage')).EditEventPage,
+            }),
+          },
           { path: 'events/:eventId/attendees', ...stub('organizer-event-attendees') },
           { path: 'events/:eventId/orders', ...stub('organizer-event-orders') },
-          { path: 'events/:eventId/history', ...stub('organizer-event-history') },
+          { path: 'events/:eventId/staff', ...stub('organizer-event-staff') },
+          {
+            path: 'events/:eventId/history',
+            lazy: async () => ({
+              Component: (await import('@/pages/organizer/EventHistoryPage')).default,
+            }),
+          },
+          {
+            path: 'events/:eventId/preview',
+            lazy: async () => ({
+              Component: (await import('@/pages/organizer/EventPreviewPage')).default,
+            }),
+          },
           { path: 'campaigns', ...stub('organizer-campaigns') },
           { path: 'campaigns/new', ...stub('organizer-campaign-new') },
           { path: 'campaigns/:campaignId', ...stub('organizer-campaign') },

@@ -96,6 +96,9 @@ test('keeps an email link open after startup session expiry and shows the invali
 
 test('hides the banner when resending reports an already verified address', async ({ page }) => {
   await restoreSession(page)
+  for (const path of ['/events/me', '/events/me/summary', '/support/cases/inbox']) {
+    await page.route(`${api}${path}`, (route) => route.fulfill({ headers, json: [] }))
+  }
   let emailVerified = false
   await page.route(`${api}/auth/me`, (route) =>
     route.fulfill({

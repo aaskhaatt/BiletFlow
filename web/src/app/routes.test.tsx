@@ -60,6 +60,7 @@ const pages: [address: string, page: string][] = [
   ['/organizer/events/3/edit', 'organizer-event-edit'],
   ['/organizer/events/3/attendees', 'organizer-event-attendees'],
   ['/organizer/events/3/orders', 'organizer-event-orders'],
+  ['/organizer/events/3/staff', 'organizer-event-staff'],
   ['/organizer/events/3/history', 'organizer-event-history'],
   ['/organizer/campaigns', 'organizer-campaigns'],
   ['/organizer/campaigns/new', 'organizer-campaign-new'],

@@ -13,6 +13,7 @@ import {
   Tag as PromoIcon,
   Ticket as TicketIcon,
   TriangleAlert as WarningIcon,
+  Upload as UploadIcon,
   User as UserIcon,
   X as CloseIcon,
 } from 'lucide-react'
@@ -37,6 +38,7 @@ export {
   SearchIcon,
   SettingsIcon,
   TicketIcon,
+  UploadIcon,
   UserIcon,
   WarningIcon,
 }

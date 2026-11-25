@@ -55,6 +55,25 @@ export const STATUS_BADGES = {
     active: { tone: 'ok', icon: 'check' },
     suspended: { tone: 'danger', icon: 'warning' },
   },
+  // The organizer's application (`organizer.status` of GET /auth/me). Figma:
+  // "Статус / На рассмотрении" is the yellow pill. "Отклонена" has no frame yet.
+  organizerApplication: {
+    pending: { tone: 'warn', icon: 'clock' },
+    approved: { tone: 'ok', icon: 'check' },
+    rejected: { tone: 'danger', icon: 'close' },
+  },
+  // A ticket type in the organizer's list (Figma "Статус / Продаётся", "Ждёт активации", "Скрыт").
+  // The keys are the `unavailable_reason` of the API, plus what the page works out itself.
+  ticketType: {
+    on_sale: { tone: 'ok', icon: 'check' },
+    paid_sales_inactive: { tone: 'warn', icon: 'clock' },
+    hidden: { tone: 'neutral', icon: 'settings' },
+    not_started: { tone: 'info', icon: 'calendar' },
+    ended: { tone: 'neutral', icon: 'clock' },
+    sold_out: { tone: 'danger', icon: 'close' },
+    registration_closed: { tone: 'neutral', icon: 'close' },
+    unpublished: { tone: 'neutral', icon: 'pin' },
+  },
   // Figma: "В работе" is blue
   support: {
     open: { tone: 'warn', icon: 'chat' },
