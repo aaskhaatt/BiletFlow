@@ -24,6 +24,8 @@ export interface FormFieldProps {
   id?: string
   /** Another description of the control, read after the hint or error. */
   describedBy?: string
+  /** Additional information that stays visible when an error replaces the hint. */
+  messageAside?: ReactNode
   className?: string
   /** Renders the control with the props that wire it up. */
   children: (control: FieldControlProps) => ReactNode
@@ -42,6 +44,7 @@ export default function FormField({
   error,
   id,
   describedBy,
+  messageAside,
   className,
   children,
 }: FormFieldProps) {
@@ -59,7 +62,14 @@ export default function FormField({
         'aria-invalid': error ? true : undefined,
         'aria-describedby': describedByIds || undefined,
       })}
-      <FieldMessage id={messageId} hint={hint} error={error} />
+      {messageAside ? (
+        <div className="flex items-start justify-between gap-3">
+          <FieldMessage id={messageId} hint={hint} error={error} />
+          {messageAside}
+        </div>
+      ) : (
+        <FieldMessage id={messageId} hint={hint} error={error} />
+      )}
     </div>
   )
 }

@@ -3,7 +3,7 @@ import FormField, { type FormFieldProps } from '@/components/FormField'
 import { Textarea } from '@/components/ui/textarea'
 
 type TextareaFieldProps = ComponentProps<typeof Textarea> &
-  Pick<FormFieldProps, 'label' | 'hint' | 'error'> & {
+  Pick<FormFieldProps, 'label' | 'hint' | 'error' | 'messageAside'> & {
     /** Classes for the wrapper; className goes to the textarea itself. */
     fieldClassName?: string
   }
@@ -16,6 +16,7 @@ export default function TextareaField({
   label,
   hint,
   error,
+  messageAside,
   fieldClassName,
   id,
   'aria-describedby': describedBy,
@@ -26,6 +27,7 @@ export default function TextareaField({
       label={label}
       hint={hint}
       error={error}
+      messageAside={messageAside}
       id={id}
       describedBy={describedBy}
       className={fieldClassName}

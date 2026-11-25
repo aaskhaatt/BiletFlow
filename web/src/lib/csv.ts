@@ -19,7 +19,12 @@ export function toCsv(rows: string[][]): string {
 
 /** Hands the text to the user as a file download. */
 export function downloadCsv(filename: string, csv: string) {
-  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+  downloadCsvBlob(filename, new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+}
+
+/** Downloads an existing CSV without decoding its byte-order mark. */
+export function downloadCsvBlob(filename: string, csv: Blob) {
+  const url = URL.createObjectURL(csv)
   const link = document.createElement('a')
   link.href = url
   link.download = filename
