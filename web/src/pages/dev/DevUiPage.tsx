@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useEvents } from '@/api/hooks/events'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 import { getApiUrl } from '@/lib/env'
+import IconsSection from '@/pages/dev/IconsSection'
 import PrimitivesSection from '@/pages/dev/PrimitivesSection'
 
 // The generated client talking to the real API
@@ -155,6 +156,8 @@ export default function DevUiPage() {
           ))}
         </ul>
       </section>
+
+      <IconsSection />
 
       <PrimitivesSection />
     </main>

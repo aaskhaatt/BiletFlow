@@ -89,9 +89,10 @@ export const ru = {
     language: 'Язык',
     toHome: 'На главную',
   },
-  // the test string of /dev/ui (W1.15)
+  // the developer page /dev/ui
   dev: {
     greeting: 'Добро пожаловать в BiletFlow',
+    iconsNote: 'Обводка 2 px, размер 24, скругления на концах. Цвет наследуется от текста рядом.',
   },
   notFound: {
     title: 'Страница не найдена',

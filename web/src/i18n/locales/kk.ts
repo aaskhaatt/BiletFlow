@@ -10,6 +10,8 @@ export const kk: Messages = {
   },
   dev: {
     greeting: 'BiletFlow-ға қош келдіңіз',
+    iconsNote:
+      'Сызық қалыңдығы 2 px, өлшемі 24, ұштары дөңгеленген. Түсі қасындағы мәтіннен алынады.',
   },
   notFound: {
     title: 'Бет табылмады',

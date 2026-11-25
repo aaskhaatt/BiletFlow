@@ -8,6 +8,7 @@ export const en: Messages = {
   },
   dev: {
     greeting: 'Welcome to BiletFlow',
+    iconsNote: 'Stroke 2 px, size 24, round ends. The color comes from the text next to the icon.',
   },
   notFound: {
     title: 'Page not found',
