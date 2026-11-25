@@ -131,6 +131,9 @@ test('mobile navigation, table, chart data, and skip link remain usable', async 
       },
     }),
   )
+  await page.route(`${API_URL}/support/cases/inbox`, (route) =>
+    route.fulfill({ headers, json: [] }),
+  )
   await page.evaluate(() => localStorage.setItem('biletflow.refresh-token', 'saved-refresh'))
 
   await page.goto('/organizer/support')

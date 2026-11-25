@@ -4,6 +4,20 @@ import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest'
 import i18n from '@/i18n'
 import { server } from '@/test/msw-server'
 
+// jsdom has no ResizeObserver; Radix (switch, select) measures with it
+globalThis.ResizeObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+// ...and none of the pointer and scroll methods Radix select calls
+if (typeof Element !== 'undefined') {
+  Element.prototype.hasPointerCapture ??= () => false
+  Element.prototype.releasePointerCapture ??= () => {}
+  Element.prototype.scrollIntoView ??= () => {}
+}
+
 // A request without a handler fails the test instead of reaching the network
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }))
 afterEach(() => server.resetHandlers())

@@ -65,6 +65,9 @@ test('holds a protected route until restoration and uses the rotated token on re
 
 test('keeps the saved session offline and resumes restoration on retry', async ({ page }) => {
   let offline = true
+  for (const path of ['/events/me', '/events/me/summary', '/support/cases/inbox']) {
+    await page.route(`${api}${path}`, (route) => route.fulfill({ headers, json: [] }))
+  }
   await page.route(`${api}/auth/refresh`, (route) =>
     offline ? route.abort('internetdisconnected') : route.fulfill({ headers, json: tokens(1) }),
   )
