@@ -21,6 +21,20 @@ export const en: Messages = {
       loadingNote: '"Pay" shows loading for 2 seconds when pressed and ignores further presses.',
     },
     iconsNote: 'Stroke 2 px, size 24, round ends. The color comes from the text next to the icon.',
+    fields: {
+      name: 'Full name',
+      namePlaceholder: 'Shown on the ticket',
+      email: 'Email',
+      emailHint: 'Your ticket will be sent here',
+      emailError: 'Check the address',
+      password: 'Password',
+      passwordPlaceholder: 'At least 8 characters',
+      passwordTooShort: 'The password is too short',
+      disabled: 'Unavailable field',
+      check: 'Check',
+      formNote:
+        'Type fewer than 8 characters and press "Check": an error appears under the field and focus moves to it.',
+    },
   },
   notFound: {
     title: 'Page not found',

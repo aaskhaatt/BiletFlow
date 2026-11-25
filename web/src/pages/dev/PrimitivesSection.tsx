@@ -11,7 +11,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -27,12 +26,6 @@ export default function PrimitivesSection() {
   return (
     <section className="space-y-6" data-testid="primitives">
       <h2 className="type-card-title">Primitives</h2>
-
-      <div className="grid max-w-md gap-2">
-        <Label htmlFor="dev-email">Email</Label>
-        <Input id="dev-email" type="email" placeholder="aigerim@example.kz" />
-        <Input aria-invalid placeholder="С ошибкой" aria-label="С ошибкой" />
-      </div>
 
       <div className="flex items-center gap-3">
         <Checkbox id="dev-terms" />
