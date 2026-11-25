@@ -119,3 +119,30 @@ class AdminCampaignRow(BaseModel):
     discount: int
     net: int
     created_at: datetime
+
+
+class AdminOrganizerRow(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    user_id: int
+    email: str
+    status: str                       # pending / approved / rejected
+    display_name: str | None
+    legal_name: str | None
+    contact_phone: str | None
+    identity_verified_at: datetime | None
+    rejection_reason: str | None
+
+
+class AdminAuditRow(BaseModel):
+    id: int
+    created_at: datetime
+    action: str
+    type: str
+    entity_type: str
+    entity_id: int | None
+    event_id: int | None
+    description: str
+    actor_user_id: int | None
+    actor_email: str | None

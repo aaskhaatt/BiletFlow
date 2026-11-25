@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timezone, timedelta
 from repositories.user_repository import create_user, get_user_by_email, get_user_by_id
-from exceptions import UserAlreadyExistsError, UserNotFoundError, InvalidCredentialsError, InvalidRefreshTokenError, InvalidAccountTokenError, EmailAlreadyVerifiedError, UserSuspendedError
+from exceptions import CurrentPasswordIncorrectError, UserAlreadyExistsError, UserNotFoundError, InvalidCredentialsError, InvalidRefreshTokenError, InvalidAccountTokenError, EmailAlreadyVerifiedError, UserSuspendedError
 from repositories.refresh_token_repository import create_refresh_token, consume_refresh_token, delete_user_refresh_tokens
 from repositories.account_token_repository import create_account_token, consume_account_token, delete_account_tokens
 from repositories.staff_repository import has_staff_assignments
@@ -181,3 +181,17 @@ def reset_password_service(token: str, new_password: str, db: Session):
     delete_user_refresh_tokens(user.id, db)
     db.commit()
     return {"message": "Password changed; please sign in again"}
+
+
+def change_password_service(user: User, current_password: str, new_password: str, db: Session):
+    """Signed in, knows the current password. Every other session is signed out; this device gets new tokens
+    (same shape as login) so it stays signed in."""
+    if not verify_password(current_password, user.password_hash):
+        raise CurrentPasswordIncorrectError()
+
+    user.password_hash = hash_password(new_password)
+    delete_user_refresh_tokens(user.id, db)
+    tokens = issue_tokens(user.id, db)
+    db.commit()
+
+    return tokens

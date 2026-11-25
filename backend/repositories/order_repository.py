@@ -72,7 +72,7 @@ def get_orders_by_user_id(user_id: int, db: Session):
     stmt = (
         select(Order)
         .where(Order.user_id == user_id)
-        .options(selectinload(Order.items), selectinload(Order.tickets))
+        .options(selectinload(Order.items), selectinload(Order.tickets), selectinload(Order.event))
         .order_by(Order.created_at.desc())
     )
 

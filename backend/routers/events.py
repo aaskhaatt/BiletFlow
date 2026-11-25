@@ -1,15 +1,16 @@
 from datetime import datetime
 from typing import Literal
 from fastapi import APIRouter, Depends, Query, UploadFile, File
-from schemas.event import EventResponse, EventCreate, EventUpdate, EventPage, EventDuplicate
+from schemas.event import EventResponse, EventCreate, EventUpdate, EventPage, EventDuplicate, OrganizerEventSummary
 from schemas.history import HistoryPage
 from database import get_db
 from sqlalchemy.orm import Session
 from models.user import User
 from dependencies import get_current_user
 from services.event_service import (create_event_service, get_published_events_service, get_my_events_service, update_event_service,
-                                    publish_event_service, unpublish_event_service, get_public_event_service, get_event_categories_service,
-                                    get_event_history_service, duplicate_event_service, get_event_for_owner_service)
+                                    publish_event_service, unpublish_event_service, get_event_categories_service,
+                                    get_event_history_service, duplicate_event_service, get_event_for_owner_service,
+                                    get_public_event_page_service, get_my_event_summaries_service)
 from services.cancellation_service import cancel_event_service
 from services.event_image_service import upload_event_image_service, delete_event_image_service
 from storage import MAX_IMAGE_BYTES
@@ -35,6 +36,12 @@ def get_events(q: str | None = Query(None, max_length=100, description="Text in 
                                         include_past=include_past, limit=limit, offset=offset)
 
 
+# the organizer's home page: per event, tickets sold, revenue and paid-sales status (above /{event_id})
+@router.get("/me/summary", response_model=list[OrganizerEventSummary])
+def get_my_event_summaries(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return get_my_event_summaries_service(current_user.id, db)
+
+
 @router.get("/me", response_model=list[EventResponse])
 def get_my_events(lifecycle: Literal["draft", "upcoming", "active", "completed", "cancelled"] | None = None,
                   current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -50,7 +57,8 @@ def get_event_categories(db: Session = Depends(get_db)):
 # must stay below /me, otherwise "/events/me" would be matched as an event_id
 @router.get("/{event_id}", response_model=EventResponse)
 def get_event(event_id: int, db: Session = Depends(get_db)):
-    return get_public_event_service(event_id, db)
+    # published events, and once-public cancelled ones (status "cancelled" + cancelled_at)
+    return get_public_event_page_service(event_id, db)
 
 
 

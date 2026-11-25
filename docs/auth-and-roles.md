@@ -86,6 +86,7 @@ Every error, these included, has the same body: `{"error": "<Name>", "message": 
 | Anonymous | No token | | |
 | User | Valid access token | `users` | Has tokens. Id from JWT `sub`. |
 | Organizer applicant | Has an organizer profile with `status = "pending"` | `organizer_profiles` | `GET /auth/me` → `organizer.status: "pending"` |
+| Rejected applicant | `status = "rejected"`: same rights as a user; can apply again | `organizer_profiles` | `GET /auth/me` → `organizer.status: "rejected"` and `rejection_reason` |
 | Approved organizer | Organizer profile with `status = "approved"` | `organizer_profiles` | `GET /auth/me` → `organizer.status: "approved"` |
 | Event owner | Approved organizer **and** `event.organizer_id == organizer_profile.id` | `events.organizer_id` | Compare `event.organizer_id` with `GET /organizers/me` → `id` |
 | Event staff | A row `(event_id, user_id)` exists | `staff_assignments` | `GET /auth/me` → `is_event_staff`; the event appears in `GET /staff/events` |
@@ -104,9 +105,11 @@ Important details:
 
 ```
 user ──POST /organizers/apply──▶ pending ──admin: PATCH /organizers/{user_id}/approve──▶ approved
+                                 pending ──admin: POST /admin/organizers/{user_id}/reject──▶ rejected
+                                rejected ──POST /organizers/apply (again)──▶ pending
 ```
 
-There is no reject, revoke or re-apply endpoint. Applying again returns `409 OrganizerProfileAlreadyExistsError` in any status. Approval happens on another device, so re-fetch `GET /organizers/me` when the app returns to the foreground or the user opens organizer screens.
+A rejected applicant sees `rejection_reason` and may apply again, which puts them back to pending. Applying while pending or approved returns `409 OrganizerProfileAlreadyExistsError`. There is no revoke: an approved organizer who misbehaves is suspended (account or events). Approval happens on another device, so re-fetch `GET /organizers/me` when the app returns to the foreground or the user opens organizer screens.
 
 ### Staff lifecycle
 
@@ -155,7 +158,7 @@ Not an admin → `403 PlatformAdminRequiredError`.
 
 ---
 
-## 5. Permission matrix (all 92 endpoints)
+## 5. Permission matrix (all 98 endpoints)
 
 Check letters refer to section 4. "Status rules" (wrong event or order status) come after the permission check and are listed in the API reference.
 
@@ -172,6 +175,7 @@ Check letters refer to section 4. "Status rules" (wrong event or order status) c
 | `POST /auth/resend-verification` | Any user | `409 EmailAlreadyVerifiedError` if already verified |
 | `POST /auth/forgot-password` | Anyone | Always the same 200, so it doesn't reveal which emails have accounts |
 | `POST /auth/reset-password` | Anyone with the emailed link's token | Signs out every session of the account |
+| `POST /auth/change-password` | Any user | Needs the current password (`400 CurrentPasswordIncorrectError`); signs out the other devices, returns new tokens for this one |
 
 ### Events
 
@@ -179,9 +183,10 @@ Check letters refer to section 4. "Status rules" (wrong event or order status) c
 |---|---|---|
 | `GET /events` | Anyone | Only published, `public`, not suspended; ended events only with `include_past=true`. Paged `{items, total}`. |
 | `GET /events/categories` | Anyone | |
-| `GET /events/{id}` | Anyone | `404 EventNotFoundError` if not published, `private` or suspended. `unlisted` is returned. |
+| `GET /events/{id}` | Anyone | `404 EventNotFoundError` for drafts, `private` or suspended events, and events cancelled before they were ever published. `unlisted` and once-public cancelled events are returned. |
 | `GET /events/{id}/manage` | Owner (B) | Any status: the preview of a draft |
 | `GET /events/me` | Approved organizer (A) | Own events, any status and visibility |
+| `GET /events/me/summary` | Approved organizer (A) | Own events with tickets sold, revenue, paid-sales status |
 | `POST /events` | Approved organizer (A) | |
 | `PATCH /events/{id}` | Owner (B) | |
 | `PATCH /events/{id}/publish` | Owner (B) | |
@@ -238,8 +243,8 @@ Check letters refer to section 4. "Status rules" (wrong event or order status) c
 
 | Endpoint | Who | Denied with |
 |---|---|---|
-| `POST /organizers/apply` | Any user | `409 OrganizerProfileAlreadyExistsError` if a profile exists |
-| `GET /organizers/me` | Any user with a profile (pending or approved) | `404 OrganizerNotFoundError` |
+| `POST /organizers/apply` | Any user | `409 OrganizerProfileAlreadyExistsError` if a pending or approved profile exists; a rejected one goes back to pending |
+| `GET /organizers/me`, `PATCH /organizers/me` | Any user with a profile (any status) | `404 OrganizerNotFoundError` |
 | `POST /organizers/me/verification` | Approved organizer (A) | |
 | `PUT /organizers/me/payout-account` | Approved organizer (A) | |
 
@@ -274,7 +279,9 @@ Check letters refer to section 4. "Status rules" (wrong event or order status) c
 
 | Endpoint | Who | Notes |
 |---|---|---|
-| `PATCH /organizers/{user_id}/approve` | Admin (E) | The path takes the applicant's **user id**, not the profile id. Approving twice is fine. |
+| `PATCH /organizers/{user_id}/approve` | Admin (E) | The path takes the applicant's **user id**, not the profile id. Approving twice is fine; works on rejected applications too. |
+| `POST /admin/organizers/{user_id}/reject` | Admin (E) | Pending applications only (`409 InvalidOrganizerStatusError`); also takes the **user id** |
+| `GET /admin/organizers`, `GET /admin/audit-log` | Admin (E) | Paged `{items, total}`; `?format=csv` |
 | `GET /admin/paid-sales` | Admin (E) | |
 | `POST /admin/events/{id}/paid-sales/suspend` | Admin (E) | |
 | `POST /admin/events/{id}/paid-sales/reinstate` | Admin (E) | |
@@ -282,7 +289,7 @@ Check letters refer to section 4. "Status rules" (wrong event or order status) c
 | `PUT /admin/settings/activation-fee` | Admin (E) | |
 | `GET /admin/users`, `/admin/events`, `/admin/orders`, `/admin/payments`, `/admin/refunds`, `/admin/campaigns`, `/admin/event-reports` | Admin (E) | Paged `{items, total}`; `?format=csv` downloads every matching row |
 | `POST /admin/event-reports/{id}/review` | Admin (E) | |
-| `POST /admin/users/{id}/suspend`, `.../unsuspend` | Admin (E) | `400 CannotSuspendSelfError` for your own account |
+| `POST /admin/users/{id}/suspend`, `.../unsuspend` | Admin (E) | `400 CannotSuspendSelfError` for your own account. Suspending an organizer's account doesn't stop their events; suspend those separately. |
 | `POST /admin/events/{id}/suspend`, `.../unsuspend` | Admin (E) | |
 
 `GET /health` is public: it answers `{"status": "ok", "database": "ok"}` for the hosting platform's checks.
@@ -297,7 +304,8 @@ Check letters refer to section 4. "Status rules" (wrong event or order status) c
 | `published` | `public` | Yes | Yes | Yes | Yes |
 | `published` | `unlisted` | No | Yes, by id or link | Yes | Yes |
 | `published` | `private` | No | 404 | No (404) | 404 |
-| `cancelled` | any | No | 404 | No (404) | 404 |
+| `cancelled`, was published before | `public`, `unlisted` | No | Yes, `status: cancelled` | No (404) | Yes, nothing on sale |
+| `cancelled`, never published, or `private` | any | No | 404 | No (404) | 404 |
 | suspended by an admin | any | No | 404 | No (404) | 404 |
 
 The owner sees all their events through `GET /events/me`, and any one of them through `GET /events/{id}/manage`.

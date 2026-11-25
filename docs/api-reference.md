@@ -8,6 +8,26 @@ Send `Authorization: Bearer <access_token>` unless an endpoint says **Public**. 
 
 In the types, `?` means optional, `| null` means the value can be null, and `datetime` is ISO 8601 with a timezone (`2026-12-01T19:00:00+05:00`). Money is a whole number of KZT. All payments are simulated.
 
+## What changed on November 25 (answers to the web team's questions)
+
+Nothing was renamed or removed; every change adds fields, endpoints or rules.
+
+| Change | Endpoint |
+| --- | --- |
+| Availability per ticket type: `available`, `max_now`, `on_sale`, `unavailable_reason` | `GET /events/{event_id}/ticket-types`, `.../ticket-types/manage` |
+| A cancelled event that was once public keeps its public page (`status: cancelled`, `cancelled_at`); its ticket types are listed as not on sale | `GET /events/{event_id}` |
+| `organizer_name`, `published_at`, `cancelled_at` on every event | all event responses |
+| `min_price` and `tickets_remaining` on catalogue cards | `GET /events` |
+| Every order carries an `event` summary (title, dates, venue, status, image) | all order responses, `GET /orders/me` |
+| The organizer's home page in one call: tickets sold, revenue, paid-sales status per event | `GET /events/me/summary` |
+| Who scanned a ticket and when: `checked_in_by`, `checked_in_at` | attendee list, scan, undo, search |
+| Organizer public name: `display_name` on apply and a new `PATCH /organizers/me` | `/organizers/...` |
+| Admins list applications, reject with a reason; a rejected user can apply again | `GET /admin/organizers`, `POST /admin/organizers/{user_id}/reject` |
+| Support case `history`: status changes and assignments | `GET /support/cases/{case_id}` |
+| Change password while signed in | `POST /auth/change-password` |
+| The whole audit log for admins | `GET /admin/audit-log` |
+| New rules (409): can't unpublish with tickets sold, can't cancel an ended event, can't cancel a free registration after a ticket was scanned or the event ended, can't edit a cancelled event or its ticket types | see each endpoint |
+
 ## What changed since November 5
 
 Everything below is on main and works now. **`GET /events` returning `{items, total}` is the one breaking change.**
@@ -143,13 +163,15 @@ Response:
   "organizer": {
     "id": "int",
     "user_id": "int",
-    "status": "pending | approved"
+    "status": "pending | approved | rejected",
+    "display_name": "string | null",
+    "rejection_reason": "string | null (set when status is rejected)"
   },
   "is_event_staff": "boolean"
 }
 ```
 
-`organizer` is `null` if the user never applied. `is_event_staff` means assigned as check-in staff to at least one event that isn't a draft.
+`organizer` is `null` if the user never applied. With `rejected`, show `rejection_reason` and an "apply again" button (`POST /organizers/apply`). `is_event_staff` means assigned as check-in staff to at least one event that isn't a draft.
 
 ### Verify email
 
@@ -208,6 +230,23 @@ Request:
 
 Response: `{"message": "Password changed; please sign in again"}`
 
+### Change password
+
+`POST /auth/change-password` · `200` · Logged-in
+
+For a settings screen. Every other device is signed out; this one gets new tokens, so replace the stored ones. A wrong current password: `400 CurrentPasswordIncorrectError`.
+
+Request:
+
+```json
+{
+  "current_password": "string",
+  "new_password": "string (min 6)"
+}
+```
+
+Response: `Tokens` (same as log in)
+
 ## Events
 
 `Event`
@@ -232,7 +271,10 @@ Response: `{"message": "Password changed; please sign in again"}`
   "image_url": "string | null",
   "suspended_at": "datetime | null (set when a platform admin suspends the event)",
   "suspension_reason": "string | null",
-  "lifecycle": "draft | upcoming | active | completed | cancelled"
+  "lifecycle": "draft | upcoming | active | completed | cancelled",
+  "organizer_name": "string | null (display name, else the verified legal name)",
+  "published_at": "datetime | null (first time it was published)",
+  "cancelled_at": "datetime | null"
 }
 ```
 
@@ -258,8 +300,17 @@ Response: `EventPage`, where `total` counts every match, not just this page:
 
 ```json
 {
-  "items": "Event[]",
+  "items": "EventListItem[]",
   "total": "int"
+}
+```
+
+`EventListItem` is an `Event` plus two numbers for the card:
+
+```json
+{
+  "min_price": "int | null (cheapest visible ticket type, 0 = free; null = no ticket types yet)",
+  "tickets_remaining": "int | null (left across visible types, capped by capacity; null = no ticket types)"
 }
 ```
 
@@ -275,6 +326,8 @@ Response: `string[]`, e.g. `["Music", "Sport"]`
 
 `GET /events/{event_id}` · `200` · Public
 
+Published events, and also a cancelled event that was once published, so people with tickets or old links see "this event was cancelled" (`status: cancelled`, `cancelled_at`). Drafts, private and suspended events, and events cancelled before they were ever published, answer 404.
+
 Response: `Event`
 
 ### List my events
@@ -284,6 +337,28 @@ Response: `Event`
 Response: `Event[]`
 
 Optional `?lifecycle=draft|upcoming|active|completed|cancelled` filters the list.
+
+### My events with numbers
+
+`GET /events/me/summary` · `200` · Approved organizer
+
+The organizer's home page in one request, newest start first. Response: array of
+
+```json
+{
+  "event_id": "int",
+  "title": "string",
+  "status": "draft | published | cancelled",
+  "lifecycle": "draft | upcoming | active | completed | cancelled",
+  "start_time": "datetime",
+  "end_time": "datetime",
+  "image_url": "string | null",
+  "capacity": "int | null",
+  "tickets_sold": "int (valid and checked-in tickets)",
+  "revenue": "int (paid orders that stay paid, after discounts)",
+  "paid_sales_status": "not_started | pending | active | suspended"
+}
+```
 
 ### Preview one of my events
 
@@ -324,6 +399,8 @@ Response: `Event`
 
 Request: the same fields as create, all optional. Send only what changes. null clears an optional field (category, venue on a draft, capacity, registration dates, refund\_policy); title, start\_time, end\_time and visibility refuse null (422).
 
+A cancelled event can't be edited: `409 InvalidEventStatusError` (duplicate it instead).
+
 Response: `Event`
 
 ### Publish an event
@@ -338,13 +415,15 @@ Response: `Event`
 
 `PATCH /events/{event_id}/unpublish` · `200` · Event organizer
 
+Only while no tickets are sold or held. Otherwise `409 EventHasTicketsError`: cancel the event instead (that refunds and notifies everyone).
+
 Response: `Event`
 
 ### Cancel an event
 
 `PATCH /events/{event_id}/cancel` · `200` · Event organizer
 
-Can't be undone. Refunds paid orders and cancels the rest.
+Can't be undone. Refunds paid orders and cancels the rest. An event that has already ended can't be cancelled: `409 EventAlreadyEndedError`.
 
 Response: `Event`
 
@@ -482,15 +561,26 @@ Response: `EventReport` (see Platform admin)
 }
 ```
 
-Tickets left = `quantity - sold_count`.
+Both lists below add what the buy screen needs, worked out with the same rules as ordering. Seats held by checkouts still being paid count as taken.
+
+```json
+{
+  "available": "int (left of this type, capped by what's left of the event's capacity)",
+  "max_now": "int (how many one order may take now; 0 when it can't be bought)",
+  "on_sale": "boolean",
+  "unavailable_reason": "registration_closed | hidden | not_started | ended | paid_sales_inactive | sold_out | null"
+}
+```
+
+`registration_closed` covers a draft, cancelled, private or suspended event and the registration window. Use `max_now` as the quantity picker's maximum.
 
 ### List an event's ticket types
 
 `GET /events/{event_id}/ticket-types` · `200` · Public
 
-Works for events whose page is public: published and not private. Drafts and private events answer 404. Hidden types aren't listed.
+Follows the public event page: published events, and once-public cancelled ones (every type `registration_closed`). Drafts and private events answer 404. Hidden types aren't listed.
 
-Response: `TicketType[]`
+Response: `TicketType[]` with availability
 
 ### List all ticket types (organizer)
 
@@ -498,7 +588,9 @@ Response: `TicketType[]`
 
 For the organizer's edit screens: includes hidden types (`is_hidden: true`), and works for drafts and cancelled events. Oldest first.
 
-Response: `TicketType[]`
+Response: `TicketType[]` with availability
+
+On a cancelled event, creating, updating, hiding and unhiding ticket types answer `409 InvalidEventStatusError`.
 
 ### Create a ticket type
 
@@ -560,7 +652,24 @@ Response: `TicketType`
   "cancelled_at": "datetime | null",
   "refunded_at": "datetime | null",
   "items": "OrderItem[]",
-  "tickets": "Ticket[]"
+  "tickets": "Ticket[]",
+  "event": "OrderEvent"
+}
+```
+
+`OrderEvent`: enough to show the order without another request, even after the event is cancelled or suspended.
+
+```json
+{
+  "id": "int",
+  "title": "string",
+  "start_time": "datetime",
+  "end_time": "datetime",
+  "venue_name": "string | null",
+  "venue_address": "string | null",
+  "status": "draft | published | cancelled",
+  "image_url": "string | null",
+  "cancelled_at": "datetime | null"
 }
 ```
 
@@ -674,7 +783,7 @@ Response: `Order`
 
 `POST /orders/{order_id}/cancel` · `200` · Buyer or event organizer
 
-Pending and free orders only. Send `{}` if there's no reason.
+Pending and free orders only. A free registration can't be cancelled once any of its tickets was scanned or the event has ended (`409 OrderNotCancellableError`). Send `{}` if there's no reason.
 
 Request:
 
@@ -736,7 +845,9 @@ Response: array of
   "status": "valid | checked_in | cancelled | refunded",
   "order_id": "int",
   "buyer_email": "string",
-  "created_at": "datetime"
+  "created_at": "datetime",
+  "checked_in_at": "datetime | null",
+  "checked_in_by": "string | null (email of the staff member who scanned it)"
 }
 ```
 
@@ -822,9 +933,12 @@ Response:
   "attendee_name": "string",
   "ticket_type_name": "string",
   "status": "valid | checked_in | cancelled | refunded",
-  "checked_in_at": "datetime | null"
+  "checked_in_at": "datetime | null",
+  "checked_in_by": "string | null (email of the staff member who scanned it)"
 }
 ```
+
+For `already_checked_in`, show "Already scanned at {checked_in_at} by {checked_in_by}".
 
 ### List events I can scan for
 
@@ -942,7 +1056,9 @@ Response: no body
 {
   "id": "int",
   "user_id": "int",
-  "status": "pending | approved",
+  "status": "pending | approved | rejected",
+  "display_name": "string | null (shown to attendees; falls back to legal_name)",
+  "rejection_reason": "string | null",
   "legal_name": "string | null",
   "contact_phone": "string | null",
   "identity_verified_at": "datetime | null",
@@ -961,15 +1077,35 @@ Response: no body
 
 `POST /organizers/apply` · `200` · Logged-in user
 
-Response:
+The body is optional. A rejected applicant calls it again to go back to `pending` (the reason is cleared). Already pending or approved: `409 OrganizerProfileAlreadyExistsError`.
+
+Request:
+
+```json
+{
+  "display_name": "string? (2-100)"
+}
+```
+
+Response: `Organizer`
 
 ```json
 {
   "id": "int",
   "user_id": "int",
-  "status": "pending | approved"
+  "status": "pending | approved | rejected",
+  "display_name": "string | null",
+  "rejection_reason": "string | null"
 }
 ```
+
+### Set the public name
+
+`PATCH /organizers/me` · `200` · Applicant or organizer
+
+Request: `{"display_name": "string (2-100) | null"}`. `null` clears it, and event pages then show the verified legal name.
+
+Response: `OrganizerProfile`
 
 ### Get my organizer profile
 
@@ -1243,7 +1379,22 @@ Organizers see attendee cases about their events; admins see all. Optional filte
 
 `GET /support/cases/{case_id}` · `200` · Requester or handler
 
-Response: `SupportCase`
+Response: `SupportCase` plus `history`, oldest first (messages stay in `messages`):
+
+```json
+{
+  "history": [
+    {
+      "created_at": "datetime",
+      "action": "status_changed | assigned",
+      "actor_user_id": "int | null",
+      "from_status": "string | null (status_changed only)",
+      "to_status": "string | null",
+      "assigned_user_id": "int | null (assigned only; null = unassigned)"
+    }
+  ]
+}
+```
 
 ### Reply
 
@@ -1289,15 +1440,17 @@ Response: `SupportCase`
 
 `PATCH /organizers/{user_id}/approve` · `200` · Admin
 
-Response:
+Works on pending and rejected applications. Response: `Organizer`
 
-```json
-{
-  "id": "int",
-  "user_id": "int",
-  "status": "pending | approved"
-}
-```
+### Reject an organizer
+
+`POST /admin/organizers/{user_id}/reject` · `200` · Admin
+
+Pending applications only (`409 InvalidOrganizerStatusError`). The user sees the reason in `/auth/me` and can apply again. An approved organizer is suspended instead.
+
+Request: `{"reason": "string (3-500)"}`
+
+Response: `Organizer`
 
 ### List paid sales activations
 
@@ -1373,6 +1526,8 @@ All answer `{"items": [...], "total": int}`, newest first, with `limit` (1-200, 
 | `GET /admin/refunds` | `q` (reference, reason), `event_id` | `AdminRefund` |
 | `GET /admin/campaigns` | `q` (code, campaign name, event title), `event_id`, `active` | `AdminCampaign` |
 | `GET /admin/event-reports` | `status` (`open`, `dismissed`, `actioned`), `event_id` | `EventReport` |
+| `GET /admin/organizers` | `q` (email, legal or display name, id or user id), `status` (`pending`, `approved`, `rejected`) | `AdminOrganizer` |
+| `GET /admin/audit-log` | `type` (`event`, `order`, `organizer`, ...), `action` (`event.published`, ...), `actor_user_id`, `event_id`, `entity_type`, `entity_id`, `date_from`, `date_to` | `AuditEntry` |
 
 ```json
 {
@@ -1381,7 +1536,9 @@ All answer `{"items": [...], "total": int}`, newest first, with `limit` (1-200, 
   "AdminPayment": { "id": "int", "purpose": "order | activation_fee", "amount": "int", "currency": "KZT", "status": "succeeded | failed", "is_simulated": "boolean", "provider_reference": "string", "failure_reason": "string | null", "payer_user_id": "int | null", "event_id": "int", "order_id": "int | null", "created_at": "datetime" },
   "AdminRefund": { "id": "int", "order_id": "int", "event_id": "int", "amount": "int", "currency": "KZT", "status": "string", "is_simulated": "boolean", "provider_reference": "string", "reason": "string | null", "initiated_by_user_id": "int | null", "created_at": "datetime" },
   "AdminCampaign": { "id": "int", "event_id": "int", "event_title": "string", "code": "string", "name": "string", "discount_type": "percent | fixed", "discount_value": "int", "is_active": "boolean", "max_redemptions": "int | null", "redemptions_count": "int", "link_opens": "int", "orders": "int", "tickets": "int", "gross": "int", "discount": "int", "net": "int", "created_at": "datetime" },
-  "EventReport": { "id": "int", "event_id": "int", "reporter_user_id": "int", "reason": "string", "details": "string | null", "status": "open | dismissed | actioned", "reviewed_by_user_id": "int | null", "reviewed_at": "datetime | null", "review_note": "string | null", "created_at": "datetime" }
+  "EventReport": { "id": "int", "event_id": "int", "reporter_user_id": "int", "reason": "string", "details": "string | null", "status": "open | dismissed | actioned", "reviewed_by_user_id": "int | null", "reviewed_at": "datetime | null", "review_note": "string | null", "created_at": "datetime" },
+  "AdminOrganizer": { "id": "int", "user_id": "int", "email": "string", "status": "pending | approved | rejected", "display_name": "string | null", "legal_name": "string | null", "contact_phone": "string | null", "identity_verified_at": "datetime | null", "rejection_reason": "string | null" },
+  "AuditEntry": { "id": "int", "created_at": "datetime", "action": "string", "type": "string", "entity_type": "string", "entity_id": "int | null", "event_id": "int | null", "description": "string", "actor_user_id": "int | null", "actor_email": "string | null" }
 }
 ```
 
@@ -1397,7 +1554,7 @@ Response: `EventReport`
 
 `POST /admin/users/{user_id}/suspend` · `200` · Admin · and `POST /admin/users/{user_id}/unsuspend`
 
-A suspended user is signed out everywhere and gets `403 UserSuspendedError` at login and on every request. Admins can't suspend themselves (`400 CannotSuspendSelfError`).
+A suspended user is signed out everywhere and gets `403 UserSuspendedError` at login and on every request. Admins can't suspend themselves (`400 CannotSuspendSelfError`). Suspending an organizer's account doesn't touch their events: those keep selling and scanning. To stop an event, suspend the event too.
 
 Request (suspend only): `{"reason": "string (3-500)"}`
 
@@ -1435,17 +1592,15 @@ For `422`, `error` is `VALIDATION_ERROR` and `fields` maps each field name to it
 
 Every error uses this body, including a missing or expired token (401), admin-only endpoints (403), unknown URLs (404 `NOT_FOUND`) and wrong methods (405 `METHOD_NOT_ALLOWED`). On `InvalidTokenError`, refresh the tokens and retry once; if the refresh fails, send the user to log in.
 
-Until Dev B's `b/auth-errors` merges, those 401s, the admin 403 and unknown URLs still answer `{"detail": "..."}`.
-
 | Status | `error` values |
 | --- | --- |
-| `400` | `InvalidEventTimeError`, `InvalidTicketSalesTimeError`, `EventNotReadyToPublishError`, `InvalidOrderQuantityError`, `InvalidCampaignError`, `InvalidAccountTokenError` (bad, used or expired email link), `InvalidSupportAssigneeError`, `CannotSuspendSelfError` |
+| `400` | `InvalidEventTimeError`, `InvalidTicketSalesTimeError`, `EventNotReadyToPublishError`, `InvalidOrderQuantityError`, `InvalidCampaignError`, `InvalidAccountTokenError` (bad, used or expired email link), `InvalidSupportAssigneeError`, `CannotSuspendSelfError`, `CurrentPasswordIncorrectError` |
 | `401` | `InvalidCredentialsError`, `InvalidRefreshTokenError`, `NotAuthenticatedError` (no token sent), `InvalidTokenError` (bad or expired token, or a deleted account) |
 | `402` | `PaymentFailedError` |
 | `403` | `OrganizerNotApprovedError`, `EventAccessDeniedError`, `NotEventStaffError`, `PlatformAdminRequiredError`, `UserSuspendedError` (log the user out), `SupportCaseAccessDeniedError` |
 | `404` | `UserNotFoundError`, `OrganizerNotFoundError`, `EventNotFoundError`, `TicketTypeNotFoundError`, `OrderNotFoundError`, `TicketNotFoundError`, `StaffAssignmentNotFoundError`, `PaidSalesNotFoundError`, `CampaignNotFoundError`, `PromoCodeNotFoundError`, `CampaignLinkNotFoundError`, `SupportCaseNotFoundError`, `EventReportNotFoundError`, `NOT_FOUND` (unknown URL) |
 | `405` | `METHOD_NOT_ALLOWED` |
-| `409` | `UserAlreadyExistsError`, `OrganizerProfileAlreadyExistsError`, `InvalidEventStatusError`, `RegistrationClosedError`, `TicketTypeNotAvailableError`, `TicketTypeSoldOutError`, `EventSoldOutError`, `QuantityBelowSoldError`, `StaffAlreadyAssignedError`, `TicketNotCheckedInError`, `PaidSalesNotActiveError`, `ActivationRequirementsNotMetError`, `ActivationFeeAlreadyPaidError`, `InvalidActivationStatusError`, `OrderNotPayableError` (also: the event was suspended), `OrderExpiredError`, `OrderNotCancellableError`, `OrderNotRefundableError`, `TicketNotPrintableError`, `PromoCodeAlreadyExistsError`, `PromoCodeNotActiveError`, `PromoCodeUsedUpError`, `PromoCodeNotApplicableError`, `EmailAlreadyVerifiedError`, `EventAlreadyReportedError` |
+| `409` | `UserAlreadyExistsError`, `OrganizerProfileAlreadyExistsError`, `InvalidEventStatusError`, `RegistrationClosedError`, `TicketTypeNotAvailableError`, `TicketTypeSoldOutError`, `EventSoldOutError`, `QuantityBelowSoldError`, `StaffAlreadyAssignedError`, `TicketNotCheckedInError`, `PaidSalesNotActiveError`, `ActivationRequirementsNotMetError`, `ActivationFeeAlreadyPaidError`, `InvalidActivationStatusError`, `OrderNotPayableError` (also: the event was suspended), `OrderExpiredError`, `OrderNotCancellableError`, `OrderNotRefundableError`, `TicketNotPrintableError`, `PromoCodeAlreadyExistsError`, `PromoCodeNotActiveError`, `PromoCodeUsedUpError`, `PromoCodeNotApplicableError`, `EmailAlreadyVerifiedError`, `EventAlreadyReportedError`, `EventHasTicketsError` (unpublish with tickets sold), `EventAlreadyEndedError` (cancel after the end), `InvalidOrganizerStatusError` |
 | `413` | `ImageTooLargeError` |
 | `415` | `InvalidImageError` |
 | `422` | `VALIDATION_ERROR` |

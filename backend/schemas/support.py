@@ -78,3 +78,17 @@ class SupportCaseSummary(BaseModel):
 
 class SupportCaseResponse(SupportCaseSummary):
     messages: list[SupportMessageResponse]
+
+
+class SupportCaseHistoryEntry(BaseModel):
+    # status changes and (un)assignments, oldest first; messages are in `messages`
+    created_at: datetime
+    action: Literal["status_changed", "assigned"]
+    actor_user_id: int | None
+    from_status: str | None = None          # status_changed only
+    to_status: str | None = None
+    assigned_user_id: int | None = None     # assigned only; null = unassigned
+
+
+class SupportCaseDetail(SupportCaseResponse):
+    history: list[SupportCaseHistoryEntry]
