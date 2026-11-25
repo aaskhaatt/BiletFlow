@@ -10,9 +10,11 @@ import Skeleton from '@/components/Skeleton'
 import { getApiUrl } from '@/lib/env'
 import ButtonsSection from '@/pages/dev/ButtonsSection'
 import ControlsSection from '@/pages/dev/ControlsSection'
+import DataDisplaysSection from '@/pages/dev/DataDisplaysSection'
 import FeedbackSection from '@/pages/dev/FeedbackSection'
 import FieldsSection from '@/pages/dev/FieldsSection'
 import IconsSection from '@/pages/dev/IconsSection'
+import InteractionSection from '@/pages/dev/InteractionSection'
 import PrimitivesSection from '@/pages/dev/PrimitivesSection'
 import StatusBadgesSection from '@/pages/dev/StatusBadgesSection'
 
@@ -124,7 +126,7 @@ export default function DevUiPage() {
   const { t } = useTranslation()
 
   return (
-    <main className="mx-auto max-w-5xl space-y-10 p-6">
+    <main id="main-content" tabIndex={-1} className="mx-auto max-w-5xl space-y-10 p-6">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="type-page-title">Design tokens</h1>
         <LanguageSwitcher />
@@ -201,6 +203,10 @@ export default function DevUiPage() {
       </section>
 
       <FeedbackSection />
+
+      <InteractionSection />
+
+      <DataDisplaysSection />
 
       <PrimitivesSection />
     </main>

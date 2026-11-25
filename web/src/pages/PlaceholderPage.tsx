@@ -6,7 +6,12 @@ export default function PlaceholderPage({ id }: { id: string }) {
   const location = useLocation()
 
   return (
-    <main className="mx-auto max-w-3xl space-y-3 p-6" data-route-id={id}>
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="mx-auto max-w-3xl space-y-3 p-6"
+      data-route-id={id}
+    >
       <p className="type-small text-ink-muted">Placeholder</p>
       <h1 className="type-page-title">{id}</h1>
       <p className="type-body text-ink-2">
