@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { Link, NavLink, Outlet } from 'react-router'
+import EmailVerificationBanner from '@/auth/EmailVerificationBanner'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 import { CalendarIcon, TicketIcon, UserIcon } from '@/components/icons'
 
@@ -31,6 +32,7 @@ export default function PublicLayout() {
           </Link>
         </div>
       </header>
+      <EmailVerificationBanner className="mx-auto mt-3 max-w-6xl px-4" />
       <Outlet />
       <nav
         aria-label={t('nav.attendee')}

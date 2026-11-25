@@ -55,14 +55,27 @@ export const routes: RouteObject[] = [
         lazy: async () => ({ Component: (await import('@/pages/AuthPage')).RegisterPage }),
       },
       {
+        path: 'forgot-password',
+        lazy: async () => ({
+          Component: (await import('@/pages/PasswordRecoveryPage')).ForgotPasswordPage,
+        }),
+      },
+      {
+        path: 'verify-email',
+        lazy: async () => ({ Component: (await import('@/pages/VerifyEmailPage')).default }),
+      },
+      {
+        path: 'reset-password',
+        lazy: async () => ({
+          Component: (await import('@/pages/PasswordRecoveryPage')).ResetPasswordPage,
+        }),
+      },
+      {
         lazy: async () => ({ Component: (await import('@/app/layouts/PublicLayout')).default }),
         children: [
           // Public
           { index: true, ...stub('catalog') },
           { path: 'events/:eventId', ...stub('event') },
-          { path: 'forgot-password', ...stub('forgot-password') },
-          { path: 'verify-email', ...stub('verify-email') },
-          { path: 'reset-password', ...stub('reset-password') },
 
           {
             lazy: async () => ({ Component: (await import('@/auth/SessionGate')).default }),

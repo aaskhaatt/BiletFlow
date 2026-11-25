@@ -1,6 +1,8 @@
 import { screen } from '@testing-library/react'
+import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 import { routes } from '@/app/routes'
+import { apiUrl, server } from '@/test/msw-server'
 import { renderRoutes } from '@/test/render'
 
 // Each address opens its page (W1.7). The ones the backend puts in emails and
@@ -53,8 +55,16 @@ const pages: [address: string, page: string][] = [
 
 describe('routes', () => {
   it.each(pages)('%s opens the "%s" page', async (address, page) => {
+    if (page === 'verify-email') {
+      server.use(
+        http.post(apiUrl('/auth/verify-email'), () => HttpResponse.json({ message: 'Verified' })),
+      )
+    }
     const { container } = renderRoutes(routes, { route: address })
     await screen.findByRole('heading', { level: 1 })
+    if (page === 'verify-email') {
+      await screen.findByText('Ваша почта подтверждена.')
+    }
     expect(container.querySelector('[data-route-id]')).toHaveAttribute('data-route-id', page)
   })
 

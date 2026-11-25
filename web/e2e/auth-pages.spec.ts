@@ -6,6 +6,12 @@ const pair = { access_token: 'test-access', refresh_token: 'test-refresh', token
 
 test.use({ locale: 'en-US' })
 
+test.beforeEach(async ({ page }) => {
+  await page.route(`${api}/auth/me`, (route) =>
+    route.fulfill({ headers, json: { email_verified: true } }),
+  )
+})
+
 test('login shows the credential error and returns to the intended page on success', async ({
   page,
 }) => {

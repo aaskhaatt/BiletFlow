@@ -2,18 +2,18 @@ import { useEffect, useId, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router'
-import { z } from 'zod/mini'
 import { errorMessageKey } from '@/api/error-codes'
 import { isApiError } from '@/api/errors'
 import type { UserLogin } from '@/api/generated/model'
+import AccountLayout from '@/app/layouts/AccountLayout'
 import { safeReturnTo } from '@/auth/return-to'
 import { registerAccount, sessionStore } from '@/auth/session-store'
+import { isValidEmail } from '@/auth/validation'
 import InlineAlert from '@/components/InlineAlert'
 import TextField from '@/components/TextField'
 import { Button } from '@/components/ui/button'
 import { applyServerFieldErrors } from '@/lib/form-errors'
 
-const emailSchema = z.email({ pattern: z.regexes.unicodeEmail })
 const minimumPasswordLength = 8
 
 function AuthPage({ mode }: { mode: 'login' | 'register' }) {
@@ -26,6 +26,7 @@ function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const returnSearch = returnTo ? `?${new URLSearchParams({ returnTo })}` : ''
   const savedEmail: unknown = location.state?.registeredEmail
   const registeredEmail = !registration && typeof savedEmail === 'string' ? savedEmail : ''
+  const passwordReset = !registration && location.state?.passwordReset === true
   const passwordHintId = useId()
   const pending = useRef<AbortController | null>(null)
   const {
@@ -82,21 +83,17 @@ function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   }
 
   return (
-    <main
-      id="main-content"
-      tabIndex={-1}
-      className="mx-auto max-w-[390px] space-y-5 px-6 pt-12 pb-8"
-      data-route-id={mode}
+    <AccountLayout
+      routeId={mode}
+      title={t(`auth.${mode}.title`)}
+      description={t(`auth.${mode}.description`)}
     >
-      <Link to="/" className="block w-fit font-display text-[1.375rem] leading-tight font-bold">
-        BiletFlow
-      </Link>
-      <header className="space-y-2">
-        <h1 className="type-event-title">{t(`auth.${mode}.title`)}</h1>
-        <p className="type-body leading-normal text-ink-2">{t(`auth.${mode}.description`)}</p>
-      </header>
-
       {registeredEmail && <InlineAlert role="status">{t('auth.login.accountCreated')}</InlineAlert>}
+      {passwordReset && (
+        <InlineAlert tone="ok" role="status">
+          {t('auth.resetPassword.success')}
+        </InlineAlert>
+      )}
       <form
         noValidate
         className="space-y-5"
@@ -120,7 +117,7 @@ function AuthPage({ mode }: { mode: 'login' | 'register' }) {
             {...register('email', {
               required: t('auth.emailRequired'),
               setValueAs: (value: string) => value.trim(),
-              validate: (value) => emailSchema.safeParse(value).success || t('auth.invalidEmail'),
+              validate: (value) => isValidEmail(value) || t('auth.invalidEmail'),
             })}
           />
           {registration && !errors.password && (
@@ -171,7 +168,7 @@ function AuthPage({ mode }: { mode: 'login' | 'register' }) {
           {t(`auth.${mode}.switch`)}
         </Link>
       </p>
-    </main>
+    </AccountLayout>
   )
 }
 

@@ -13,6 +13,9 @@ it.each([
   '/%2Fexample.test',
   '/one/..//example.test',
   '/login?returnTo=/orders/12',
+  '/verify-email?token=sample',
+  '/reset-password?token=sample',
+  '/forgot-password',
   '/%72egister',
   '/bad-%',
 ])('rejects an unsafe or circular return destination (%s)', (path) => {

@@ -177,6 +177,32 @@ export const en: Messages = {
     text: 'Reload the page. If it happens again, contact support.',
   },
   auth: {
+    backToLogin: 'Back to sign in',
+    continueToEvents: 'Back to events',
+    verifyEmail: {
+      title: 'Verify your email',
+      banner: 'Your email address is unverified.',
+      resend: 'Resend verification email',
+      sent: 'We sent a new verification link. Check your inbox.',
+      pending: 'Verifying your email…',
+      success: 'Your email has been verified.',
+    },
+    forgotPassword: {
+      title: 'Forgot your password?',
+      description:
+        'Enter the email address you use to sign in. We’ll send a link to reset your password.',
+      submit: 'Send reset link',
+      success: 'If an account exists for this email address, we’ll send a password reset link.',
+    },
+    resetPassword: {
+      title: 'Reset your password',
+      description: 'Choose a new password for your account.',
+      password: 'New password',
+      passwordHint: 'Use at least 6 characters.',
+      submit: 'Set new password',
+      requestNewLink: 'Request a new link',
+      success: 'Your password was changed. Sign in with your new password.',
+    },
     email: 'Email',
     emailRequired: 'Enter your email address.',
     invalidEmail: 'Check your email address.',

@@ -65,7 +65,7 @@ function requireTokens(tokens: RefreshTokenResponse): RefreshTokenResponse {
 }
 
 type SessionStatus = 'anonymous' | 'restoring' | 'authenticated' | 'expired'
-type SessionSnapshot = { status: SessionStatus; refreshError: unknown }
+type SessionSnapshot = { status: SessionStatus; refreshError: unknown; generation: number }
 
 export function createSessionStore() {
   let refreshToken = readRefreshToken()
@@ -77,12 +77,18 @@ export function createSessionStore() {
   let snapshot: SessionSnapshot = {
     status: refreshToken ? 'restoring' : 'anonymous',
     refreshError: null,
+    generation,
   }
   const listeners = new Set<() => void>()
 
   function publish(status: SessionStatus, refreshError: unknown = null) {
-    if (snapshot.status === status && snapshot.refreshError === refreshError) return
-    snapshot = { status, refreshError }
+    if (
+      snapshot.status === status &&
+      snapshot.refreshError === refreshError &&
+      snapshot.generation === generation
+    )
+      return
+    snapshot = { status, refreshError, generation }
     listeners.forEach((listener) => listener())
   }
 

@@ -99,7 +99,7 @@ it('keeps a saved session on a startup network failure and restores it when retr
 
   server.use(http.post(apiUrl('/auth/refresh'), () => HttpResponse.json(tokens('new'))))
   await session.restore()
-  expect(session.getSnapshot()).toEqual({ status: 'authenticated', refreshError: null })
+  expect(session.getSnapshot()).toMatchObject({ status: 'authenticated', refreshError: null })
   expect(localStorage.getItem(storageKey)).toBe('refresh-new')
 })
 
