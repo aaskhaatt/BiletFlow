@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { EventResponse, TicketTypeResponse } from '@/api/generated/model'
-import { catalogAvailability, eventRegistration, ticketLimit } from '@/pages/events/availability'
+import type { EventResponse } from '@/api/generated/model'
+import { eventRegistration, ticketLimit } from '@/pages/events/availability'
+import { ticketType } from '@/test/fixtures'
 
 const open = '2030-01-01T00:00:00Z'
 const close = '2030-01-02T00:00:00Z'
@@ -16,19 +17,6 @@ const event: EventResponse = {
   visibility: 'public',
   lifecycle: 'active',
 }
-const ticket: TicketTypeResponse = {
-  id: 2,
-  event_id: event.id,
-  name: 'Standard',
-  quantity: 10,
-  sold_count: 7,
-  price: 4000,
-  sales_start: open,
-  sales_end: close,
-  is_hidden: false,
-  max_per_order: 5,
-}
-
 describe('registration and ticket availability', () => {
   it('falls back to the event end and honors event registration dates', () => {
     expect(eventRegistration(event, now)).toBe('open')
@@ -37,32 +25,13 @@ describe('registration and ticket availability', () => {
     expect(eventRegistration({ ...event, registration_closes_at: open }, now)).toBe('closed')
   })
 
-  it('caps counts by stock and per-order limits and closes unavailable ticket types', () => {
-    expect(ticketLimit(ticket, now)).toBe(3)
-    expect(ticketLimit({ ...ticket, max_per_order: 2 }, now)).toBe(2)
-    expect(ticketLimit({ ...ticket, is_hidden: true }, now)).toBe(0)
-    expect(ticketLimit({ ...ticket, sold_count: ticket.quantity }, now)).toBe(0)
-    expect(ticketLimit(ticket, Date.parse(open) - 1)).toBe(0)
-    expect(ticketLimit(ticket, Date.parse(close) + 1)).toBe(0)
-  })
-
-  it('calculates the catalog price and low stock from ticket types currently on sale', () => {
-    const types = [ticket, { ...ticket, id: 3, price: 0, sales_start: close }]
-    expect(catalogAvailability(event, types, now)).toEqual({
-      price: 4000,
-      lowStock: true,
-      freeOnly: false,
-    })
-    expect(catalogAvailability(event, [...types, { ...ticket, price: 0 }], now)).toEqual({
-      price: 0,
-      lowStock: false,
-      freeOnly: false,
-    })
-    expect(catalogAvailability(event, [{ ...ticket, price: 0 }], now).freeOnly).toBe(true)
-    expect(catalogAvailability(event, [], now)).toEqual({
-      price: null,
-      lowStock: false,
-      freeOnly: false,
-    })
+  it('uses the API availability and per-order limit even when the ticket has more unsold stock', () => {
+    const ticket = ticketType({ available: 3, max_now: 2 })
+    expect(ticketLimit(ticket)).toBe(2)
+    expect(ticketLimit({ ...ticket, available: 1 })).toBe(1)
+    expect(ticketLimit({ ...ticket, available: 0 })).toBe(0)
+    expect(ticketLimit({ ...ticket, max_now: 0 })).toBe(0)
+    expect(ticketLimit({ ...ticket, on_sale: false })).toBe(0)
+    expect(ticketLimit({ ...ticket, is_hidden: true })).toBe(0)
   })
 })

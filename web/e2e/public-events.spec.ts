@@ -17,7 +17,12 @@ const event = {
   venue_address: 'Kunayev St 1',
   start_time: hours(24),
   end_time: hours(26),
+  organizer_name: 'TOO Dala Events',
+  published_at: hours(-48),
+  cancelled_at: null,
 }
+// A catalog card is the event plus its lowest price and the tickets left
+const card = { ...event, min_price: 5000, tickets_remaining: 2 }
 const ticket = {
   id: 2,
   event_id: event.id,
@@ -29,9 +34,31 @@ const ticket = {
   is_hidden: false,
   sales_start: hours(-24),
   sales_end: hours(26),
+  available: 2,
+  max_now: 2,
+  on_sale: true,
+  unavailable_reason: null,
 }
-const soldOut = { ...ticket, id: 3, name: 'Balcony', sold_count: 10 }
-const box = { ...ticket, id: 4, name: 'Box', quantity: 30, sold_count: 0, max_per_order: 1 }
+const soldOut = {
+  ...ticket,
+  id: 3,
+  name: 'Balcony',
+  sold_count: 10,
+  available: 0,
+  max_now: 0,
+  on_sale: false,
+  unavailable_reason: 'sold_out',
+}
+const box = {
+  ...ticket,
+  id: 4,
+  name: 'Box',
+  quantity: 30,
+  sold_count: 0,
+  max_per_order: 10,
+  available: 12,
+  max_now: 1,
+}
 const tokens = {
   access_token: 'event-access',
   refresh_token: 'event-refresh',
@@ -40,7 +67,7 @@ const tokens = {
 
 test.use({ locale: 'en-US' })
 
-async function mockEvent(page: Page, detail = event, types = [ticket]) {
+async function mockEvent(page: Page, detail: object = event, types: object[] = [ticket]) {
   await page.route(`${api}/events/${event.id}`, (route) => route.fulfill({ headers, json: detail }))
   await page.route(`${api}/events/${event.id}/ticket-types`, (route) =>
     route.fulfill({ headers, json: types }),
@@ -61,22 +88,30 @@ async function signIn(page: Page) {
   await page.getByRole('button', { name: 'Sign in' }).click()
 }
 
-test('category changes the catalog request and the card shows cached price and stock', async ({
+test('the catalog shows the organizer, price and stock from the list and can filter by category', async ({
   page,
 }) => {
-  await mockEvent(page)
+  const ticketTypeRequests: string[] = []
+  page.on('request', (request) => {
+    // Only calls to the API: the dev server also serves the code of the hooks as a file
+    if (request.url().startsWith(`${api}/`) && request.url().includes('/ticket-types'))
+      ticketTypeRequests.push(request.url())
+  })
   await page.route(`${api}/events/categories`, (route) =>
     route.fulfill({ headers, json: ['Music', 'Sport'] }),
   )
   const categories: Array<string | null> = []
   await page.route(`${api}/events?*`, (route) => {
     categories.push(new URL(route.request().url()).searchParams.get('category'))
-    return route.fulfill({ headers, json: { total: 1, items: [event] } })
+    return route.fulfill({ headers, json: { total: 1, items: [card] } })
   })
 
   await page.goto('/')
+  await expect(page.getByText('Organizer · TOO Dala Events')).toBeVisible()
   await expect(page.getByText('Few left')).toBeVisible()
   await expect(page.getByText(/From 5,000/)).toBeVisible()
+  await page.waitForLoadState('networkidle')
+  expect(ticketTypeRequests).toEqual([])
   await page.getByRole('button', { name: 'Music', exact: true }).click()
   await expect(page).toHaveURL((url) => url.searchParams.get('category') === 'Music')
   await expect.poll(() => categories.at(-1)).toBe('Music')
@@ -109,6 +144,7 @@ test('preserves the bounded ticket selection and campaign through sign-in and re
   await add.click()
   await expect(add).toBeDisabled()
   const addBox = page.getByRole('button', { name: 'Add one Box ticket' })
+  await expect(page.getByText('12 left', { exact: true })).toBeVisible()
   await addBox.click()
   await expect(addBox).toBeDisabled()
   await expect(page.getByText('Tickets selected · 3')).toBeVisible()
@@ -128,6 +164,49 @@ test('preserves the bounded ticket selection and campaign through sign-in and re
   await page.reload()
   await expect(page.getByText('Standard × 2')).toBeVisible()
   await expect(page.getByText('STUDENT20 applied')).toBeVisible()
+
+  await mockEvent(page, event, [
+    { ...ticket, on_sale: false, max_now: 0, unavailable_reason: 'paid_sales_inactive' },
+    { ...box, on_sale: false, max_now: 0, available: 0, unavailable_reason: 'sold_out' },
+  ])
+  await page.reload()
+  await expect(page.getByText('Choose available tickets on the event page.')).toBeVisible()
+  await expect(page.getByText('Standard × 2')).toHaveCount(0)
+})
+
+test('paid tickets cannot be selected until the API says paid sales are active', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await mockEvent(page, event, [
+    { ...ticket, on_sale: false, max_now: 0, unavailable_reason: 'paid_sales_inactive' },
+  ])
+  await page.goto(`/events/${event.id}`)
+  await expect(page.getByText("Paid sales aren't active for this event yet.")).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Add one Standard ticket' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Continue to checkout' })).toBeDisabled()
+})
+
+test('the event refreshes ticket availability when sales start', async ({ page }) => {
+  const now = new Date()
+  const sale = { ...ticket, sales_start: new Date(now.getTime() + 60_000).toISOString() }
+  let onSale = false
+  await page.clock.install({ time: now })
+  await page.route(`${api}/events/${event.id}`, (route) => route.fulfill({ headers, json: event }))
+  await page.route(`${api}/events/${event.id}/ticket-types`, (route) =>
+    route.fulfill({
+      headers,
+      json: [
+        onSale ? sale : { ...sale, on_sale: false, max_now: 0, unavailable_reason: 'not_started' },
+      ],
+    }),
+  )
+
+  await page.goto(`/events/${event.id}`)
+  await expect(page.getByText(/Sales open .*UTC\+5/)).toBeVisible()
+  onSale = true
+  await page.clock.fastForward(60_001)
+  await expect(page.getByRole('button', { name: 'Add one Standard ticket' })).toBeEnabled()
 })
 
 test('closed registration disables checkout inside the desktop tickets panel', async ({ page }) => {
@@ -151,19 +230,76 @@ test('closed registration disables checkout inside the desktop tickets panel', a
   await expect(page.getByRole('link', { name: 'Report this event' })).toBeVisible()
 })
 
+test('a cancelled event shows the notice and closed tickets, at 360px and on desktop', async ({
+  page,
+}) => {
+  const cancelled = {
+    ...event,
+    status: 'cancelled',
+    lifecycle: 'cancelled',
+    cancelled_at: hours(-72),
+  }
+  const closed = {
+    ...ticket,
+    available: 0,
+    max_now: 0,
+    on_sale: false,
+    unavailable_reason: 'ended',
+  }
+  await mockEvent(page, cancelled, [closed])
+
+  for (const width of [360, 1440]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto(`/events/${event.id}`)
+    const notice = page.locator('[data-slot="event-cancelled-notice"]')
+    await expect(notice).toContainText('Event cancelled')
+    await expect(notice).toContainText('The organizer cancelled this event on')
+    await expect(page.getByRole('heading', { level: 1, name: event.title })).toBeVisible()
+    await expect(page.locator('[data-slot="status-badge"]')).toHaveText('Cancelled')
+    await expect(page.getByText('Sales closed', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Continue to checkout' })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Browse other events' })).toHaveAttribute(
+      'href',
+      '/',
+    )
+    await expect(page.getByRole('link', { name: 'My orders' }).last()).toHaveAttribute(
+      'href',
+      '/my/orders',
+    )
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      width,
+    )
+    const a11y = await new AxeBuilder({ page }).analyze()
+    expect(
+      a11y.violations.filter(({ impact }) => impact === 'serious' || impact === 'critical'),
+    ).toEqual([])
+  }
+})
+
+test('a cancelled event that the server no longer shows still says "not found"', async ({
+  page,
+}) => {
+  await page.route(`${api}/events/${event.id}`, (route) =>
+    route.fulfill({
+      headers,
+      status: 404,
+      json: { error: 'EventNotFoundError', message: 'Event Not Found', fields: null },
+    }),
+  )
+  await page.goto(`/events/${event.id}`)
+  await expect(page.getByRole('heading', { name: 'Event not found' })).toBeVisible()
+})
+
 test('desktop catalog switches from one column to three and filters whole Astana days', async ({
   page,
 }) => {
   const cards = Array.from({ length: 6 }, (_, index) => ({
-    ...event,
+    ...card,
     id: index + 1,
     title: `Event ${index + 1}`,
   }))
   await page.route(`${api}/events/categories`, (route) =>
     route.fulfill({ headers, json: ['Music'] }),
-  )
-  await page.route(`${api}/events/*/ticket-types`, (route) =>
-    route.fulfill({ headers, json: [ticket] }),
   )
   let params = new URLSearchParams()
   await page.route(`${api}/events?*`, (route) => {

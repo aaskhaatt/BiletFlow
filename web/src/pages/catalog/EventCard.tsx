@@ -1,18 +1,17 @@
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
-import type { EventResponse } from '@/api/generated/model'
-import { useTicketTypes } from '@/api/hooks/events'
+import type { EventListItem } from '@/api/generated/model'
 import { formatEventTime, formatKZT } from '@/lib/format'
-import { catalogAvailability } from '@/pages/events/availability'
+import { cardTickets } from '@/pages/catalog/card-tickets'
 import EventCover from '@/pages/events/EventCover'
 
-/** One event in the catalog: its title links to the event page. */
-export default function EventCard({ event }: { event: EventResponse }) {
+/**
+ * One event in the catalog: its title links to the event page. The price and the
+ * "few left" warning come from the list item itself, no request per card.
+ */
+export default function EventCard({ event }: { event: EventListItem }) {
   const { t } = useTranslation()
-  const [now] = useState(Date.now)
-  const { data } = useTicketTypes(event.id)
-  const { price, lowStock, freeOnly } = catalogAvailability(event, data, now)
+  const { price, free, lowStock } = cardTickets(event)
   const venue = [event.venue_name, event.venue_address].filter(Boolean).join(', ')
   const href = `/events/${event.id}`
 
@@ -33,7 +32,7 @@ export default function EventCard({ event }: { event: EventResponse }) {
               {event.category}
             </span>
           )}
-          {freeOnly && (
+          {free && (
             <span className="hidden rounded-sm bg-brand-soft px-2 py-1 type-small font-semibold text-brand-press min-[1024px]:inline">
               {t('catalog.registration')}
             </span>
@@ -60,6 +59,11 @@ export default function EventCard({ event }: { event: EventResponse }) {
           </time>
         </p>
         {venue && <p className="type-small wrap-anywhere text-ink-muted">{venue}</p>}
+        {event.organizer_name && (
+          <p className="type-small wrap-anywhere text-ink-muted">
+            {t('catalog.organizer', { name: event.organizer_name })}
+          </p>
+        )}
         <div className="mt-auto flex flex-wrap items-center justify-between gap-x-3">
           {price !== null && (
             <p className="font-semibold">

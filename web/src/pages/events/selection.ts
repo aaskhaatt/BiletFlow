@@ -1,4 +1,4 @@
-import type { TicketTypeResponse } from '@/api/generated/model'
+import type { TicketTypeWithAvailability } from '@/api/generated/model'
 import { ticketLimit } from '@/pages/events/availability'
 
 export type Selection = Record<number, number>
@@ -52,13 +52,13 @@ export function selectedQuantities(draft: CheckoutDraft | undefined): Selection 
   )
 }
 
-export function summarizeTickets(tickets: TicketTypeResponse[], selection: Selection, now: number) {
+export function summarizeTickets(tickets: TicketTypeWithAvailability[], selection: Selection) {
   const items: DraftItem[] = []
   let count = 0
   let subtotal = 0
 
   for (const ticket of tickets) {
-    const quantity = Math.min(selection[ticket.id] ?? 0, ticketLimit(ticket, now))
+    const quantity = Math.min(selection[ticket.id] ?? 0, ticketLimit(ticket))
     if (quantity <= 0) continue
     items.push({ ticket_type_id: ticket.id, quantity })
     count += quantity

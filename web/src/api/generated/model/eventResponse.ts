@@ -25,4 +25,7 @@ export interface EventResponse {
   suspended_at?: string | null
   suspension_reason?: string | null
   lifecycle: string
+  organizer_name?: string | null
+  published_at?: string | null
+  cancelled_at?: string | null
 }

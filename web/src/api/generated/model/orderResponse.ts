@@ -4,6 +4,7 @@
  * FastAPI
  * OpenAPI spec version: 0.1.0
  */
+import type { OrderEventSummary } from './orderEventSummary'
 import type { OrderItemResponse } from './orderItemResponse'
 import type { TicketResponse } from './ticketResponse'
 
@@ -23,4 +24,5 @@ export interface OrderResponse {
   refunded_at: string | null
   items: OrderItemResponse[]
   tickets: TicketResponse[]
+  event: OrderEventSummary
 }

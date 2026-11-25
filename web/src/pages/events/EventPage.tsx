@@ -4,18 +4,14 @@ import { useTranslation } from 'react-i18next'
 import { Link, Outlet, useMatch, useNavigate, useParams, useSearchParams } from 'react-router'
 import { errorMessageKey } from '@/api/error-codes'
 import { isApiError } from '@/api/errors'
-import type { EventResponse, TicketTypeResponse } from '@/api/generated/model'
+import type { EventResponse, TicketTypeWithAvailability } from '@/api/generated/model'
 import { useCampaignLink, useEvent, useTicketTypes } from '@/api/hooks/events'
-import desktopCalendarIcon from '@/assets/desktop-event-calendar.svg'
-import desktopLocationIcon from '@/assets/desktop-event-location.svg'
-import calendarIcon from '@/assets/event-calendar.svg'
-import locationIcon from '@/assets/event-location.svg'
 import registrationClock from '@/assets/event-registration-clock.svg'
 import reportWarning from '@/assets/event-report-warning.svg'
 import ErrorState from '@/components/ErrorState'
 import PublicEventFeedback from '@/components/PublicEventFeedback'
 import { Button } from '@/components/ui/button'
-import { eventTimeZoneLabel, formatEventTime, formatEventTimeRange, formatKZT } from '@/lib/format'
+import { formatEventTime, formatKZT } from '@/lib/format'
 import { useViewerDesktop } from '@/lib/viewer-layout'
 import {
   eventRegistration,
@@ -23,8 +19,10 @@ import {
   parseEventId,
   ticketLimit,
 } from '@/pages/events/availability'
+import CancelledEvent from '@/pages/events/CancelledEvent'
 import { downloadEventCalendar } from '@/pages/events/calendar'
 import EventCover from '@/pages/events/EventCover'
+import EventFacts from '@/pages/events/EventFacts'
 import EventLoading from '@/pages/events/EventLoading'
 import {
   readCheckoutDraft,
@@ -89,6 +87,8 @@ function EventNotFound() {
 function EventRoute({ eventId }: { eventId: number }) {
   const { t } = useTranslation()
   const event = useEvent(eventId)
+  // A once-published event that was cancelled still has its page (200, status "cancelled")
+  if (event.data?.status === 'cancelled') return <CancelledEvent event={event.data} />
   if (event.data && isRegistrationClosedError(event.error))
     return <EventDetails event={event.data} serverClosed />
   if (event.isError) {
@@ -123,14 +123,16 @@ function EventDetails({
   const campaign = useCampaignLink(token)
   const promo = campaign.data?.event_id === event.id ? campaign.data.promo_code : null
   const tickets = useTicketTypes(event.id)
-  const visibleTickets = tickets.data?.filter((ticket) => !ticket.is_hidden) ?? []
+  const { data: ticketTypes, dataUpdatedAt, refetch: refreshTickets } = tickets
+  const visibleTickets = ticketTypes?.filter((ticket) => !ticket.is_hidden) ?? []
+  const registrationCloses = event.registration_closes_at ?? event.end_time
   const schedule = eventRegistration(event, now)
   const closedByApi = serverClosed || isRegistrationClosedError(tickets.error)
   const registration = closedByApi && schedule === 'open' ? 'closed' : schedule
   const canChoose = registration === 'open' && !tickets.isError
   const showBar =
-    registration !== 'open' || visibleTickets.some((ticket) => ticketLimit(ticket, now) > 0)
-  const { count, subtotal } = summarizeTickets(visibleTickets, canChoose ? selection : {}, now)
+    registration !== 'open' || visibleTickets.some((ticket) => ticketLimit(ticket) > 0)
+  const { count, subtotal } = summarizeTickets(visibleTickets, canChoose ? selection : {})
 
   useEffect(() => {
     const sync = () => setNow(Date.now())
@@ -142,9 +144,29 @@ function EventDetails({
     }
   }, [])
 
-  function changeQuantity(ticket: TicketTypeResponse, step: number) {
+  useEffect(() => {
+    if (!ticketTypes?.length) return
+    const now = Date.now()
+    // The API decides whether each type is on sale. Refresh its answer when a window changes.
+    const boundaries = [
+      event.registration_opens_at,
+      registrationCloses,
+      ...ticketTypes.flatMap((ticket) => [ticket.sales_start, ticket.sales_end]),
+    ]
+    const next = Math.min(
+      ...boundaries.map((time) => Date.parse(time ?? '')).filter((time) => time >= now),
+    )
+    if (!Number.isFinite(next)) return
+    const timer = window.setTimeout(
+      () => void refreshTickets(),
+      Math.min(next - now + 1, 2_147_483_647),
+    )
+    return () => window.clearTimeout(timer)
+  }, [ticketTypes, dataUpdatedAt, event.registration_opens_at, registrationCloses, refreshTickets])
+
+  function changeQuantity(ticket: TicketTypeWithAvailability, step: number) {
     if (!canChoose) return
-    const limit = ticketLimit(ticket, now)
+    const limit = ticketLimit(ticket)
     const current = Math.min(selection[ticket.id] ?? 0, limit)
     const next = {
       ...selection,
@@ -152,14 +174,14 @@ function EventDetails({
     }
     setSelection(next)
     saveCheckoutDraft(event.id, {
-      items: summarizeTickets(visibleTickets, next, now).items,
+      items: summarizeTickets(visibleTickets, next).items,
       promo_code: promo,
       campaign: token,
     })
   }
 
   function checkout() {
-    const draft = summarizeTickets(visibleTickets, selection, now)
+    const draft = summarizeTickets(visibleTickets, selection)
     if (!canChoose || !draft.count || campaign.isFetching) return
     saveCheckoutDraft(event.id, { items: draft.items, promo_code: promo, campaign: token })
     void navigate(`/events/${event.id}/checkout`)
@@ -191,34 +213,7 @@ function EventDetails({
             </p>
           )}
           <h1 className="type-event-title wrap-anywhere min-[1024px]:text-[38px]">{event.title}</h1>
-          <div className="space-y-3 min-[1024px]:flex min-[1024px]:flex-wrap min-[1024px]:gap-x-10 min-[1024px]:gap-y-3 min-[1024px]:space-y-0">
-            <div className="flex items-start gap-3">
-              <picture className="mt-0.5 shrink-0">
-                <source media="(min-width: 1024px)" srcSet={desktopCalendarIcon} />
-                <img src={calendarIcon} width="20" height="20" alt="" />
-              </picture>
-              <div className="min-w-0">
-                <time dateTime={event.start_time} className="type-label">
-                  {formatEventTimeRange(event.start_time, event.end_time)}
-                </time>
-                <p className="type-small text-ink-muted">{eventTimeZoneLabel()}</p>
-              </div>
-            </div>
-            {(event.venue_name || event.venue_address) && (
-              <div className="flex items-start gap-3">
-                <picture className="mt-0.5 shrink-0">
-                  <source media="(min-width: 1024px)" srcSet={desktopLocationIcon} />
-                  <img src={locationIcon} width="20" height="20" alt="" />
-                </picture>
-                <div className="min-w-0 wrap-anywhere">
-                  {event.venue_name && <p className="type-label">{event.venue_name}</p>}
-                  {event.venue_address && (
-                    <p className="type-small text-ink-muted">{event.venue_address}</p>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          <EventFacts event={event} />
           <button
             type="button"
             className={cn(textLink, 'min-[1024px]:min-h-7')}
@@ -259,7 +254,7 @@ function EventDetails({
                         time: formatEventTime(
                           registration === 'upcoming' && event.registration_opens_at
                             ? event.registration_opens_at
-                            : (event.registration_closes_at ?? event.end_time),
+                            : registrationCloses,
                           { withZone: true },
                         ),
                       })}
@@ -280,7 +275,7 @@ function EventDetails({
               <TicketChoices
                 tickets={visibleTickets}
                 selected={selection}
-                now={now}
+                canChoose={canChoose}
                 registration={registration}
                 onChange={changeQuantity}
               />

@@ -321,12 +321,23 @@ export const kk: Messages = {
     salesUntil: 'Сату {{time}} дейін',
     salesClosed: 'Сату аяқталды.',
     soldOut: 'Сатылып кетті',
+    ticketHidden: 'Бұл билет түрі жасырылған.',
     unavailable: 'Қолжетімсіз',
     addTicket: '«{{name}}» билетін қосу',
     removeTicket: '«{{name}}» билетін азайту',
     quantity: '«{{name}}» билеттерінің саны',
     checkoutEmpty: 'Іс-шара бетінен қолжетімді билеттерді таңдаңыз.',
     backToEvent: 'Іс-шараға оралу',
+    // The page of a cancelled event: a notice with the cancellation day
+    cancelled: {
+      title: 'Іс-шара жойылды',
+      description:
+        'Ұйымдастырушы іс-шараны {{date}} күні жойды. Төленген тапсырыстар автоматты түрде қайтарылды, тегін тіркелулер жойылды, билеттер жарамсыз.',
+      descriptionNoDate:
+        'Ұйымдастырушы іс-шараны жойды. Төленген тапсырыстар автоматты түрде қайтарылды, тегін тіркелулер жойылды, билеттер жарамсыз.',
+      ticketStatus: 'Сату жабық',
+      browse: 'Басқа іс-шараларды қарау',
+    },
   },
   reportEvent: {
     cancelDialog: 'Бас тарту',
@@ -392,6 +403,7 @@ export const kk: Messages = {
     categoriesError: 'Санаттарды жүктеу мүмкін болмады.',
     cover: 'Іс-шара мұқабасы',
     lowStock: 'Орын аз қалды',
+    organizer: 'Ұйымдастырушы · {{name}}',
     priceFrom: '{{price}} бастап',
     details: 'Толығырақ',
     eventDetails: '«{{title}}» іс-шарасы туралы толығырақ',

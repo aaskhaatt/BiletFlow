@@ -403,12 +403,23 @@ export const ru = {
     salesUntil: 'Продажа до {{time}}',
     salesClosed: 'Продажа завершена.',
     soldOut: 'Распродано',
+    ticketHidden: 'Этот тип билета скрыт.',
     unavailable: 'Недоступно',
     addTicket: 'Добавить билет «{{name}}»',
     removeTicket: 'Убрать билет «{{name}}»',
     quantity: 'Количество билетов «{{name}}»',
     checkoutEmpty: 'Выберите доступные билеты на странице события.',
     backToEvent: 'Вернуться к событию',
+    // The page of a cancelled event: a notice with the cancellation day
+    cancelled: {
+      title: 'Событие отменено',
+      description:
+        'Организатор отменил событие {{date}}. Оплаченные заказы возвращены автоматически, бесплатные регистрации отменены, билеты недействительны.',
+      descriptionNoDate:
+        'Организатор отменил событие. Оплаченные заказы возвращены автоматически, бесплатные регистрации отменены, билеты недействительны.',
+      ticketStatus: 'Продажа закрыта',
+      browse: 'Смотреть другие события',
+    },
   },
   reportEvent: {
     cancelDialog: 'Отмена',
@@ -473,6 +484,7 @@ export const ru = {
     cover: 'Обложка события',
     lowStock: 'Мало мест',
     priceFrom: 'от {{price}}',
+    organizer: 'Организатор · {{name}}',
     details: 'Подробнее',
     eventDetails: 'Подробнее о событии «{{title}}»',
     title: 'События',

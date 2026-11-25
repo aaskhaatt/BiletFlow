@@ -24,6 +24,7 @@ import type {
   HTTPValidationError,
   SupportAssigneeUpdate,
   SupportCaseCreate,
+  SupportCaseDetail,
   SupportCaseResponse,
   SupportCaseSummary,
   SupportGetSupportInboxParams,
@@ -455,8 +456,8 @@ export const getSupportGetSupportCaseUrl = (caseId: number) => {
 export const supportGetSupportCase = async (
   caseId: number,
   options?: Parameters<typeof apiFetch>[1],
-): Promise<SupportCaseResponse> => {
-  return apiFetch<SupportCaseResponse>(getSupportGetSupportCaseUrl(caseId), {
+): Promise<SupportCaseDetail> => {
+  return apiFetch<SupportCaseDetail>(getSupportGetSupportCaseUrl(caseId), {
     ...options,
     method: 'GET',
   })

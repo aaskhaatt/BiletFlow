@@ -4,9 +4,9 @@
  * FastAPI
  * OpenAPI spec version: 0.1.0
  */
-import type { EventResponse } from './eventResponse'
+import type { EventListItem } from './eventListItem'
 
 export interface EventPage {
-  items: EventResponse[]
+  items: EventListItem[]
   total: number
 }

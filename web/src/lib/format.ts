@@ -52,6 +52,18 @@ export function formatEventTime(
   return options.withZone ? `${text} · ${eventTimeZoneLabel(language)}` : text
 }
 
+/**
+ * A calendar day in Astana time, without the year: "2026-10-20T12:00:00+05:00" →
+ * "20 октября" (ru), "20 қазан" (kk), "20 October" (en).
+ */
+export function formatEventDay(iso: string, language: Language = currentLanguage()): string {
+  return new Intl.DateTimeFormat(LOCALES[language], {
+    timeZone: EVENT_TIME_ZONE,
+    day: 'numeric',
+    month: 'long',
+  }).format(new Date(iso))
+}
+
 export function formatEventTimeRange(start: string, end: string): string {
   return new Intl.DateTimeFormat(LOCALES[currentLanguage()], {
     timeZone: EVENT_TIME_ZONE,

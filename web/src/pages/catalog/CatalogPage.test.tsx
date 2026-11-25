@@ -1,26 +1,13 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
+import type { EventPage } from '@/api/generated/model'
 import CatalogPage from '@/pages/catalog/CatalogPage'
+import { eventListItem } from '@/test/fixtures'
 import { apiUrl, server } from '@/test/msw-server'
 import { renderRoutes } from '@/test/render'
 
-const event = (id: number, title: string) => ({
-  id,
-  organizer_id: 1,
-  title,
-  description: null,
-  start_time: '2026-12-07T14:00:00Z',
-  end_time: '2026-12-07T17:00:00Z',
-  status: 'published',
-  category: 'Music',
-  venue_name: 'Astana Opera',
-  venue_address: 'Kunayev St 1',
-  visibility: 'public',
-  lifecycle: 'upcoming',
-})
-
-type EventPage = { items: ReturnType<typeof event>[]; total: number }
+const event = (id: number, title: string) => eventListItem({ id, title })
 
 /** Answers GET /events and keeps the query of every request. */
 function mockEvents(respond: (query: URLSearchParams) => EventPage) {
@@ -46,11 +33,59 @@ function renderCatalog(route = '/') {
 }
 
 describe('CatalogPage', () => {
+  // The cards take price and stock from the list: a request per card would be counted here
+  let ticketTypeRequests = 0
   beforeEach(() => {
+    ticketTypeRequests = 0
     server.use(
       http.get(apiUrl('/events/categories'), () => HttpResponse.json(['Music', 'Sport'])),
-      http.get(apiUrl('/events/:id/ticket-types'), () => HttpResponse.json([])),
+      http.get(apiUrl('/events/:id/ticket-types'), () => {
+        ticketTypeRequests += 1
+        return HttpResponse.json([])
+      }),
     )
+  })
+
+  it('shows the organizer, price and stock from the catalog without extra requests', async () => {
+    mockEvents(() => ({
+      items: [
+        eventListItem({ id: 1, title: 'Paid event', min_price: 4000, tickets_remaining: 217 }),
+        eventListItem({ id: 2, title: 'Free event', min_price: 0, tickets_remaining: 40 }),
+        eventListItem({ id: 3, title: 'Few left', min_price: 2500, tickets_remaining: 5 }),
+        eventListItem({
+          id: 4,
+          title: 'No tickets yet',
+          min_price: null,
+          tickets_remaining: null,
+          organizer_name: null,
+        }),
+      ],
+      total: 4,
+    }))
+
+    renderCatalog()
+
+    const card = async (title: string) =>
+      within((await screen.findByRole('link', { name: title })).closest('article')!)
+    const paid = await card('Paid event')
+    expect(paid.getByText('Организатор · TOO Dala Events')).toBeInTheDocument()
+    expect(paid.getByText(/^от 4\s000\s₸$/)).toBeInTheDocument()
+    expect(paid.queryByText('Мало мест')).not.toBeInTheDocument()
+
+    const free = await card('Free event')
+    expect(free.getByText('Бесплатно')).toBeInTheDocument()
+    expect(free.queryByText(/^от /)).not.toBeInTheDocument()
+    expect(free.queryByText('Мало мест')).not.toBeInTheDocument()
+
+    const few = await card('Few left')
+    expect(few.getByText(/^от 2\s500\s₸$/)).toBeInTheDocument()
+    expect(few.getByText('Мало мест')).toBeInTheDocument()
+
+    const none = await card('No tickets yet')
+    expect(none.queryByText(/₸|Бесплатно|Мало мест/)).not.toBeInTheDocument()
+    expect(none.queryByText(/Организатор/)).not.toBeInTheDocument()
+
+    expect(ticketTypeRequests).toBe(0)
   })
 
   it('filters by a category from the API and returns to the first page', async () => {

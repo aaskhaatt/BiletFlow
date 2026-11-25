@@ -316,12 +316,23 @@ export const en: Messages = {
     salesUntil: 'On sale until {{time}}',
     salesClosed: 'Sales have closed.',
     soldOut: 'Sold out',
+    ticketHidden: 'This ticket type is hidden.',
     unavailable: 'Unavailable',
     addTicket: 'Add one {{name}} ticket',
     removeTicket: 'Remove one {{name}} ticket',
     quantity: 'Quantity for {{name}}',
     checkoutEmpty: 'Choose available tickets on the event page.',
     backToEvent: 'Back to the event',
+    // The page of a cancelled event: a notice with the cancellation day
+    cancelled: {
+      title: 'Event cancelled',
+      description:
+        'The organizer cancelled this event on {{date}}. Paid orders were refunded automatically, free registrations were cancelled and tickets are no longer valid.',
+      descriptionNoDate:
+        'The organizer cancelled this event. Paid orders were refunded automatically, free registrations were cancelled and tickets are no longer valid.',
+      ticketStatus: 'Sales closed',
+      browse: 'Browse other events',
+    },
   },
   reportEvent: {
     cancelDialog: 'Cancel',
@@ -386,6 +397,7 @@ export const en: Messages = {
     cover: 'Event cover',
     lowStock: 'Few left',
     priceFrom: 'From {{price}}',
+    organizer: 'Organizer · {{name}}',
     details: 'Details',
     eventDetails: 'Details for {{title}}',
     title: 'Events',
