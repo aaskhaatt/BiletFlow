@@ -1,8 +1,16 @@
 import { Outlet, type RouteObject } from 'react-router'
-import DevUiPage from '@/pages/dev/DevUiPage'
+import SkipLink from '@/app/layouts/SkipLink'
+import Skeleton from '@/components/Skeleton'
 import NotFoundPage from '@/pages/NotFoundPage'
 import PlaceholderPage from '@/pages/PlaceholderPage'
 import RouteErrorPage from '@/pages/RouteErrorPage'
+
+function workspaceLayout(area: 'organizer' | 'admin') {
+  return async () => {
+    const { default: WorkspaceLayout } = await import('@/app/layouts/WorkspaceLayout')
+    return { element: <WorkspaceLayout area={area} /> }
+  }
+}
 
 // A page that a later phase (W3-W12) builds. The id names the screen.
 function stub(id: string) {
@@ -11,7 +19,7 @@ function stub(id: string) {
 
 /*
  * Every page of the app. Guards (RequireAuth, RequireOrganizer, RequireAdmin)
- * and the area layouts arrive in W3.11 and W2.11.
+ * arrive in W3.11.
  *
  * The backend puts some of these addresses in emails and QR codes, so they must
  * not change: /verify-email, /reset-password, /orders/:orderId, /events/:eventId
@@ -20,32 +28,44 @@ function stub(id: string) {
 export const routes: RouteObject[] = [
   {
     path: '/',
-    element: <Outlet />,
+    element: (
+      <>
+        <SkipLink />
+        <Outlet />
+      </>
+    ),
+    hydrateFallbackElement: <Skeleton className="m-6 w-48" />,
     errorElement: <RouteErrorPage />,
     children: [
-      // Public
-      { index: true, ...stub('catalog') },
-      { path: 'events/:eventId', ...stub('event') },
-      { path: 'login', ...stub('login') },
-      { path: 'register', ...stub('register') },
-      { path: 'forgot-password', ...stub('forgot-password') },
-      { path: 'verify-email', ...stub('verify-email') },
-      { path: 'reset-password', ...stub('reset-password') },
+      {
+        lazy: async () => ({ Component: (await import('@/app/layouts/PublicLayout')).default }),
+        children: [
+          // Public
+          { index: true, ...stub('catalog') },
+          { path: 'events/:eventId', ...stub('event') },
+          { path: 'login', ...stub('login') },
+          { path: 'register', ...stub('register') },
+          { path: 'forgot-password', ...stub('forgot-password') },
+          { path: 'verify-email', ...stub('verify-email') },
+          { path: 'reset-password', ...stub('reset-password') },
 
-      // Attendee (signed in)
-      { path: 'events/:eventId/checkout', ...stub('checkout') },
-      { path: 'orders/:orderId', ...stub('order') },
-      { path: 'tickets/:ticketId', ...stub('ticket') },
-      { path: 'my/tickets', ...stub('my-tickets') },
-      { path: 'my/orders', ...stub('my-orders') },
-      { path: 'support', ...stub('my-support-cases') },
-      { path: 'support/new', ...stub('new-support-case') },
-      { path: 'support/:caseId', ...stub('support-case') },
-      { path: 'become-organizer', ...stub('become-organizer') },
+          // Attendee (signed in)
+          { path: 'events/:eventId/checkout', ...stub('checkout') },
+          { path: 'orders/:orderId', ...stub('order') },
+          { path: 'tickets/:ticketId', ...stub('ticket') },
+          { path: 'my/tickets', ...stub('my-tickets') },
+          { path: 'my/orders', ...stub('my-orders') },
+          { path: 'support', ...stub('my-support-cases') },
+          { path: 'support/new', ...stub('new-support-case') },
+          { path: 'support/:caseId', ...stub('support-case') },
+          { path: 'become-organizer', ...stub('become-organizer') },
+        ],
+      },
 
       // Organizer
       {
         path: 'organizer',
+        lazy: workspaceLayout('organizer'),
         children: [
           { index: true, ...stub('organizer-events') },
           { path: 'events/new', ...stub('organizer-event-new') },
@@ -66,6 +86,7 @@ export const routes: RouteObject[] = [
       // Platform admin
       {
         path: 'admin',
+        lazy: workspaceLayout('admin'),
         children: [
           { index: true, ...stub('admin-moderation') },
           { path: 'reports', ...stub('admin-reports') },
@@ -84,7 +105,15 @@ export const routes: RouteObject[] = [
       },
 
       // Developer pages (dev server only)
-      ...(import.meta.env.DEV ? [{ path: 'dev/ui', element: <DevUiPage /> }] : []),
+      ...(import.meta.env.DEV
+        ? [
+            {
+              path: 'dev/ui',
+              hydrateFallbackElement: <Skeleton className="m-6 w-48" />,
+              lazy: async () => ({ Component: (await import('@/pages/dev/DevUiPage')).default }),
+            },
+          ]
+        : []),
 
       { path: '*', element: <NotFoundPage /> },
     ],

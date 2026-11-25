@@ -3,6 +3,9 @@ import { cn } from 'cn'
 import { Select as SelectPrimitive } from 'radix-ui'
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from 'lucide-react'
 
+// shadcn/ui Select in BiletFlow tokens. The trigger looks like the Figma field
+// ("Категория"): 48 px, 14 px padding, the same focus and error borders as Input.
+
 function Select({ ...props }: React.ComponentProps<typeof SelectPrimitive.Root>) {
   return <SelectPrimitive.Root data-slot="select" {...props} />
 }
@@ -34,7 +37,7 @@ function SelectTrigger({
       data-slot="select-trigger"
       data-size={size}
       className={cn(
-        "type-body flex w-fit items-center justify-between gap-2 rounded-md border border-line-field bg-surface py-2 pr-3 pl-4 text-ink whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-ink-muted data-[size=default]:h-12 data-[size=sm]:h-11 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "type-body flex w-fit items-center justify-between gap-2 rounded-md border border-line-field bg-surface pr-3 pl-3.5 text-ink whitespace-nowrap transition-colors outline-none select-none focus-visible:border-brand focus-visible:inset-ring-1 focus-visible:inset-ring-brand disabled:cursor-not-allowed disabled:bg-line-soft disabled:text-ink-muted aria-invalid:border-status-danger-fg aria-invalid:inset-ring-1 aria-invalid:inset-ring-status-danger-fg aria-invalid:focus-visible:ring-3 aria-invalid:focus-visible:ring-status-danger-fg/20 data-placeholder:text-ink-muted max-md:text-base data-[size=default]:h-12 data-[size=sm]:h-11 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}
       {...props}

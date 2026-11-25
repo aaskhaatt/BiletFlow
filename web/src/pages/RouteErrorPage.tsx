@@ -1,13 +1,26 @@
+import { lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
+import SkipLink from '@/app/layouts/SkipLink'
 
-// Shown when a page crashes while rendering. W2.7 replaces it with the shared ErrorState.
+const ErrorState = lazy(() => import('@/components/ErrorState'))
+
 export default function RouteErrorPage() {
   const { t } = useTranslation()
+  const title = t('routeError.title')
 
   return (
-    <main className="mx-auto max-w-3xl space-y-4 p-6" role="alert">
-      <h1 className="type-page-title">{t('routeError.title')}</h1>
-      <p className="type-body text-ink-2">{t('routeError.text')}</p>
-    </main>
+    <>
+      <SkipLink />
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl p-6">
+        <Suspense fallback={<h1 className="type-page-title">{title}</h1>}>
+          <ErrorState
+            heading="h1"
+            title={title}
+            description={t('routeError.text')}
+            onRetry={() => window.location.reload()}
+          />
+        </Suspense>
+      </main>
+    </>
   )
 }
