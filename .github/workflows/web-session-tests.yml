@@ -46,6 +46,7 @@ jobs:
       BILETFLOW_E2E_LIVE_AUTH: '1'
       BILETFLOW_E2E_LIVE_CHECKOUT: '1'
       BILETFLOW_E2E_LIVE_PAID_SALES: '1'
+      BILETFLOW_E2E_LIVE_OPERATIONS: '1'
 
     steps:
       - uses: actions/checkout@v4
@@ -73,7 +74,7 @@ jobs:
           npm ci
           npx playwright install --with-deps chromium
 
-      - name: Run the browser session, checkout and paid-sales tests
+      - name: Run browser tests against the test database
         working-directory: web
         run: |
           (cd ../backend && exec python -m uvicorn main:app --host 127.0.0.1 --port 8000) > "$RUNNER_TEMP/biletflow-web-api.log" 2>&1 &
@@ -85,4 +86,5 @@ jobs:
           fi
           BILETFLOW_E2E_ADMIN_PASSWORD=$(cd ../backend && python -c 'from scripts.seed_demo import DEMO_PASSWORD; print(DEMO_PASSWORD)')
           export BILETFLOW_E2E_ADMIN_PASSWORD
-          npm run e2e -- e2e/session.spec.ts e2e/session-lifecycle.spec.ts e2e/checkout.spec.ts e2e/paid-sales.spec.ts --workers=2
+          export BILETFLOW_E2E_SEED_PASSWORD="$BILETFLOW_E2E_ADMIN_PASSWORD"
+          npm run e2e -- e2e/session.spec.ts e2e/session-lifecycle.spec.ts e2e/checkout.spec.ts e2e/paid-sales.spec.ts e2e/organizer-operations.spec.ts --workers=2

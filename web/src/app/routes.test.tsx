@@ -24,6 +24,29 @@ beforeEach(() => {
       ),
     ),
     http.get(apiUrl('/events/3/ticket-types'), () => HttpResponse.json([])),
+    http.get(apiUrl('/events/3/manage'), () =>
+      HttpResponse.json(eventResponse({ id: 3, title: 'Event fixture' })),
+    ),
+    http.get(apiUrl('/events/3/attendees'), () => HttpResponse.json([])),
+    http.get(apiUrl('/events/3/orders'), () => HttpResponse.json({ items: [], total: 0 })),
+    http.get(apiUrl('/events/3/staff'), () => HttpResponse.json([])),
+    http.get(apiUrl('/events/3/check-in/stats'), () =>
+      HttpResponse.json({ registered: 0, checked_in: 0, refunded: 0, cancelled: 0 }),
+    ),
+    http.get(apiUrl('/events/3/sales'), () =>
+      HttpResponse.json({
+        event_id: 3,
+        currency: 'KZT',
+        is_simulated: true,
+        gross_sales: 0,
+        processing_fees: 0,
+        refunds: 0,
+        discounts: 0,
+        estimated_payout: 0,
+        paid_orders: 0,
+        ticket_types: [],
+      }),
+    ),
     http.get(apiUrl('/orders/me'), () => HttpResponse.json([])),
     http.get(apiUrl('/orders/12'), () =>
       HttpResponse.json({ error: 'OrderNotFoundError' }, { status: 404 }),
@@ -73,6 +96,7 @@ const pages: [address: string, page: string][] = [
   ['/organizer/events/3/edit', 'organizer-event-edit'],
   ['/organizer/events/3/attendees', 'organizer-event-attendees'],
   ['/organizer/events/3/orders', 'organizer-event-orders'],
+  ['/organizer/events/3/refunds', 'organizer-event-refunds'],
   ['/organizer/events/3/staff', 'organizer-event-staff'],
   ['/organizer/events/3/history', 'organizer-event-history'],
   ['/organizer/campaigns', 'organizer-campaigns'],

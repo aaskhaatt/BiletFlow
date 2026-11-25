@@ -27,6 +27,13 @@ function stub(id: string) {
   return { element: <PlaceholderPage id={id} /> }
 }
 
+function organizerOperations(section: 'attendees' | 'orders' | 'refunds' | 'staff') {
+  return async () => {
+    const { default: EventOperationsPage } = await import('@/pages/organizer/EventOperationsPage')
+    return { Component: () => <EventOperationsPage section={section} /> }
+  }
+}
+
 /*
  * The backend puts some of these addresses in emails and QR codes, so they must
  * not change: /verify-email, /reset-password, /orders/:orderId, /events/:eventId
@@ -168,9 +175,10 @@ export const routes: RouteObject[] = [
               Component: (await import('@/pages/organizer/EventFormPage')).EditEventPage,
             }),
           },
-          { path: 'events/:eventId/attendees', ...stub('organizer-event-attendees') },
-          { path: 'events/:eventId/orders', ...stub('organizer-event-orders') },
-          { path: 'events/:eventId/staff', ...stub('organizer-event-staff') },
+          { path: 'events/:eventId/attendees', lazy: organizerOperations('attendees') },
+          { path: 'events/:eventId/orders', lazy: organizerOperations('orders') },
+          { path: 'events/:eventId/refunds', lazy: organizerOperations('refunds') },
+          { path: 'events/:eventId/staff', lazy: organizerOperations('staff') },
           {
             path: 'events/:eventId/history',
             lazy: async () => ({
