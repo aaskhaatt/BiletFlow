@@ -12,6 +12,7 @@ import { renderRoutes } from '@/test/render'
 beforeEach(() => {
   server.use(
     http.get(apiUrl('/events'), () => HttpResponse.json({ items: [], total: 0 })),
+    http.get(apiUrl('/events/me'), () => HttpResponse.json([])),
     http.get(apiUrl('/events/categories'), () => HttpResponse.json([])),
     http.get(apiUrl('/events/3'), () =>
       HttpResponse.json(
