@@ -72,13 +72,14 @@ for (const { name, profile, links } of roles) {
     })
 
     await page.goto('/')
+    if (!mobile) await page.getByRole('button', { name: 'Account navigation' }).click()
     const account = page.getByRole('navigation', { name: 'Account navigation' })
     await expect(account).toBeVisible()
-    await expect(account.getByRole('link')).toHaveText(links)
+    await expect(account.getByRole('link')).toHaveText(mobile ? links : ['Tickets', ...links])
     await expect(page.getByRole('link', { name: 'Sign in' })).toHaveCount(0)
     await expect(
       page.getByRole('navigation', { name: 'Attendee navigation' }).getByRole('link'),
-    ).toHaveText(['Events', 'Tickets', 'Orders'])
+    ).toHaveText(mobile ? ['Events', 'Tickets', 'Orders'] : ['Catalog', 'My orders'])
     if (mobile) {
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
         360,
@@ -132,6 +133,7 @@ test('updates approval when the tab returns to the foreground and renews near-ex
   })
 
   await page.goto('/')
+  await page.getByRole('button', { name: 'Account navigation' }).click()
   const account = page.getByRole('navigation', { name: 'Account navigation' })
   await expect(account.getByRole('status')).toHaveText('Organizer approval pending')
   approved = true

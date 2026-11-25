@@ -90,6 +90,8 @@ Another schema address: `OPENAPI_URL=https://.../openapi.json npm run api:gen`.
 
 The live session test registers a user. Run it with `BILETFLOW_E2E_LIVE_AUTH=1` against a disposable database with SMTP disabled. The web session workflow supplies this database in CI. Set `PLAYWRIGHT_PORT` and `VITE_API_URL` to test on separate ports, and add the test frontend's origin to the backend's `CORS_ORIGINS`.
 
+The live visibility test creates an event. On a disposable database, run the backend's `scripts/seed_demo.py` and provide the approved organizer's login as `BILETFLOW_E2E_ORGANIZER_EMAIL` and `BILETFLOW_E2E_ORGANIZER_PASSWORD`.
+
 ## Rules of the codebase
 
 - **Colors, radii and fonts come from tokens only.** The Figma variables are in `src/styles/tokens.css`; Tailwind knows only these colors (`bg-paper`, `text-ink`, `bg-brand`, `bg-status-ok-bg`, ...) and radii (`rounded-sm` 8, `rounded-md` 12, `rounded-lg` 16, `rounded-xl` 20). Text styles: `type-page-title`, `type-event-title`, `type-card-title`, `type-body`, `type-label`, `type-small`. No hex values in components.

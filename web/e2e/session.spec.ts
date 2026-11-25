@@ -136,6 +136,7 @@ test('signs out locally and reports unconfirmed revocation when offline', async 
   await page.route(`${api}/auth/logout`, (route) => route.abort('internetdisconnected'))
 
   await page.goto('/')
+  await page.getByRole('button', { name: 'Account navigation' }).click()
   await page.getByRole('button', { name: 'Sign out' }).click()
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible()
   await expect(

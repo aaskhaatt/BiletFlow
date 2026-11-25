@@ -35,12 +35,12 @@ describe('readCatalogFilters', () => {
 
 describe('toEventListParams', () => {
   it('asks for one page of events', () => {
-    expect(toEventListParams(read(''))).toEqual({ limit: 10, offset: 0 })
+    expect(toEventListParams(read(''))).toEqual({ limit: 6, offset: 0 })
     expect(toEventListParams(read('?q=jazz&category=Music&page=3'))).toEqual({
       q: 'jazz',
       category: 'Music',
-      limit: 10,
-      offset: 20,
+      limit: 6,
+      offset: 12,
     })
   })
 
@@ -71,10 +71,10 @@ describe('catalogSearch', () => {
 })
 
 describe('catalogPageCount', () => {
-  it('counts pages of 10, at least one', () => {
+  it('counts pages of 6, at least one', () => {
     expect(catalogPageCount(0)).toBe(1)
-    expect(catalogPageCount(10)).toBe(1)
-    expect(catalogPageCount(11)).toBe(2)
-    expect(catalogPageCount(25)).toBe(3)
+    expect(catalogPageCount(6)).toBe(1)
+    expect(catalogPageCount(7)).toBe(2)
+    expect(catalogPageCount(17)).toBe(3)
   })
 })

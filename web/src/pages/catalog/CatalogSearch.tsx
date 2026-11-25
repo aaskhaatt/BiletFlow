@@ -28,6 +28,7 @@ export default function CatalogSearch({ value, onSearch }: CatalogSearchProps) {
   return (
     <form
       role="search"
+      className="min-[1024px]:w-full min-[1024px]:max-w-[440px] min-[1024px]:basis-[440px]"
       onSubmit={(event) => {
         event.preventDefault()
         onSearch(text.trim())
@@ -39,7 +40,7 @@ export default function CatalogSearch({ value, onSearch }: CatalogSearchProps) {
       <div className="relative">
         <SearchIcon
           aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-ink-muted"
+          className="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-ink-muted min-[1024px]:hidden"
         />
         <Input
           id="catalog-search"
@@ -52,7 +53,7 @@ export default function CatalogSearch({ value, onSearch }: CatalogSearchProps) {
             setText(event.target.value)
             if (event.target.value === '' && value !== '') onSearch('')
           }}
-          className="pl-11"
+          className="pl-11 min-[1024px]:h-12 min-[1024px]:pl-3.5"
         />
       </div>
     </form>

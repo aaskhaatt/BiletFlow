@@ -5,7 +5,7 @@ import type { EventListParams } from '@/api/hooks/events'
 import { fromEventLocalInput } from '@/lib/event-time'
 
 /** Events on one catalog page. */
-export const CATALOG_PAGE_SIZE = 10
+export const CATALOG_PAGE_SIZE = 6
 
 /** The longest search text the API accepts. */
 export const SEARCH_MAX_LENGTH = 100
@@ -81,14 +81,12 @@ export function toEventListParams(filters: CatalogFilters): EventListParams {
  * values and page 1 are left out. Changing the search or a filter returns to
  * the first page unless the change names a page itself.
  */
-export function catalogSearch(
-  current: URLSearchParams,
-  change: Partial<Pick<CatalogFilters, 'q' | 'category' | 'page'>>,
-): string {
+export function catalogSearch(current: URLSearchParams, change: Partial<CatalogFilters>): string {
   const next = new URLSearchParams(current)
   if (!('page' in change)) next.delete('page')
 
-  for (const [name, value] of Object.entries(change)) {
+  for (const [key, value] of Object.entries(change)) {
+    const name = key === 'dateFrom' ? 'date_from' : key === 'dateTo' ? 'date_to' : key
     if (value === '' || value === 1 || value === undefined) next.delete(name)
     else next.set(name, String(value))
   }

@@ -37,16 +37,28 @@ export function eventTimeZoneLabel(language: Language = currentLanguage()): stri
  */
 export function formatEventTime(
   iso: string,
-  options: { language?: Language; withZone?: boolean } = {},
+  options: { language?: Language; withZone?: boolean; compact?: boolean } = {},
 ): string {
   const language = options.language ?? currentLanguage()
   const text = new Intl.DateTimeFormat(LOCALES[language], {
     timeZone: EVENT_TIME_ZONE,
+    weekday: options.compact ? 'short' : undefined,
     day: 'numeric',
     month: 'long',
-    year: 'numeric',
+    year: options.compact ? undefined : 'numeric',
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(iso))
   return options.withZone ? `${text} · ${eventTimeZoneLabel(language)}` : text
+}
+
+export function formatEventTimeRange(start: string, end: string): string {
+  return new Intl.DateTimeFormat(LOCALES[currentLanguage()], {
+    timeZone: EVENT_TIME_ZONE,
+    weekday: 'short',
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).formatRange(new Date(start), new Date(end))
 }
