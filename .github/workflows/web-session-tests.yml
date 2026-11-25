@@ -44,6 +44,7 @@ jobs:
       SMTP_HOST: ''
       VITE_API_URL: http://127.0.0.1:8000
       BILETFLOW_E2E_LIVE_AUTH: '1'
+      BILETFLOW_E2E_LIVE_CHECKOUT: '1'
 
     steps:
       - uses: actions/checkout@v4
@@ -63,6 +64,7 @@ jobs:
         run: |
           pip install -r requirements.txt
           python -m alembic upgrade head
+          python scripts/seed_demo.py
 
       - name: Install the web app and browser
         working-directory: web
@@ -70,7 +72,7 @@ jobs:
           npm ci
           npx playwright install --with-deps chromium
 
-      - name: Run the browser session tests
+      - name: Run the browser session and checkout tests
         working-directory: web
         run: |
           (cd ../backend && exec python -m uvicorn main:app --host 127.0.0.1 --port 8000) > "$RUNNER_TEMP/biletflow-web-api.log" 2>&1 &
@@ -80,4 +82,4 @@ jobs:
             cat "$RUNNER_TEMP/biletflow-web-api.log"
             exit 1
           fi
-          npm run e2e -- e2e/session.spec.ts e2e/session-lifecycle.spec.ts --workers=2
+          npm run e2e -- e2e/session.spec.ts e2e/session-lifecycle.spec.ts e2e/checkout.spec.ts --workers=2
