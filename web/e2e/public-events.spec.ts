@@ -78,7 +78,10 @@ async function mockSignIn(page: Page) {
   await page.route(`${api}/auth/login`, (route) => route.fulfill({ headers, json: tokens }))
   await page.route(`${api}/auth/refresh`, (route) => route.fulfill({ headers, json: tokens }))
   await page.route(`${api}/auth/me`, (route) =>
-    route.fulfill({ headers, json: { id: 1, organizer: null, email_verified: true } }),
+    route.fulfill({
+      headers,
+      json: { id: 1, email: 'attendee@example.com', organizer: null, email_verified: true },
+    }),
   )
 }
 
@@ -129,6 +132,12 @@ test('preserves the bounded ticket selection and campaign through sign-in and re
   await mockSignIn(page)
   await page.route(`${api}/campaign-links/C-ABC`, (route) =>
     route.fulfill({ headers, json: { event_id: event.id, promo_code: 'STUDENT20' } }),
+  )
+  await page.route(`${api}/events/${event.id}/orders/preview`, (route) =>
+    route.fulfill({
+      headers,
+      json: { subtotal: 15000, discount: 2000, total: 13000, promo_code: 'STUDENT20' },
+    }),
   )
 
   await page.goto(`/events/${event.id}?campaign=C-ABC`)

@@ -46,6 +46,15 @@ export function saveCheckoutDraft(eventId: number, draft: CheckoutDraft) {
   }
 }
 
+export function clearCheckoutDraft(eventId: number) {
+  fallback.delete(eventId)
+  try {
+    sessionStorage.removeItem(key(eventId))
+  } catch {
+    // In-memory storage has already been cleared.
+  }
+}
+
 export function selectedQuantities(draft: CheckoutDraft | undefined): Selection {
   return Object.fromEntries(
     draft?.items.map(({ ticket_type_id, quantity }) => [ticket_type_id, quantity]) ?? [],

@@ -101,10 +101,30 @@ export const routes: RouteObject[] = [
                   Component: (await import('@/pages/events/CheckoutDraftPage')).default,
                 }),
               },
-              { path: 'orders/:orderId', ...stub('order') },
-              { path: 'tickets/:ticketId', ...stub('ticket') },
-              { path: 'my/tickets', ...stub('my-tickets') },
-              { path: 'my/orders', ...stub('my-orders') },
+              {
+                path: 'orders/:orderId',
+                lazy: async () => ({
+                  Component: (await import('@/pages/attendee/OrderPage')).default,
+                }),
+              },
+              {
+                path: 'tickets/:ticketId',
+                lazy: async () => ({
+                  Component: (await import('@/pages/attendee/TicketPage')).default,
+                }),
+              },
+              {
+                path: 'my/tickets',
+                lazy: async () => ({
+                  Component: (await import('@/pages/attendee/OrderHistoryPage')).MyTicketsPage,
+                }),
+              },
+              {
+                path: 'my/orders',
+                lazy: async () => ({
+                  Component: (await import('@/pages/attendee/OrderHistoryPage')).MyOrdersPage,
+                }),
+              },
               { path: 'support', ...stub('my-support-cases') },
               { path: 'support/new', ...stub('new-support-case') },
               { path: 'support/:caseId', ...stub('support-case') },

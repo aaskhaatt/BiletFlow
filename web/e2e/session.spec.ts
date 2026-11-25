@@ -15,6 +15,7 @@ function tokens(attempt: number) {
 test.use({ locale: 'en-US' })
 
 test.beforeEach(async ({ page }) => {
+  await page.route(`${api}/orders/me`, (route) => route.fulfill({ headers, json: [] }))
   await page.route(`${api}/auth/me`, (route) =>
     route.fulfill({
       headers,

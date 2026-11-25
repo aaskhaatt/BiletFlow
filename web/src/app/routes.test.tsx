@@ -24,6 +24,10 @@ beforeEach(() => {
       ),
     ),
     http.get(apiUrl('/events/3/ticket-types'), () => HttpResponse.json([])),
+    http.get(apiUrl('/orders/me'), () => HttpResponse.json([])),
+    http.get(apiUrl('/orders/12'), () =>
+      HttpResponse.json({ error: 'OrderNotFoundError' }, { status: 404 }),
+    ),
     http.get(apiUrl('/campaign-links/C-abc'), () =>
       HttpResponse.json({ event_id: 3, promo_code: null }),
     ),

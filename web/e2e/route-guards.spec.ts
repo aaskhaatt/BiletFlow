@@ -32,6 +32,9 @@ test('redirects a protected deep link to login and returns to it after sign-in',
   const target = '/orders/12?from=email&tab=tickets#order'
   await page.route(`${api}/auth/login`, (route) => route.fulfill({ headers, json: tokens }))
   await page.route(`${api}/auth/me`, (route) => route.fulfill({ headers, json: attendee }))
+  await page.route(`${api}/orders/12`, (route) =>
+    route.fulfill({ headers, status: 404, json: { error: 'OrderNotFoundError' } }),
+  )
 
   await page.goto(target)
   await expect(page).toHaveURL(loginFor(target))
