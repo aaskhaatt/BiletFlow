@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useEvents } from '@/api/hooks/events'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 import { getApiUrl } from '@/lib/env'
+import ButtonsSection from '@/pages/dev/ButtonsSection'
 import IconsSection from '@/pages/dev/IconsSection'
 import PrimitivesSection from '@/pages/dev/PrimitivesSection'
 
@@ -158,6 +159,8 @@ export default function DevUiPage() {
       </section>
 
       <IconsSection />
+
+      <ButtonsSection />
 
       <PrimitivesSection />
     </main>

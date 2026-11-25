@@ -4,12 +4,25 @@ import type { Messages } from '@/i18n/messages'
 
 export const kk: Messages = {
   common: {
+    cancel: 'Бас тарту',
     close: 'Жабу',
     language: 'Тіл',
+    loading: 'Жүктелуде…',
     toHome: 'Басты бетке',
   },
   dev: {
     greeting: 'BiletFlow-ға қош келдіңіз',
+    buttons: {
+      buy: 'Билет сатып алу',
+      downloadPdf: 'PDF жүктеп алу',
+      soldOut: 'Сатылып кетті',
+      addTicketType: '+ Билет түрін қосу',
+      pay: 'Төлеу',
+      confirmRefund: 'Қайтаруды растау',
+      details: 'Толығырақ',
+      loadingNote:
+        '«Төлеу» батырмасын басқанда 2 секунд жүктелу көрсетіледі, бұл уақытта қайта басу қабылданбайды.',
+    },
     iconsNote:
       'Сызық қалыңдығы 2 px, өлшемі 24, ұштары дөңгеленген. Түсі қасындағы мәтіннен алынады.',
   },

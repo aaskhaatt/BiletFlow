@@ -2,12 +2,24 @@ import type { Messages } from '@/i18n/messages'
 
 export const en: Messages = {
   common: {
+    cancel: 'Cancel',
     close: 'Close',
     language: 'Language',
+    loading: 'Loading…',
     toHome: 'Go to the home page',
   },
   dev: {
     greeting: 'Welcome to BiletFlow',
+    buttons: {
+      buy: 'Buy a ticket',
+      downloadPdf: 'Download PDF',
+      soldOut: 'Sold out',
+      addTicketType: '+ Add a ticket type',
+      pay: 'Pay',
+      confirmRefund: 'Confirm the refund',
+      details: 'Details',
+      loadingNote: '"Pay" shows loading for 2 seconds when pressed and ignores further presses.',
+    },
     iconsNote: 'Stroke 2 px, size 24, round ends. The color comes from the text next to the icon.',
   },
   notFound: {

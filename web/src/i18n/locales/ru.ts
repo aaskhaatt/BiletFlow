@@ -85,13 +85,26 @@ const errors = {
 
 export const ru = {
   common: {
+    cancel: 'Отмена',
     close: 'Закрыть',
     language: 'Язык',
+    loading: 'Загрузка…',
     toHome: 'На главную',
   },
   // the developer page /dev/ui
   dev: {
     greeting: 'Добро пожаловать в BiletFlow',
+    buttons: {
+      buy: 'Купить билет',
+      downloadPdf: 'Скачать PDF',
+      soldOut: 'Распродано',
+      addTicketType: '+ Добавить тип билета',
+      pay: 'Оплатить',
+      confirmRefund: 'Подтвердить возврат',
+      details: 'Подробнее',
+      loadingNote:
+        '«Оплатить» по нажатию 2 секунды показывает загрузку и не принимает новые нажатия.',
+    },
     iconsNote: 'Обводка 2 px, размер 24, скругления на концах. Цвет наследуется от текста рядом.',
   },
   notFound: {

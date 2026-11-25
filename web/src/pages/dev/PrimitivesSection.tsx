@@ -28,21 +28,6 @@ export default function PrimitivesSection() {
     <section className="space-y-6" data-testid="primitives">
       <h2 className="type-card-title">Primitives</h2>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Button>Купить билет</Button>
-        <Button variant="outline">С контуром</Button>
-        <Button variant="secondary">Вторичная</Button>
-        <Button variant="ghost">Текстовая</Button>
-        <Button variant="destructive">Отменить</Button>
-        <Button variant="link">Ссылка</Button>
-        <Button disabled>Распродано</Button>
-      </div>
-      <div className="flex flex-wrap items-center gap-3">
-        <Button size="sm">sm · 44</Button>
-        <Button>default · 48</Button>
-        <Button size="lg">lg · 56</Button>
-      </div>
-
       <div className="grid max-w-md gap-2">
         <Label htmlFor="dev-email">Email</Label>
         <Input id="dev-email" type="email" placeholder="aigerim@example.kz" />
