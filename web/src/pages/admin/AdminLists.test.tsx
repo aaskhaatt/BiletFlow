@@ -5,6 +5,7 @@ import { routes } from '@/app/routes'
 import { sessionStore } from '@/auth/session-store'
 import { ru } from '@/i18n/locales/ru'
 import { downloadCsvBlob } from '@/lib/csv'
+import { AdminUsersPage } from '@/pages/admin/AdminLists'
 import {
   admin,
   adminCampaign,
@@ -19,7 +20,7 @@ import {
   mockAdmin,
 } from '@/test/admin-fixtures'
 import { apiUrl, server } from '@/test/msw-server'
-import { renderRoutes } from '@/test/render'
+import { renderRoutes, renderWithProviders } from '@/test/render'
 import { endSession, signIn, startSession } from '@/test/sign-in'
 
 vi.mock('@/lib/csv', async (load) => ({
@@ -55,7 +56,9 @@ describe('shared admin lists', () => {
       adminUser(index + 2, `viewer-${index}@example.test`),
     )
     const api = mockAdmin({ users })
-    const { router } = await open('/admin/users')
+    await signIn(admin)
+    // This test exercises list interactions. The route suite checks lazy loading separately.
+    const { router } = renderWithProviders(<AdminUsersPage />, { route: '/admin/users' })
     expect(await screen.findByText('Показано 1–50 из 51')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: messages.next }))
     expect(await screen.findByText('Показано 51–51 из 51')).toBeInTheDocument()
@@ -71,7 +74,9 @@ describe('shared admin lists', () => {
     choose(messages.columns.status, ru.status.adminUser.active)
     await waitFor(() => expect(api.requests.at(-1)?.searchParams.get('suspended')).toBe('false'))
     expect(router.state.location.search).toBe('?q=viewer-10&suspended=false')
-    fireEvent.click(await screen.findByRole('button', { name: messages.exportCsv }))
+    const exportCsv = screen.getByRole('button', { name: messages.exportCsv })
+    await waitFor(() => expect(exportCsv).toBeEnabled())
+    fireEvent.click(exportCsv)
     await waitFor(() => expect(downloadCsvBlob).toHaveBeenCalledTimes(1))
     const [filename, blob] = vi.mocked(downloadCsvBlob).mock.calls[0]
     expect(filename).toBe('users.csv')
