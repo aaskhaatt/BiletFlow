@@ -6,14 +6,20 @@ import {
   TriangleAlertIcon,
 } from 'lucide-react'
 import type * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { Toaster as Sonner, type ToasterProps } from 'sonner'
 
 // shadcn/ui Toaster (sonner) in BiletFlow tokens. Light theme only, like the rest
 // of the app. Show a toast from anywhere with toast('...') from "sonner".
 const Toaster = ({ ...props }: ToasterProps) => {
+  const { t } = useTranslation()
+
   return (
     <Sonner
       theme="light"
+      containerAriaLabel={t('toast.notifications')}
+      closeButton
+      position="top-right"
       className="toaster group"
       icons={{
         success: <CircleCheckIcon className="size-5 text-status-ok-fg" />,
@@ -32,6 +38,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
         } as React.CSSProperties
       }
       toastOptions={{
+        closeButtonAriaLabel: t('common.close'),
         classNames: {
           toast: 'cn-toast type-body min-h-11',
         },
