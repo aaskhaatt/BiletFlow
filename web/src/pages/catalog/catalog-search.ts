@@ -2,7 +2,7 @@
 // (/?q=jazz&category=Music&page=2), so a search can be shared, reloaded and
 // left with the Back button. These helpers turn the address into an API call.
 import type { EventListParams } from '@/api/hooks/events'
-import { fromEventLocalInput } from '@/lib/event-time'
+import { fromEventLocalInput, isCalendarDay, nextCalendarDay } from '@/lib/event-time'
 
 /** Events on one catalog page. */
 export const CATALOG_PAGE_SIZE = 6
@@ -23,25 +23,11 @@ export type CatalogFilters = {
   page: number
 }
 
-const DAY = /^\d{4}-\d{2}-\d{2}$/
-
-// "2026-02-30" passes the pattern but is not a real day.
-function isDay(value: string): boolean {
-  if (!DAY.test(value)) return false
-  const ms = Date.parse(`${value}T00:00:00Z`)
-  return !Number.isNaN(ms) && new Date(ms).toISOString().startsWith(value)
-}
-
-function nextDay(day: string): string {
-  const ms = Date.parse(`${day}T00:00:00Z`) + 24 * 60 * 60 * 1000
-  return new Date(ms).toISOString().slice(0, 10)
-}
-
 /** Reads the address. Anything invalid counts as not set. */
 export function readCatalogFilters(search: URLSearchParams): CatalogFilters {
   const day = (name: string) => {
     const value = search.get(name) ?? ''
-    return isDay(value) ? value : ''
+    return isCalendarDay(value) ? value : ''
   }
   const page = Number(search.get('page'))
 
@@ -72,7 +58,8 @@ export function toEventListParams(filters: CatalogFilters): EventListParams {
   if (filters.q) params.q = filters.q
   if (filters.category) params.category = filters.category
   if (filters.dateFrom) params.date_from = fromEventLocalInput(`${filters.dateFrom}T00:00`)
-  if (filters.dateTo) params.date_to = fromEventLocalInput(`${nextDay(filters.dateTo)}T00:00`)
+  if (filters.dateTo)
+    params.date_to = fromEventLocalInput(`${nextCalendarDay(filters.dateTo)}T00:00`)
   return params
 }
 

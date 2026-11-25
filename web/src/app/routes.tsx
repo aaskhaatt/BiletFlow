@@ -209,7 +209,12 @@ export const routes: RouteObject[] = [
               Component: (await import('@/pages/organizer/CampaignFormPage')).EditCampaignPage,
             }),
           },
-          { path: 'analytics', ...stub('organizer-analytics') },
+          {
+            path: 'analytics',
+            lazy: async () => ({
+              Component: (await import('@/pages/organizer/OrganizerAnalyticsPage')).default,
+            }),
+          },
           { path: 'support', ...stub('organizer-support-inbox') },
           {
             path: 'profile',

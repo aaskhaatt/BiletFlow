@@ -87,4 +87,4 @@ jobs:
           BILETFLOW_E2E_ADMIN_PASSWORD=$(cd ../backend && python -c 'from scripts.seed_demo import DEMO_PASSWORD; print(DEMO_PASSWORD)')
           export BILETFLOW_E2E_ADMIN_PASSWORD
           export BILETFLOW_E2E_SEED_PASSWORD="$BILETFLOW_E2E_ADMIN_PASSWORD"
-          npm run e2e -- e2e/session.spec.ts e2e/session-lifecycle.spec.ts e2e/checkout.spec.ts e2e/paid-sales.spec.ts e2e/organizer-operations.spec.ts --workers=2
+          npm run e2e -- e2e/session.spec.ts e2e/session-lifecycle.spec.ts e2e/checkout.spec.ts e2e/paid-sales.spec.ts e2e/organizer-operations.spec.ts e2e/campaigns.spec.ts --workers=2

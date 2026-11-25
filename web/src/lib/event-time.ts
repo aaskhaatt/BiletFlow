@@ -8,6 +8,18 @@
 export const EVENT_UTC_OFFSET = '+05:00'
 const OFFSET_MS = 5 * 60 * 60 * 1000
 
+/** YYYY-MM-DD as a real calendar day, independent of the device's time zone. */
+export function isCalendarDay(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const ms = Date.parse(`${value}T00:00:00Z`)
+  return !Number.isNaN(ms) && new Date(ms).toISOString().startsWith(value)
+}
+
+export function nextCalendarDay(day: string): string {
+  const ms = Date.parse(`${day}T00:00:00Z`) + 24 * 60 * 60 * 1000
+  return new Date(ms).toISOString().slice(0, 10)
+}
+
 /**
  * A moment from the API, in any offset, as the value of an
  * <input type="datetime-local"> in Astana time:
