@@ -41,7 +41,12 @@ export const routes: RouteObject[] = [
         lazy: async () => ({ Component: (await import('@/app/layouts/PublicLayout')).default }),
         children: [
           // Public
-          { index: true, ...stub('catalog') },
+          {
+            index: true,
+            lazy: async () => ({
+              Component: (await import('@/pages/catalog/CatalogPage')).default,
+            }),
+          },
           { path: 'events/:eventId', ...stub('event') },
           { path: 'login', ...stub('login') },
           { path: 'register', ...stub('register') },

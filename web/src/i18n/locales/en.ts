@@ -222,6 +222,25 @@ export const en: Messages = {
       resolved: 'Resolved',
     },
   },
+  // W4: the public event catalog
+  catalog: {
+    title: 'Events',
+    searchLabel: 'Search events',
+    searchPlaceholder: 'Title, venue or address',
+    found: 'Events found: {{total}}',
+    loadError: "Couldn't load events",
+    emptyTitle: 'No events yet',
+    emptyText: 'New events will appear here once they are published.',
+    notFoundTitle: 'Nothing found',
+    notFoundText: 'Try a different search.',
+    showAll: 'Show all events',
+    pageEmptyTitle: 'No events on this page',
+    firstPage: 'Go to the first page',
+    pagination: 'Catalog pages',
+    previous: 'Previous',
+    next: 'Next',
+    pageOf: 'Page {{page}} of {{pages}}',
+  },
   errors: {
     // 400
     InvalidEventTimeError: 'Check the event dates: the end must be later than the start.',

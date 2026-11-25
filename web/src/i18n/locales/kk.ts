@@ -226,6 +226,25 @@ export const kk: Messages = {
       resolved: 'Шешілді',
     },
   },
+  // W4: the public event catalog
+  catalog: {
+    title: 'Іс-шаралар',
+    searchLabel: 'Іс-шараларды іздеу',
+    searchPlaceholder: 'Атауы, алаң немесе мекенжай',
+    found: 'Табылған іс-шаралар: {{total}}',
+    loadError: 'Іс-шаралар жүктелмеді',
+    emptyTitle: 'Әзірге іс-шаралар жоқ',
+    emptyText: 'Жаңа іс-шаралар жарияланғаннан кейін осында шығады.',
+    notFoundTitle: 'Ештеңе табылмады',
+    notFoundText: 'Сұрауды өзгертіп көріңіз.',
+    showAll: 'Барлық іс-шараларды көрсету',
+    pageEmptyTitle: 'Бұл бетте іс-шаралар жоқ',
+    firstPage: 'Бірінші бетке',
+    pagination: 'Каталог беттері',
+    previous: 'Артқа',
+    next: 'Келесі',
+    pageOf: '{{page}}-бет, барлығы {{pages}}',
+  },
   errors: {
     // 400
     InvalidEventTimeError: 'Іс-шара күндерін тексеріңіз: аяқталуы басталуынан кейін болуы керек.',

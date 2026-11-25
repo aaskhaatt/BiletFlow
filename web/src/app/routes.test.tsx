@@ -1,7 +1,14 @@
 import { screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { http, HttpResponse } from 'msw'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { routes } from '@/app/routes'
+import { apiUrl, server } from '@/test/msw-server'
 import { renderRoutes } from '@/test/render'
+
+// The pages that are built already load data: answer with empty lists
+beforeEach(() => {
+  server.use(http.get(apiUrl('/events'), () => HttpResponse.json({ items: [], total: 0 })))
+})
 
 // Each address opens its page (W1.7). The ones the backend puts in emails and
 // QR codes are listed first: they must never break.
