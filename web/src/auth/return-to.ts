@@ -24,3 +24,8 @@ export function safeReturnTo(value: string | null): string | null {
     return null
   }
 }
+
+export function loginPathFor(destination: string): string | null {
+  const returnTo = safeReturnTo(destination)
+  return returnTo ? `/login?${new URLSearchParams({ returnTo })}` : null
+}

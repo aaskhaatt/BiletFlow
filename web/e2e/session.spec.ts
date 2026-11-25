@@ -16,7 +16,13 @@ test.use({ locale: 'en-US' })
 
 test.beforeEach(async ({ page }) => {
   await page.route(`${api}/auth/me`, (route) =>
-    route.fulfill({ headers, json: { email_verified: true } }),
+    route.fulfill({
+      headers,
+      json: {
+        email_verified: true,
+        organizer: { id: 10, user_id: 1, status: 'approved' },
+      },
+    }),
   )
   await page.addInitScript((key) => {
     if (sessionStorage.getItem('test-session-seeded')) return

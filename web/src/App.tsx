@@ -6,7 +6,7 @@ import { setRequestSession } from '@/api/access-token'
 import { isApiError } from '@/api/errors'
 import AppProviders from '@/app/AppProviders'
 import { routes } from '@/app/routes'
-import { safeReturnTo } from '@/auth/return-to'
+import { loginPathFor } from '@/auth/return-to'
 import { sessionStore, useSession } from '@/auth/session-store'
 
 setRequestSession(sessionStore)
@@ -23,10 +23,8 @@ export default function App() {
   useEffect(() => {
     if (status !== 'expired') return
     const { pathname, search, hash } = router.state.navigation.location ?? router.state.location
-    const returnTo = safeReturnTo(pathname + search + hash)
-    if (!returnTo) return
-    const params = new URLSearchParams({ returnTo })
-    void router.navigate(`/login?${params}`, { replace: true })
+    const loginPath = loginPathFor(pathname + search + hash)
+    if (loginPath) void router.navigate(loginPath, { replace: true })
   }, [status])
 
   useEffect(() => {

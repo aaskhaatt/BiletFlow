@@ -7,15 +7,16 @@ import RouteErrorPage from '@/pages/RouteErrorPage'
 
 function workspaceLayout(area: 'organizer' | 'admin') {
   return async () => {
-    const [{ default: WorkspaceLayout }, { default: SessionGate }] = await Promise.all([
-      import('@/app/layouts/WorkspaceLayout'),
-      import('@/auth/SessionGate'),
-    ])
+    const [{ default: WorkspaceLayout }, { RequireAuth, RequireOrganizer, RequireAdmin }] =
+      await Promise.all([import('@/app/layouts/WorkspaceLayout'), import('@/auth/route-guards')])
+    const WorkspaceGuard = area === 'organizer' ? RequireOrganizer : RequireAdmin
     return {
       element: (
-        <SessionGate>
-          <WorkspaceLayout area={area} />
-        </SessionGate>
+        <RequireAuth>
+          <WorkspaceGuard>
+            <WorkspaceLayout area={area} />
+          </WorkspaceGuard>
+        </RequireAuth>
       ),
     }
   }
@@ -27,9 +28,6 @@ function stub(id: string) {
 }
 
 /*
- * Every page of the app. Guards (RequireAuth, RequireOrganizer, RequireAdmin)
- * arrive in W3.11.
- *
  * The backend puts some of these addresses in emails and QR codes, so they must
  * not change: /verify-email, /reset-password, /orders/:orderId, /events/:eventId
  * (also with ?campaign=C-...), /support/:caseId.
@@ -78,7 +76,7 @@ export const routes: RouteObject[] = [
           { path: 'events/:eventId', ...stub('event') },
 
           {
-            lazy: async () => ({ Component: (await import('@/auth/SessionGate')).default }),
+            lazy: async () => ({ Component: (await import('@/auth/route-guards')).RequireAuth }),
             children: [
               // Attendee (signed in)
               { path: 'events/:eventId/checkout', ...stub('checkout') },
@@ -89,7 +87,12 @@ export const routes: RouteObject[] = [
               { path: 'support', ...stub('my-support-cases') },
               { path: 'support/new', ...stub('new-support-case') },
               { path: 'support/:caseId', ...stub('support-case') },
-              { path: 'become-organizer', ...stub('become-organizer') },
+              {
+                path: 'become-organizer',
+                lazy: async () => ({
+                  Component: (await import('@/auth/route-guards')).BecomeOrganizerPage,
+                }),
+              },
             ],
           },
         ],

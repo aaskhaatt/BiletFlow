@@ -98,7 +98,13 @@ test('hides the banner when resending reports an already verified address', asyn
   await restoreSession(page)
   let emailVerified = false
   await page.route(`${api}/auth/me`, (route) =>
-    route.fulfill({ headers, json: { email_verified: emailVerified } }),
+    route.fulfill({
+      headers,
+      json: {
+        email_verified: emailVerified,
+        organizer: { id: 10, user_id: 1, status: 'approved' },
+      },
+    }),
   )
   await page.route(`${api}/auth/resend-verification`, (route) => {
     emailVerified = true
