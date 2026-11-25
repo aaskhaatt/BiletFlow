@@ -12,4 +12,5 @@ export interface CheckInTicket {
   ticket_type_name: string
   status: string
   checked_in_at: string | null
+  checked_in_by?: string | null
 }

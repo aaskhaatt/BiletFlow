@@ -17,7 +17,12 @@ const event = {
   venue_address: 'Kunayev St 1',
   start_time: hours(24),
   end_time: hours(26),
+  organizer_name: 'TOO Dala Events',
+  published_at: hours(-48),
+  cancelled_at: null,
 }
+// A catalog card is the event plus its lowest price and the tickets left
+const card = { ...event, min_price: 5000, tickets_remaining: 2 }
 const ticket = {
   id: 2,
   event_id: event.id,
@@ -29,9 +34,31 @@ const ticket = {
   is_hidden: false,
   sales_start: hours(-24),
   sales_end: hours(26),
+  available: 2,
+  max_now: 2,
+  on_sale: true,
+  unavailable_reason: null,
 }
-const soldOut = { ...ticket, id: 3, name: 'Balcony', sold_count: 10 }
-const box = { ...ticket, id: 4, name: 'Box', quantity: 30, sold_count: 0, max_per_order: 1 }
+const soldOut = {
+  ...ticket,
+  id: 3,
+  name: 'Balcony',
+  sold_count: 10,
+  available: 0,
+  max_now: 0,
+  on_sale: false,
+  unavailable_reason: 'sold_out',
+}
+const box = {
+  ...ticket,
+  id: 4,
+  name: 'Box',
+  quantity: 30,
+  sold_count: 0,
+  max_per_order: 1,
+  available: 30,
+  max_now: 1,
+}
 const tokens = {
   access_token: 'event-access',
   refresh_token: 'event-refresh',
@@ -40,7 +67,7 @@ const tokens = {
 
 test.use({ locale: 'en-US' })
 
-async function mockEvent(page: Page, detail = event, types = [ticket]) {
+async function mockEvent(page: Page, detail = event, types: object[] = [ticket]) {
   await page.route(`${api}/events/${event.id}`, (route) => route.fulfill({ headers, json: detail }))
   await page.route(`${api}/events/${event.id}/ticket-types`, (route) =>
     route.fulfill({ headers, json: types }),
@@ -71,7 +98,7 @@ test('category changes the catalog request and the card shows cached price and s
   const categories: Array<string | null> = []
   await page.route(`${api}/events?*`, (route) => {
     categories.push(new URL(route.request().url()).searchParams.get('category'))
-    return route.fulfill({ headers, json: { total: 1, items: [event] } })
+    return route.fulfill({ headers, json: { total: 1, items: [card] } })
   })
 
   await page.goto('/')
@@ -155,7 +182,7 @@ test('desktop catalog switches from one column to three and filters whole Astana
   page,
 }) => {
   const cards = Array.from({ length: 6 }, (_, index) => ({
-    ...event,
+    ...card,
     id: index + 1,
     title: `Event ${index + 1}`,
   }))

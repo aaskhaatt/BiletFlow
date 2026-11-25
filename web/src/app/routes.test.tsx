@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { setRequestSession } from '@/api/access-token'
 import { routes } from '@/app/routes'
 import { sessionStore } from '@/auth/session-store'
+import { eventResponse } from '@/test/fixtures'
 import { apiUrl, server } from '@/test/msw-server'
 import { renderRoutes } from '@/test/render'
 
@@ -13,16 +14,14 @@ beforeEach(() => {
     http.get(apiUrl('/events'), () => HttpResponse.json({ items: [], total: 0 })),
     http.get(apiUrl('/events/categories'), () => HttpResponse.json([])),
     http.get(apiUrl('/events/3'), () =>
-      HttpResponse.json({
-        id: 3,
-        title: 'Event fixture',
-        category: 'Music',
-        status: 'published',
-        start_time: '2030-11-25T12:00:00Z',
-        end_time: '2030-11-25T14:00:00Z',
-        lifecycle: 'upcoming',
-        visibility: 'public',
-      }),
+      HttpResponse.json(
+        eventResponse({
+          id: 3,
+          title: 'Event fixture',
+          start_time: '2030-11-25T12:00:00Z',
+          end_time: '2030-11-25T14:00:00Z',
+        }),
+      ),
     ),
     http.get(apiUrl('/events/3/ticket-types'), () => HttpResponse.json([])),
     http.get(apiUrl('/campaign-links/C-abc'), () =>

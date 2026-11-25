@@ -1,26 +1,13 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
+import type { EventPage } from '@/api/generated/model'
 import CatalogPage from '@/pages/catalog/CatalogPage'
+import { eventListItem } from '@/test/fixtures'
 import { apiUrl, server } from '@/test/msw-server'
 import { renderRoutes } from '@/test/render'
 
-const event = (id: number, title: string) => ({
-  id,
-  organizer_id: 1,
-  title,
-  description: null,
-  start_time: '2026-12-07T14:00:00Z',
-  end_time: '2026-12-07T17:00:00Z',
-  status: 'published',
-  category: 'Music',
-  venue_name: 'Astana Opera',
-  venue_address: 'Kunayev St 1',
-  visibility: 'public',
-  lifecycle: 'upcoming',
-})
-
-type EventPage = { items: ReturnType<typeof event>[]; total: number }
+const event = (id: number, title: string) => eventListItem({ id, title })
 
 /** Answers GET /events and keeps the query of every request. */
 function mockEvents(respond: (query: URLSearchParams) => EventPage) {

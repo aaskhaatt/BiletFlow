@@ -21,6 +21,7 @@ import type {
 } from '@tanstack/react-query'
 
 import type {
+  ChangePasswordRequest,
   CurrentUserResponse,
   ForgotPasswordRequest,
   HTTPValidationError,
@@ -869,4 +870,88 @@ export const useAuthResetPassword = <TError = ErrorType<HTTPValidationError>, TC
   TContext
 > => {
   return useMutation(getAuthResetPasswordMutationOptions(options), queryClient)
+}
+export const getAuthChangePasswordUrl = () => {
+  return `/auth/change-password`
+}
+
+/**
+ * @summary Change Password
+ */
+export const authChangePassword = async (
+  changePasswordRequest: ChangePasswordRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<RefreshTokenResponse> => {
+  return apiFetch<RefreshTokenResponse>(getAuthChangePasswordUrl(), {
+    ...options,
+    method: 'POST',
+    headers: getHeaders({ 'Content-Type': 'application/json' }, options?.headers),
+    body: JSON.stringify(changePasswordRequest),
+  })
+}
+
+export const getAuthChangePasswordMutationKey = () => ['authChangePassword'] as const
+
+export const getAuthChangePasswordMutationOptions = <
+  TError = ErrorType<HTTPValidationError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof authChangePassword>>,
+    TError,
+    AuthChangePasswordMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiFetch>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof authChangePassword>>,
+  TError,
+  AuthChangePasswordMutationVariables,
+  TContext
+> => {
+  const mutationKey = getAuthChangePasswordMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof authChangePassword>>,
+    AuthChangePasswordMutationVariables
+  > = (props) => {
+    const { data } = props ?? {}
+
+    return authChangePassword(data, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type AuthChangePasswordMutationResult = NonNullable<
+  Awaited<ReturnType<typeof authChangePassword>>
+>
+export type AuthChangePasswordMutationBody = ChangePasswordRequest
+export type AuthChangePasswordMutationError = ErrorType<HTTPValidationError>
+export type AuthChangePasswordMutationVariables = { data: ChangePasswordRequest }
+
+/** @summary Change Password */
+export const useAuthChangePassword = <TError = ErrorType<HTTPValidationError>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof authChangePassword>>,
+      TError,
+      AuthChangePasswordMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiFetch>
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof authChangePassword>>,
+  TError,
+  AuthChangePasswordMutationVariables,
+  TContext
+> => {
+  return useMutation(getAuthChangePasswordMutationOptions(options), queryClient)
 }

@@ -32,6 +32,7 @@ import type {
   EventsGetMyEventsParams,
   HTTPValidationError,
   HistoryPage,
+  OrganizerEventSummary,
 } from '../../model'
 
 import { apiFetch } from '../../../http'
@@ -296,6 +297,132 @@ export function useEventsGetEvents<
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getEventsGetEventsQueryOptions(params, options)
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>
+  }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export const getEventsGetMyEventSummariesUrl = () => {
+  return `/events/me/summary`
+}
+
+/**
+ * @summary Get My Event Summaries
+ */
+export const eventsGetMyEventSummaries = async (
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<OrganizerEventSummary[]> => {
+  return apiFetch<OrganizerEventSummary[]>(getEventsGetMyEventSummariesUrl(), {
+    ...options,
+    method: 'GET',
+  })
+}
+
+export const getEventsGetMyEventSummariesQueryKey = () => {
+  return [`/events/me/summary`] as const
+}
+
+export const getEventsGetMyEventSummariesQueryOptions = <
+  TData = Awaited<ReturnType<typeof eventsGetMyEventSummaries>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof eventsGetMyEventSummaries>>, TError, TData>
+  >
+  request?: SecondParameter<typeof apiFetch>
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey = queryOptions?.queryKey ?? getEventsGetMyEventSummariesQueryKey()
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof eventsGetMyEventSummaries>>> = ({
+    signal,
+  }) => eventsGetMyEventSummaries({ signal, ...requestOptions })
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof eventsGetMyEventSummaries>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type EventsGetMyEventSummariesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof eventsGetMyEventSummaries>>
+>
+export type EventsGetMyEventSummariesQueryError = ErrorType<unknown>
+
+/** @summary Get My Event Summaries */
+export function useEventsGetMyEventSummaries<
+  TData = Awaited<ReturnType<typeof eventsGetMyEventSummaries>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof eventsGetMyEventSummaries>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof eventsGetMyEventSummaries>>,
+          TError,
+          Awaited<ReturnType<typeof eventsGetMyEventSummaries>>
+        >,
+        'initialData'
+      >
+    request?: SecondParameter<typeof apiFetch>
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary Get My Event Summaries */
+export function useEventsGetMyEventSummaries<
+  TData = Awaited<ReturnType<typeof eventsGetMyEventSummaries>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof eventsGetMyEventSummaries>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof eventsGetMyEventSummaries>>,
+          TError,
+          Awaited<ReturnType<typeof eventsGetMyEventSummaries>>
+        >,
+        'initialData'
+      >
+    request?: SecondParameter<typeof apiFetch>
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary Get My Event Summaries */
+export function useEventsGetMyEventSummaries<
+  TData = Awaited<ReturnType<typeof eventsGetMyEventSummaries>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof eventsGetMyEventSummaries>>, TError, TData>
+    >
+    request?: SecondParameter<typeof apiFetch>
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary Get My Event Summaries */
+export function useEventsGetMyEventSummaries<
+  TData = Awaited<ReturnType<typeof eventsGetMyEventSummaries>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof eventsGetMyEventSummaries>>, TError, TData>
+    >
+    request?: SecondParameter<typeof apiFetch>
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getEventsGetMyEventSummariesQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>

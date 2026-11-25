@@ -24,10 +24,12 @@ import type {
   ActivationFeeUpdate,
   ActivationRecord,
   AdminListPaidSalesActivationsParams,
+  AdminSearchAuditLogParams,
   AdminSearchCampaignsParams,
   AdminSearchEventReportsParams,
   AdminSearchEventsParams,
   AdminSearchOrdersParams,
+  AdminSearchOrganizersParams,
   AdminSearchPaymentsParams,
   AdminSearchRefundsParams,
   AdminSearchUsersParams,
@@ -36,8 +38,12 @@ import type {
   EventReportReview,
   EventResponse,
   HTTPValidationError,
+  OrganizerRejectRequest,
+  OrganizerResponse,
+  PageAdminAuditRow,
   PageAdminCampaignRow,
   PageAdminOrderRow,
+  PageAdminOrganizerRow,
   PageAdminPaymentRow,
   PageAdminRefundRow,
   PageAdminUserResponse,
@@ -2015,6 +2021,376 @@ export function useAdminSearchCampaigns<
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAdminSearchCampaignsQueryOptions(params, options)
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>
+  }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export const getAdminSearchOrganizersUrl = (params?: AdminSearchOrganizersParams) => {
+  const normalizedParams = new URLSearchParams()
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  })
+
+  const stringifiedParams = normalizedParams.toString()
+
+  return stringifiedParams.length > 0
+    ? `/admin/organizers?${stringifiedParams}`
+    : `/admin/organizers`
+}
+
+/**
+ * @summary Search Organizers
+ */
+export const adminSearchOrganizers = async (
+  params?: AdminSearchOrganizersParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<PageAdminOrganizerRow> => {
+  return apiFetch<PageAdminOrganizerRow>(getAdminSearchOrganizersUrl(params), {
+    ...options,
+    method: 'GET',
+  })
+}
+
+export const getAdminSearchOrganizersQueryKey = (params?: AdminSearchOrganizersParams) => {
+  return [`/admin/organizers`, ...(params ? [params] : [])] as const
+}
+
+export const getAdminSearchOrganizersQueryOptions = <
+  TData = Awaited<ReturnType<typeof adminSearchOrganizers>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: AdminSearchOrganizersParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof adminSearchOrganizers>>, TError, TData>
+    >
+    request?: SecondParameter<typeof apiFetch>
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey = queryOptions?.queryKey ?? getAdminSearchOrganizersQueryKey(params)
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof adminSearchOrganizers>>> = ({ signal }) =>
+    adminSearchOrganizers(params, { signal, ...requestOptions })
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof adminSearchOrganizers>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type AdminSearchOrganizersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof adminSearchOrganizers>>
+>
+export type AdminSearchOrganizersQueryError = ErrorType<HTTPValidationError>
+
+/** @summary Search Organizers */
+export function useAdminSearchOrganizers<
+  TData = Awaited<ReturnType<typeof adminSearchOrganizers>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params: undefined | AdminSearchOrganizersParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof adminSearchOrganizers>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof adminSearchOrganizers>>,
+          TError,
+          Awaited<ReturnType<typeof adminSearchOrganizers>>
+        >,
+        'initialData'
+      >
+    request?: SecondParameter<typeof apiFetch>
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary Search Organizers */
+export function useAdminSearchOrganizers<
+  TData = Awaited<ReturnType<typeof adminSearchOrganizers>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: AdminSearchOrganizersParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof adminSearchOrganizers>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof adminSearchOrganizers>>,
+          TError,
+          Awaited<ReturnType<typeof adminSearchOrganizers>>
+        >,
+        'initialData'
+      >
+    request?: SecondParameter<typeof apiFetch>
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary Search Organizers */
+export function useAdminSearchOrganizers<
+  TData = Awaited<ReturnType<typeof adminSearchOrganizers>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: AdminSearchOrganizersParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof adminSearchOrganizers>>, TError, TData>
+    >
+    request?: SecondParameter<typeof apiFetch>
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary Search Organizers */
+export function useAdminSearchOrganizers<
+  TData = Awaited<ReturnType<typeof adminSearchOrganizers>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: AdminSearchOrganizersParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof adminSearchOrganizers>>, TError, TData>
+    >
+    request?: SecondParameter<typeof apiFetch>
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getAdminSearchOrganizersQueryOptions(params, options)
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>
+  }
+
+  return withQueryKey(query, queryOptions.queryKey)
+}
+
+export const getAdminRejectOrganizerUrl = (userId: number) => {
+  return `/admin/organizers/${userId}/reject`
+}
+
+/**
+ * @summary Reject Organizer
+ */
+export const adminRejectOrganizer = async (
+  userId: number,
+  organizerRejectRequest: OrganizerRejectRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<OrganizerResponse> => {
+  return apiFetch<OrganizerResponse>(getAdminRejectOrganizerUrl(userId), {
+    ...options,
+    method: 'POST',
+    headers: getHeaders({ 'Content-Type': 'application/json' }, options?.headers),
+    body: JSON.stringify(organizerRejectRequest),
+  })
+}
+
+export const getAdminRejectOrganizerMutationKey = () => ['adminRejectOrganizer'] as const
+
+export const getAdminRejectOrganizerMutationOptions = <
+  TError = ErrorType<HTTPValidationError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminRejectOrganizer>>,
+    TError,
+    AdminRejectOrganizerMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiFetch>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminRejectOrganizer>>,
+  TError,
+  AdminRejectOrganizerMutationVariables,
+  TContext
+> => {
+  const mutationKey = getAdminRejectOrganizerMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminRejectOrganizer>>,
+    AdminRejectOrganizerMutationVariables
+  > = (props) => {
+    const { userId, data } = props ?? {}
+
+    return adminRejectOrganizer(userId, data, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type AdminRejectOrganizerMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminRejectOrganizer>>
+>
+export type AdminRejectOrganizerMutationBody = OrganizerRejectRequest
+export type AdminRejectOrganizerMutationError = ErrorType<HTTPValidationError>
+export type AdminRejectOrganizerMutationVariables = { userId: number; data: OrganizerRejectRequest }
+
+/** @summary Reject Organizer */
+export const useAdminRejectOrganizer = <
+  TError = ErrorType<HTTPValidationError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof adminRejectOrganizer>>,
+      TError,
+      AdminRejectOrganizerMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiFetch>
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof adminRejectOrganizer>>,
+  TError,
+  AdminRejectOrganizerMutationVariables,
+  TContext
+> => {
+  return useMutation(getAdminRejectOrganizerMutationOptions(options), queryClient)
+}
+export const getAdminSearchAuditLogUrl = (params?: AdminSearchAuditLogParams) => {
+  const normalizedParams = new URLSearchParams()
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  })
+
+  const stringifiedParams = normalizedParams.toString()
+
+  return stringifiedParams.length > 0 ? `/admin/audit-log?${stringifiedParams}` : `/admin/audit-log`
+}
+
+/**
+ * @summary Search Audit Log
+ */
+export const adminSearchAuditLog = async (
+  params?: AdminSearchAuditLogParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<PageAdminAuditRow> => {
+  return apiFetch<PageAdminAuditRow>(getAdminSearchAuditLogUrl(params), {
+    ...options,
+    method: 'GET',
+  })
+}
+
+export const getAdminSearchAuditLogQueryKey = (params?: AdminSearchAuditLogParams) => {
+  return [`/admin/audit-log`, ...(params ? [params] : [])] as const
+}
+
+export const getAdminSearchAuditLogQueryOptions = <
+  TData = Awaited<ReturnType<typeof adminSearchAuditLog>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: AdminSearchAuditLogParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof adminSearchAuditLog>>, TError, TData>>
+    request?: SecondParameter<typeof apiFetch>
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {}
+
+  const queryKey = queryOptions?.queryKey ?? getAdminSearchAuditLogQueryKey(params)
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof adminSearchAuditLog>>> = ({ signal }) =>
+    adminSearchAuditLog(params, { signal, ...requestOptions })
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof adminSearchAuditLog>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type AdminSearchAuditLogQueryResult = NonNullable<
+  Awaited<ReturnType<typeof adminSearchAuditLog>>
+>
+export type AdminSearchAuditLogQueryError = ErrorType<HTTPValidationError>
+
+/** @summary Search Audit Log */
+export function useAdminSearchAuditLog<
+  TData = Awaited<ReturnType<typeof adminSearchAuditLog>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params: undefined | AdminSearchAuditLogParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof adminSearchAuditLog>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof adminSearchAuditLog>>,
+          TError,
+          Awaited<ReturnType<typeof adminSearchAuditLog>>
+        >,
+        'initialData'
+      >
+    request?: SecondParameter<typeof apiFetch>
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary Search Audit Log */
+export function useAdminSearchAuditLog<
+  TData = Awaited<ReturnType<typeof adminSearchAuditLog>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: AdminSearchAuditLogParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof adminSearchAuditLog>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof adminSearchAuditLog>>,
+          TError,
+          Awaited<ReturnType<typeof adminSearchAuditLog>>
+        >,
+        'initialData'
+      >
+    request?: SecondParameter<typeof apiFetch>
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary Search Audit Log */
+export function useAdminSearchAuditLog<
+  TData = Awaited<ReturnType<typeof adminSearchAuditLog>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: AdminSearchAuditLogParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof adminSearchAuditLog>>, TError, TData>>
+    request?: SecondParameter<typeof apiFetch>
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/** @summary Search Audit Log */
+export function useAdminSearchAuditLog<
+  TData = Awaited<ReturnType<typeof adminSearchAuditLog>>,
+  TError = ErrorType<HTTPValidationError>,
+>(
+  params?: AdminSearchAuditLogParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof adminSearchAuditLog>>, TError, TData>>
+    request?: SecondParameter<typeof apiFetch>
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getAdminSearchAuditLogQueryOptions(params, options)
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>
