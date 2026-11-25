@@ -1,13 +1,13 @@
 // @vitest-environment node
 // The request layer needs no DOM, and Node's fetch needs Node's FormData and Blob.
 import { http, HttpResponse } from 'msw'
-import { afterEach, describe, expect, it } from 'vitest'
-import { setAccessTokenGetter } from '@/api/access-token'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { setRequestSession } from '@/api/access-token'
 import { ApiError } from '@/api/errors'
 import { apiBlob, apiCsv, apiFetch, apiUpload } from '@/api/http'
 import { apiUrl, server } from '@/test/msw-server'
 
-afterEach(() => setAccessTokenGetter(() => null))
+afterEach(() => setRequestSession(null))
 
 async function caught(promise: Promise<unknown>): Promise<unknown> {
   try {
@@ -92,7 +92,16 @@ describe('apiFetch', () => {
         return HttpResponse.json({ id: 1 })
       }),
     )
-    setAccessTokenGetter(() => 'token-123')
+    setRequestSession({
+      getCredentials: () => ({
+        generation: 0,
+        accessToken: 'token-123',
+        expiresAt: null,
+        canRefresh: false,
+      }),
+      refresh: vi.fn(),
+      expire: vi.fn(),
+    })
 
     const me = await apiFetch<{ id: number }>('/auth/me')
 

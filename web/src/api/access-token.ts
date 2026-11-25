@@ -1,14 +1,23 @@
-// Where the request layer gets the access token for "Authorization: Bearer".
-// The session store (W3) registers its getter here; until then there is no token.
-
-type AccessTokenGetter = () => string | null
-
-let getter: AccessTokenGetter = () => null
-
-export function setAccessTokenGetter(next: AccessTokenGetter): void {
-  getter = next
+export type RequestCredentials = {
+  generation: number
+  accessToken: string | null
+  expiresAt: number | null
+  canRefresh: boolean
 }
 
-export function getAccessToken(): string | null {
-  return getter()
+// Provides auth to the HTTP layer without importing the store that calls it.
+export type RequestSession = {
+  getCredentials: () => RequestCredentials
+  refresh: () => Promise<string | null>
+  expire: () => void
+}
+
+let session: RequestSession | null = null
+
+export function setRequestSession(next: RequestSession | null): void {
+  session = next
+}
+
+export function getRequestSession(): RequestSession | null {
+  return session
 }

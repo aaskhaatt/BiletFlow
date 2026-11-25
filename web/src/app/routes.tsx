@@ -7,8 +7,17 @@ import RouteErrorPage from '@/pages/RouteErrorPage'
 
 function workspaceLayout(area: 'organizer' | 'admin') {
   return async () => {
-    const { default: WorkspaceLayout } = await import('@/app/layouts/WorkspaceLayout')
-    return { element: <WorkspaceLayout area={area} /> }
+    const [{ default: WorkspaceLayout }, { default: SessionGate }] = await Promise.all([
+      import('@/app/layouts/WorkspaceLayout'),
+      import('@/auth/SessionGate'),
+    ])
+    return {
+      element: (
+        <SessionGate>
+          <WorkspaceLayout area={area} />
+        </SessionGate>
+      ),
+    }
   }
 }
 
@@ -49,16 +58,21 @@ export const routes: RouteObject[] = [
           { path: 'verify-email', ...stub('verify-email') },
           { path: 'reset-password', ...stub('reset-password') },
 
-          // Attendee (signed in)
-          { path: 'events/:eventId/checkout', ...stub('checkout') },
-          { path: 'orders/:orderId', ...stub('order') },
-          { path: 'tickets/:ticketId', ...stub('ticket') },
-          { path: 'my/tickets', ...stub('my-tickets') },
-          { path: 'my/orders', ...stub('my-orders') },
-          { path: 'support', ...stub('my-support-cases') },
-          { path: 'support/new', ...stub('new-support-case') },
-          { path: 'support/:caseId', ...stub('support-case') },
-          { path: 'become-organizer', ...stub('become-organizer') },
+          {
+            lazy: async () => ({ Component: (await import('@/auth/SessionGate')).default }),
+            children: [
+              // Attendee (signed in)
+              { path: 'events/:eventId/checkout', ...stub('checkout') },
+              { path: 'orders/:orderId', ...stub('order') },
+              { path: 'tickets/:ticketId', ...stub('ticket') },
+              { path: 'my/tickets', ...stub('my-tickets') },
+              { path: 'my/orders', ...stub('my-orders') },
+              { path: 'support', ...stub('my-support-cases') },
+              { path: 'support/new', ...stub('new-support-case') },
+              { path: 'support/:caseId', ...stub('support-case') },
+              { path: 'become-organizer', ...stub('become-organizer') },
+            ],
+          },
         ],
       },
 

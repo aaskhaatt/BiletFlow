@@ -1,4 +1,4 @@
-import { getAccessToken } from '@/api/access-token'
+import { getRequestSession, type RequestSession } from '@/api/access-token'
 import { ApiError, errorFromResponse, networkError } from '@/api/errors'
 import { getApiUrl } from '@/lib/env'
 
@@ -9,23 +9,79 @@ import { getApiUrl } from '@/lib/env'
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type ErrorType<_Error> = ApiError
 
-/** Sends a request: base address, Bearer token, ApiError on failure or no network. */
-async function send(path: string, init: RequestInit = {}): Promise<Response> {
+const REFRESH_MARGIN_MS = 60_000
+
+async function request(path: string, init: RequestInit, token: string | null): Promise<Response> {
   const headers = new Headers(init.headers)
-  const token = getAccessToken()
   if (token && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`)
 
-  let response: Response
   try {
-    response = await fetch(`${getApiUrl()}${path}`, { ...init, headers })
+    return await fetch(`${getApiUrl()}${path}`, { ...init, headers })
   } catch (cause) {
     // A cancelled request (TanStack Query aborts on unmount) is not a network failure
     if (cause instanceof DOMException && cause.name === 'AbortError') throw cause
     throw networkError(cause)
   }
+}
 
+async function checked(response: Response): Promise<Response> {
   if (!response.ok) throw await errorFromResponse(response)
   return response
+}
+
+function checkSession(session: RequestSession, generation: number, signal?: AbortSignal | null) {
+  signal?.throwIfAborted()
+  if (session.getCredentials().generation !== generation) {
+    throw new DOMException('The session changed', 'AbortError')
+  }
+}
+
+/** Sends authenticated requests and replays an unauthorized request at most once. */
+async function send(path: string, init: RequestInit = {}): Promise<Response> {
+  const session = getRequestSession()
+  const credentials = session?.getCredentials()
+  let token = credentials?.accessToken ?? null
+
+  if (
+    !session ||
+    !credentials ||
+    path.startsWith('/auth/') ||
+    new Headers(init.headers).has('Authorization')
+  ) {
+    return checked(await request(path, init, token))
+  }
+
+  const { generation, expiresAt, canRefresh } = credentials
+  checkSession(session, generation, init.signal)
+  if (
+    canRefresh &&
+    (token === null || (expiresAt !== null && expiresAt - Date.now() < REFRESH_MARGIN_MS))
+  ) {
+    token = await session.refresh()
+    checkSession(session, generation, init.signal)
+  }
+
+  const response = await request(path, init, token)
+  checkSession(session, generation, init.signal)
+  const latest = session.getCredentials()
+  if (response.status !== 401 || !latest.canRefresh || init.body instanceof ReadableStream) {
+    return checked(response)
+  }
+
+  // A slow 401 may arrive after another request has already rotated this token.
+  const replacement =
+    latest.accessToken && latest.accessToken !== token
+      ? latest.accessToken
+      : await session.refresh()
+  checkSession(session, generation, init.signal)
+  if (!replacement) return checked(response)
+
+  const retried = await request(path, init, replacement)
+  checkSession(session, generation, init.signal)
+  if (retried.status === 401 && session.getCredentials().accessToken === replacement) {
+    session.expire()
+  }
+  return checked(retried)
 }
 
 async function readBody(response: Response): Promise<unknown> {
