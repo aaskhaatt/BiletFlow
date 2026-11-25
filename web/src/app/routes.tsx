@@ -72,18 +72,59 @@ export const routes: RouteObject[] = [
         lazy: async () => ({ Component: (await import('@/app/layouts/PublicLayout')).default }),
         children: [
           // Public
-          { index: true, ...stub('catalog') },
-          { path: 'events/:eventId', ...stub('event') },
+          {
+            index: true,
+            lazy: async () => ({
+              Component: (await import('@/pages/catalog/CatalogPage')).default,
+            }),
+          },
+          {
+            path: 'events/:eventId',
+            lazy: async () => ({ Component: (await import('@/pages/events/EventPage')).default }),
+            children: [
+              {
+                path: 'report',
+                lazy: async () => ({
+                  Component: (await import('@/pages/events/ReportEventPage')).default,
+                }),
+              },
+            ],
+          },
 
           {
             lazy: async () => ({ Component: (await import('@/auth/route-guards')).RequireAuth }),
             children: [
               // Attendee (signed in)
-              { path: 'events/:eventId/checkout', ...stub('checkout') },
-              { path: 'orders/:orderId', ...stub('order') },
-              { path: 'tickets/:ticketId', ...stub('ticket') },
-              { path: 'my/tickets', ...stub('my-tickets') },
-              { path: 'my/orders', ...stub('my-orders') },
+              {
+                path: 'events/:eventId/checkout',
+                lazy: async () => ({
+                  Component: (await import('@/pages/events/CheckoutDraftPage')).default,
+                }),
+              },
+              {
+                path: 'orders/:orderId',
+                lazy: async () => ({
+                  Component: (await import('@/pages/attendee/OrderPage')).default,
+                }),
+              },
+              {
+                path: 'tickets/:ticketId',
+                lazy: async () => ({
+                  Component: (await import('@/pages/attendee/TicketPage')).default,
+                }),
+              },
+              {
+                path: 'my/tickets',
+                lazy: async () => ({
+                  Component: (await import('@/pages/attendee/OrderHistoryPage')).MyTicketsPage,
+                }),
+              },
+              {
+                path: 'my/orders',
+                lazy: async () => ({
+                  Component: (await import('@/pages/attendee/OrderHistoryPage')).MyOrdersPage,
+                }),
+              },
               { path: 'support', ...stub('my-support-cases') },
               { path: 'support/new', ...stub('new-support-case') },
               { path: 'support/:caseId', ...stub('support-case') },

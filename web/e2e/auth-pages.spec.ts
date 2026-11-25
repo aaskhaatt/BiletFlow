@@ -10,6 +10,7 @@ test.beforeEach(async ({ page }) => {
   await page.route(`${api}/auth/me`, (route) =>
     route.fulfill({ headers, json: { email_verified: true } }),
   )
+  await page.route(`${api}/orders/me`, (route) => route.fulfill({ headers, json: [] }))
 })
 
 test('login shows the credential error and returns to the intended page on success', async ({

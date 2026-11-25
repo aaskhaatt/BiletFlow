@@ -4,8 +4,35 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { setRequestSession } from '@/api/access-token'
 import { routes } from '@/app/routes'
 import { sessionStore } from '@/auth/session-store'
+import { eventResponse } from '@/test/fixtures'
 import { apiUrl, server } from '@/test/msw-server'
 import { renderRoutes } from '@/test/render'
+
+// The pages that are built already load data: answer with empty lists
+beforeEach(() => {
+  server.use(
+    http.get(apiUrl('/events'), () => HttpResponse.json({ items: [], total: 0 })),
+    http.get(apiUrl('/events/categories'), () => HttpResponse.json([])),
+    http.get(apiUrl('/events/3'), () =>
+      HttpResponse.json(
+        eventResponse({
+          id: 3,
+          title: 'Event fixture',
+          start_time: '2030-11-25T12:00:00Z',
+          end_time: '2030-11-25T14:00:00Z',
+        }),
+      ),
+    ),
+    http.get(apiUrl('/events/3/ticket-types'), () => HttpResponse.json([])),
+    http.get(apiUrl('/orders/me'), () => HttpResponse.json([])),
+    http.get(apiUrl('/orders/12'), () =>
+      HttpResponse.json({ error: 'OrderNotFoundError' }, { status: 404 }),
+    ),
+    http.get(apiUrl('/campaign-links/C-abc'), () =>
+      HttpResponse.json({ event_id: 3, promo_code: null }),
+    ),
+  )
+})
 
 // Each address opens its page (W1.7). The ones the backend puts in emails and
 // QR codes are listed first: they must never break.

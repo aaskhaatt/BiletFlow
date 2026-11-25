@@ -14,8 +14,10 @@
   /* backgrounds */
   --bf-bg-paper: #f6f3ec;
   --bf-bg-surface: #ffffff;
+  --bf-bg-cover-placeholder: #dcd5c4;
   --bf-bg-sidebar: #17171c;
   --bf-bg-sidebar-soft: #26262d;
+  --bf-bg-dialog-overlay: color-mix(in srgb, var(--bf-text-ink) 40%, transparent);
 
   /* lines */
   --bf-line-default: #e3ded2;

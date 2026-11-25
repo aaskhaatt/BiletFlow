@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router'
 import { errorMessageKey } from '@/api/error-codes'
 import { isApiError } from '@/api/errors'
 import type { UserLogin } from '@/api/generated/model'
+import { useEvent } from '@/api/hooks/events'
 import AccountLayout from '@/app/layouts/AccountLayout'
 import { safeReturnTo } from '@/auth/return-to'
 import { registerAccount, sessionStore, useSession } from '@/auth/session-store'
@@ -13,8 +14,22 @@ import InlineAlert from '@/components/InlineAlert'
 import TextField from '@/components/TextField'
 import { Button } from '@/components/ui/button'
 import { applyServerFieldErrors } from '@/lib/form-errors'
+import { parseEventId } from '@/pages/events/availability'
 
 const minimumPasswordLength = 8
+
+function ReportLoginNotice({ eventId }: { eventId: number }) {
+  const { t } = useTranslation()
+  const { data } = useEvent(eventId)
+  return (
+    <div className="space-y-1 rounded-md bg-status-info-bg px-3.5 py-3 type-body wrap-anywhere text-status-info-fg">
+      <p className="font-semibold">{t('reportEvent.loginTitle')}</p>
+      <p>
+        {data ? t('reportEvent.loginForEvent', { title: data.title }) : t('reportEvent.loginText')}
+      </p>
+    </div>
+  )
+}
 
 function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const { t } = useTranslation()
@@ -24,6 +39,7 @@ function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const { status } = useSession()
   const registration = mode === 'register'
   const returnTo = safeReturnTo(searchParams.get('returnTo'))
+  const reportEventId = parseEventId(returnTo?.match(/^\/events\/(\d+)\/report(?:[?#]|$)/)?.[1])
   const returnSearch = returnTo ? `?${new URLSearchParams({ returnTo })}` : ''
   const savedEmail: unknown = location.state?.registeredEmail
   const registeredEmail = !registration && typeof savedEmail === 'string' ? savedEmail : ''
@@ -92,6 +108,7 @@ function AuthPage({ mode }: { mode: 'login' | 'register' }) {
       title={t(`auth.${mode}.title`)}
       description={t(`auth.${mode}.description`)}
     >
+      {!registration && reportEventId !== null && <ReportLoginNotice eventId={reportEventId} />}
       {registeredEmail && <InlineAlert role="status">{t('auth.login.accountCreated')}</InlineAlert>}
       {passwordReset && (
         <InlineAlert tone="ok" role="status">
