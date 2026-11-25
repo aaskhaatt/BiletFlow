@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Link, Outlet, useMatch, useNavigate, useParams, useSearchParams } from 'react-router'
 import { errorMessageKey } from '@/api/error-codes'
 import { isApiError } from '@/api/errors'
-import type { EventResponse, TicketTypeResponse } from '@/api/generated/model'
+import type { EventResponse, TicketTypeWithAvailability } from '@/api/generated/model'
 import { useCampaignLink, useEvent, useTicketTypes } from '@/api/hooks/events'
 import registrationClock from '@/assets/event-registration-clock.svg'
 import reportWarning from '@/assets/event-report-warning.svg'
@@ -123,14 +123,16 @@ function EventDetails({
   const campaign = useCampaignLink(token)
   const promo = campaign.data?.event_id === event.id ? campaign.data.promo_code : null
   const tickets = useTicketTypes(event.id)
-  const visibleTickets = tickets.data?.filter((ticket) => !ticket.is_hidden) ?? []
+  const { data: ticketTypes, dataUpdatedAt, refetch: refreshTickets } = tickets
+  const visibleTickets = ticketTypes?.filter((ticket) => !ticket.is_hidden) ?? []
+  const registrationCloses = event.registration_closes_at ?? event.end_time
   const schedule = eventRegistration(event, now)
   const closedByApi = serverClosed || isRegistrationClosedError(tickets.error)
   const registration = closedByApi && schedule === 'open' ? 'closed' : schedule
   const canChoose = registration === 'open' && !tickets.isError
   const showBar =
-    registration !== 'open' || visibleTickets.some((ticket) => ticketLimit(ticket, now) > 0)
-  const { count, subtotal } = summarizeTickets(visibleTickets, canChoose ? selection : {}, now)
+    registration !== 'open' || visibleTickets.some((ticket) => ticketLimit(ticket) > 0)
+  const { count, subtotal } = summarizeTickets(visibleTickets, canChoose ? selection : {})
 
   useEffect(() => {
     const sync = () => setNow(Date.now())
@@ -142,9 +144,29 @@ function EventDetails({
     }
   }, [])
 
-  function changeQuantity(ticket: TicketTypeResponse, step: number) {
+  useEffect(() => {
+    if (!ticketTypes?.length) return
+    const now = Date.now()
+    // The API decides whether each type is on sale. Refresh its answer when a window changes.
+    const boundaries = [
+      event.registration_opens_at,
+      registrationCloses,
+      ...ticketTypes.flatMap((ticket) => [ticket.sales_start, ticket.sales_end]),
+    ]
+    const next = Math.min(
+      ...boundaries.map((time) => Date.parse(time ?? '')).filter((time) => time >= now),
+    )
+    if (!Number.isFinite(next)) return
+    const timer = window.setTimeout(
+      () => void refreshTickets(),
+      Math.min(next - now + 1, 2_147_483_647),
+    )
+    return () => window.clearTimeout(timer)
+  }, [ticketTypes, dataUpdatedAt, event.registration_opens_at, registrationCloses, refreshTickets])
+
+  function changeQuantity(ticket: TicketTypeWithAvailability, step: number) {
     if (!canChoose) return
-    const limit = ticketLimit(ticket, now)
+    const limit = ticketLimit(ticket)
     const current = Math.min(selection[ticket.id] ?? 0, limit)
     const next = {
       ...selection,
@@ -152,14 +174,14 @@ function EventDetails({
     }
     setSelection(next)
     saveCheckoutDraft(event.id, {
-      items: summarizeTickets(visibleTickets, next, now).items,
+      items: summarizeTickets(visibleTickets, next).items,
       promo_code: promo,
       campaign: token,
     })
   }
 
   function checkout() {
-    const draft = summarizeTickets(visibleTickets, selection, now)
+    const draft = summarizeTickets(visibleTickets, selection)
     if (!canChoose || !draft.count || campaign.isFetching) return
     saveCheckoutDraft(event.id, { items: draft.items, promo_code: promo, campaign: token })
     void navigate(`/events/${event.id}/checkout`)
@@ -232,7 +254,7 @@ function EventDetails({
                         time: formatEventTime(
                           registration === 'upcoming' && event.registration_opens_at
                             ? event.registration_opens_at
-                            : (event.registration_closes_at ?? event.end_time),
+                            : registrationCloses,
                           { withZone: true },
                         ),
                       })}
@@ -253,7 +275,7 @@ function EventDetails({
               <TicketChoices
                 tickets={visibleTickets}
                 selected={selection}
-                now={now}
+                canChoose={canChoose}
                 registration={registration}
                 onChange={changeQuantity}
               />

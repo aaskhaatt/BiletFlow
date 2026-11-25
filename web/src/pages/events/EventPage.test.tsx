@@ -1,10 +1,12 @@
 import { screen, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
+import type { TicketTypeWithAvailabilityUnavailableReason } from '@/api/generated/model'
 import EventPage from '@/pages/events/EventPage'
+import TicketChoices from '@/pages/events/TicketChoices'
 import { eventResponse, ticketType } from '@/test/fixtures'
 import { apiUrl, server } from '@/test/msw-server'
-import { renderRoutes } from '@/test/render'
+import { renderRoutes, renderWithProviders } from '@/test/render'
 
 function renderEvent() {
   return renderRoutes([{ path: '/events/:eventId', element: <EventPage /> }], {
@@ -45,6 +47,53 @@ describe('EventPage of a published event', () => {
     expect(await screen.findByRole('button', { name: 'Добавить билет «Standard»' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'К оформлению' })).toBeInTheDocument()
     expect(screen.queryByText('Событие отменено')).not.toBeInTheDocument()
+  })
+
+  it('keeps hidden ticket types off the public page', async () => {
+    mockEvent()
+    mockTicketTypes([
+      ticketType(),
+      ticketType({
+        id: 2,
+        name: 'Private offer',
+        is_hidden: true,
+        on_sale: false,
+        max_now: 0,
+        unavailable_reason: 'hidden',
+      }),
+    ])
+
+    renderEvent()
+
+    expect(await screen.findByRole('heading', { name: 'Standard' })).toBeInTheDocument()
+    expect(screen.queryByText('Private offer')).not.toBeInTheDocument()
+  })
+})
+
+describe('ticket availability reasons', () => {
+  const reasons: Array<[NonNullable<TicketTypeWithAvailabilityUnavailableReason>, RegExp]> = [
+    ['registration_closed', /^Регистрация закрыта$/],
+    ['hidden', /^Этот тип билета скрыт\.$/],
+    ['not_started', /^Начало продаж .+UTC\+5/],
+    ['ended', /^Продажа завершена\.$/],
+    ['paid_sales_inactive', /^Платные продажи для этого события ещё не активированы\.$/],
+    ['sold_out', /^Распродано$/],
+  ]
+
+  it.each(reasons)('shows %s and disables selection', (reason, message) => {
+    const ticket = ticketType({ on_sale: false, max_now: 0, unavailable_reason: reason })
+    renderWithProviders(
+      <TicketChoices
+        tickets={[ticket]}
+        selected={{ [ticket.id]: 5 }}
+        canChoose
+        registration="open"
+        onChange={() => {}}
+      />,
+    )
+
+    expect(screen.getByText(message)).toBeInTheDocument()
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 })
 

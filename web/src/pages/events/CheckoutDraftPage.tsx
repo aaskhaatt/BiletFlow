@@ -77,12 +77,14 @@ function DraftSummary({ eventId, draft }: { eventId: number; draft: CheckoutDraf
       />
     )
   }
-  if (!event.data || !tickets.data) return <p role="status">{t('common.loading')}</p>
+  if (!event.data || !tickets.data || tickets.isFetching) {
+    return <p role="status">{t('common.loading')}</p>
+  }
   if (eventRegistration(event.data, now) !== 'open') {
     return <InlineAlert tone="warn">{t('event.registrationUnavailable')}</InlineAlert>
   }
 
-  const { items, count, subtotal } = summarizeTickets(tickets.data, selectedQuantities(draft), now)
+  const { items, count, subtotal } = summarizeTickets(tickets.data, selectedQuantities(draft))
   const names = new Map(tickets.data.map((ticket) => [ticket.id, ticket.name]))
   return count ? (
     <section

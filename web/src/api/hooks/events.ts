@@ -49,7 +49,6 @@ export function useTicketTypes(eventId: number) {
   return useQuery({
     queryKey: getTicketTypesGetTicketTypesByEventIdQueryKey(eventId),
     queryFn: ({ signal }) => ticketTypesGetTicketTypesByEventId(eventId, { signal }),
-    staleTime: 60_000,
   })
 }
 

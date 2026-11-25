@@ -1,28 +1,35 @@
 import { cn } from 'cn'
 import { useTranslation } from 'react-i18next'
-import type { TicketTypeResponse } from '@/api/generated/model'
+import type {
+  TicketTypeWithAvailability,
+  TicketTypeWithAvailabilityUnavailableReason,
+} from '@/api/generated/model'
 import { Button } from '@/components/ui/button'
 import { formatEventTime, formatKZT } from '@/lib/format'
-import {
-  type eventRegistration,
-  ticketAvailability,
-  ticketLimit,
-  ticketsLeft,
-} from '@/pages/events/availability'
+import { type eventRegistration, ticketLimit } from '@/pages/events/availability'
 import type { Selection } from '@/pages/events/selection'
+
+const unavailableMessage = {
+  registration_closed: 'event.registration.closed.title',
+  hidden: 'event.ticketHidden',
+  not_started: 'event.salesOpens',
+  ended: 'event.salesClosed',
+  paid_sales_inactive: 'errors.PaidSalesNotActiveError',
+  sold_out: 'event.soldOut',
+} as const satisfies Record<NonNullable<TicketTypeWithAvailabilityUnavailableReason>, string>
 
 export default function TicketChoices({
   tickets,
   selected,
-  now,
+  canChoose,
   registration,
   onChange,
 }: {
-  tickets: TicketTypeResponse[]
+  tickets: TicketTypeWithAvailability[]
   selected: Selection
-  now: number
+  canChoose: boolean
   registration: ReturnType<typeof eventRegistration>
-  onChange: (ticket: TicketTypeResponse, step: number) => void
+  onChange: (ticket: TicketTypeWithAvailability, step: number) => void
 }) {
   const { t } = useTranslation()
   const registrationOpen = registration === 'open'
@@ -30,14 +37,13 @@ export default function TicketChoices({
   return (
     <ul className="space-y-3">
       {tickets.map((ticket) => {
-        const left = ticketsLeft(ticket)
-        const availability = ticketAvailability(ticket, now)
-        const limit = registrationOpen ? ticketLimit(ticket, now) : 0
+        const { available: left, unavailable_reason: reason } = ticket
+        const limit = canChoose ? ticketLimit(ticket) : 0
         const quantity = Math.min(selected[ticket.id] ?? 0, limit)
-        const status =
-          registrationOpen && availability === 'soldOut'
-            ? t('event.soldOut')
-            : t('event.unavailable')
+        const statusKey =
+          reason === 'registration_closed' && registration === 'upcoming'
+            ? 'event.registration.upcoming.title'
+            : (reason && unavailableMessage[reason]) || 'event.unavailable'
 
         return (
           <li
@@ -52,7 +58,7 @@ export default function TicketChoices({
               <h3 className={cn('type-label', !registrationOpen && 'font-semibold text-ink-2')}>
                 {ticket.name}
               </h3>
-              {registration === 'open' ? (
+              {registrationOpen ? (
                 <>
                   {ticket.description && (
                     <p className="type-small text-ink-2">{ticket.description}</p>
@@ -68,27 +74,18 @@ export default function TicketChoices({
                       {t('event.remaining', { count: left })}
                     </p>
                   )}
-                  {availability === 'upcoming' && (
-                    <p className="type-small text-ink-muted">
-                      {t('event.salesOpens', {
-                        time: formatEventTime(ticket.sales_start, { withZone: true }),
-                      })}
-                    </p>
-                  )}
-                  {availability === 'open' && (
+                  {limit > 0 && (
                     <p className="type-small text-ink-muted">
                       {t('event.salesUntil', {
                         time: formatEventTime(ticket.sales_end, { withZone: true }),
                       })}
                     </p>
                   )}
-                  {availability === 'closed' && (
-                    <p className="type-small text-ink-muted">{t('event.salesClosed')}</p>
-                  )}
                 </>
               ) : (
                 <p className="type-small text-ink-muted">
-                  {formatKZT(ticket.price)} · {t(`event.registration.${registration}.ticketStatus`)}
+                  {formatKZT(ticket.price)}
+                  {!reason && ` · ${t(`event.registration.${registration}.ticketStatus`)}`}
                 </p>
               )}
             </div>
@@ -128,7 +125,11 @@ export default function TicketChoices({
                 </Button>
               </div>
             ) : (
-              <span className="type-small font-semibold text-ink-2">{status}</span>
+              <span className="max-w-full type-small font-semibold wrap-anywhere text-ink-2">
+                {statusKey === 'event.salesOpens'
+                  ? t(statusKey, { time: formatEventTime(ticket.sales_start, { withZone: true }) })
+                  : t(statusKey)}
+              </span>
             )}
           </li>
         )

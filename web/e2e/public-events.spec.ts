@@ -55,8 +55,8 @@ const box = {
   name: 'Box',
   quantity: 30,
   sold_count: 0,
-  max_per_order: 1,
-  available: 30,
+  max_per_order: 10,
+  available: 12,
   max_now: 1,
 }
 const tokens = {
@@ -88,10 +88,15 @@ async function signIn(page: Page) {
   await page.getByRole('button', { name: 'Sign in' }).click()
 }
 
-test('category changes the catalog request and the card shows cached price and stock', async ({
+test('the catalog shows the organizer, price and stock from the list and can filter by category', async ({
   page,
 }) => {
-  await mockEvent(page)
+  const ticketTypeRequests: string[] = []
+  page.on('request', (request) => {
+    // Only calls to the API: the dev server also serves the code of the hooks as a file
+    if (request.url().startsWith(`${api}/`) && request.url().includes('/ticket-types'))
+      ticketTypeRequests.push(request.url())
+  })
   await page.route(`${api}/events/categories`, (route) =>
     route.fulfill({ headers, json: ['Music', 'Sport'] }),
   )
@@ -102,8 +107,11 @@ test('category changes the catalog request and the card shows cached price and s
   })
 
   await page.goto('/')
+  await expect(page.getByText('Organizer · TOO Dala Events')).toBeVisible()
   await expect(page.getByText('Few left')).toBeVisible()
   await expect(page.getByText(/From 5,000/)).toBeVisible()
+  await page.waitForLoadState('networkidle')
+  expect(ticketTypeRequests).toEqual([])
   await page.getByRole('button', { name: 'Music', exact: true }).click()
   await expect(page).toHaveURL((url) => url.searchParams.get('category') === 'Music')
   await expect.poll(() => categories.at(-1)).toBe('Music')
@@ -136,6 +144,7 @@ test('preserves the bounded ticket selection and campaign through sign-in and re
   await add.click()
   await expect(add).toBeDisabled()
   const addBox = page.getByRole('button', { name: 'Add one Box ticket' })
+  await expect(page.getByText('12 left', { exact: true })).toBeVisible()
   await addBox.click()
   await expect(addBox).toBeDisabled()
   await expect(page.getByText('Tickets selected · 3')).toBeVisible()
@@ -155,6 +164,49 @@ test('preserves the bounded ticket selection and campaign through sign-in and re
   await page.reload()
   await expect(page.getByText('Standard × 2')).toBeVisible()
   await expect(page.getByText('STUDENT20 applied')).toBeVisible()
+
+  await mockEvent(page, event, [
+    { ...ticket, on_sale: false, max_now: 0, unavailable_reason: 'paid_sales_inactive' },
+    { ...box, on_sale: false, max_now: 0, available: 0, unavailable_reason: 'sold_out' },
+  ])
+  await page.reload()
+  await expect(page.getByText('Choose available tickets on the event page.')).toBeVisible()
+  await expect(page.getByText('Standard × 2')).toHaveCount(0)
+})
+
+test('paid tickets cannot be selected until the API says paid sales are active', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await mockEvent(page, event, [
+    { ...ticket, on_sale: false, max_now: 0, unavailable_reason: 'paid_sales_inactive' },
+  ])
+  await page.goto(`/events/${event.id}`)
+  await expect(page.getByText("Paid sales aren't active for this event yet.")).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Add one Standard ticket' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Continue to checkout' })).toBeDisabled()
+})
+
+test('the event refreshes ticket availability when sales start', async ({ page }) => {
+  const now = new Date()
+  const sale = { ...ticket, sales_start: new Date(now.getTime() + 60_000).toISOString() }
+  let onSale = false
+  await page.clock.install({ time: now })
+  await page.route(`${api}/events/${event.id}`, (route) => route.fulfill({ headers, json: event }))
+  await page.route(`${api}/events/${event.id}/ticket-types`, (route) =>
+    route.fulfill({
+      headers,
+      json: [
+        onSale ? sale : { ...sale, on_sale: false, max_now: 0, unavailable_reason: 'not_started' },
+      ],
+    }),
+  )
+
+  await page.goto(`/events/${event.id}`)
+  await expect(page.getByText(/Sales open .*UTC\+5/)).toBeVisible()
+  onSale = true
+  await page.clock.fastForward(60_001)
+  await expect(page.getByRole('button', { name: 'Add one Standard ticket' })).toBeEnabled()
 })
 
 test('closed registration disables checkout inside the desktop tickets panel', async ({ page }) => {
@@ -248,9 +300,6 @@ test('desktop catalog switches from one column to three and filters whole Astana
   }))
   await page.route(`${api}/events/categories`, (route) =>
     route.fulfill({ headers, json: ['Music'] }),
-  )
-  await page.route(`${api}/events/*/ticket-types`, (route) =>
-    route.fulfill({ headers, json: [ticket] }),
   )
   let params = new URLSearchParams()
   await page.route(`${api}/events?*`, (route) => {
