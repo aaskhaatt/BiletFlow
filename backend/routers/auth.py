@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from schemas.user import (UserCreate, UserResponse, UserLogin, CurrentUserResponse, VerifyEmailRequest,
-                          ForgotPasswordRequest, ResetPasswordRequest)
+                          ForgotPasswordRequest, ResetPasswordRequest, ChangePasswordRequest)
 from schemas.token import RefreshTokenResponse, RefreshTokenRequest, LogoutResponse
 from sqlalchemy.orm import Session
 from database import get_db
@@ -8,7 +8,7 @@ from dependencies import get_current_user
 from models import User
 from services.auth_service import (register_user_service, login_user_service, refresh_access_token_service, logout_service,
                                    get_current_user_profile_service, verify_email_service, resend_verification_service,
-                                   forgot_password_service, reset_password_service)
+                                   forgot_password_service, reset_password_service, change_password_service)
 
 
 
@@ -60,3 +60,10 @@ def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):
 @router.post("/reset-password", response_model=LogoutResponse)
 def reset_password(data: ResetPasswordRequest, db: Session = Depends(get_db)):
     return reset_password_service(data.token, data.new_password, db)
+
+
+# signed in: needs the current password; other devices are signed out, this one gets fresh tokens
+@router.post("/change-password", response_model=RefreshTokenResponse)
+def change_password(data: ChangePasswordRequest, current_user: User = Depends(get_current_user),
+                    db: Session = Depends(get_db)):
+    return change_password_service(current_user, data.current_password, data.new_password, db)

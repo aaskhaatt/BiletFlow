@@ -1,5 +1,5 @@
-from sqlalchemy.orm import Session
-from models import Event
+from sqlalchemy.orm import Session, selectinload
+from models import Event, TicketType, Ticket, Order, PaidSalesActivation
 from exceptions import EventNotFoundError
 from datetime import datetime
 from sqlalchemy import select, update, or_, func
@@ -69,7 +69,16 @@ def get_published_events(db: Session, q: str | None = None, category: str | None
                          date_from: datetime | None = None, date_to: datetime | None = None,
                          ended_before: datetime | None = None, limit: int = 20, offset: int = 0) -> tuple[list[Event], int]:
     # the public catalogue: only published, public, not suspended events. Returns (one page of events, total matching events)
-    stmt = select(Event).where(Event.status == "published", Event.visibility == "public", Event.suspended_at.is_(None))
+    # per event, over its visible ticket types: the cheapest price and how many are left (for catalogue cards)
+    types = (select(TicketType.event_id,
+                    func.min(TicketType.price).label("min_price"),
+                    func.sum(func.greatest(TicketType.quantity - TicketType.sold_count, 0)).label("types_left"))
+             .where(TicketType.is_hidden.is_(False)).group_by(TicketType.event_id).subquery())
+    stmt = (select(Event, types.c.min_price, types.c.types_left)
+            .outerjoin(types, types.c.event_id == Event.id)
+            # the organizer's name is shown on every card: load all organizers in one extra query
+            .options(selectinload(Event.organizer))
+            .where(Event.status == "published", Event.visibility == "public", Event.suspended_at.is_(None)))
 
     if q:
         # case-insensitive "contains"; autoescape makes % and _ typed by the user literal characters
@@ -93,7 +102,7 @@ def get_published_events(db: Session, q: str | None = None, category: str | None
     # soonest first; id breaks ties so pages never overlap or skip an event
     stmt = stmt.order_by(Event.start_time, Event.id).limit(limit).offset(offset)
 
-    return list(db.scalars(stmt)), total
+    return db.execute(stmt).all(), total
 
 
 def get_published_categories(now: datetime, db: Session) -> list[str]:
@@ -168,3 +177,21 @@ def update_event_image(event: Event, image_key: str | None, db: Session) -> Even
     db.flush()
 
     return event
+
+
+def get_organizer_event_summaries(organizer_id: int, db: Session) -> list:
+    """Every event of the organizer with tickets sold, revenue and paid-sales status: one query for the home page."""
+    tickets = (select(Ticket.event_id, func.count().label("tickets_sold"))
+               .where(Ticket.status.in_(["valid", "checked_in"])).group_by(Ticket.event_id).subquery())
+    money = (select(Order.event_id, func.sum(Order.total_amount).label("revenue"))
+             .where(Order.status == "confirmed").group_by(Order.event_id).subquery())
+    stmt = (select(Event, func.coalesce(tickets.c.tickets_sold, 0).label("tickets_sold"),
+                   func.coalesce(money.c.revenue, 0).label("revenue"),
+                   func.coalesce(PaidSalesActivation.status, "not_started").label("paid_sales_status"))
+            .outerjoin(tickets, tickets.c.event_id == Event.id)
+            .outerjoin(money, money.c.event_id == Event.id)
+            .outerjoin(PaidSalesActivation, PaidSalesActivation.event_id == Event.id)
+            .where(Event.organizer_id == organizer_id)
+            .order_by(Event.start_time.desc(), Event.id.desc()))
+
+    return db.execute(stmt).all()

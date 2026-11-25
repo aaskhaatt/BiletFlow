@@ -2,7 +2,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from models.user import User
-from schemas.event import EventCreate, EventUpdate, EventDuplicate
+from schemas.event import EventCreate, EventUpdate, EventDuplicate, EventResponse
 from services.organizer_service import ensure_organizer_approved_service
 from services.audit_service import log_action
 from services.notification_service import notify_event_updated, format_moment
@@ -11,8 +11,9 @@ from repositories.ticket_type_repository import (get_all_ticket_types_by_event_i
                                                  update_ticket_type_visibility)
 from storage import copy_file, delete_file
 from repositories.event_repository import (create_event, update_event, get_event_by_id, update_event_status, get_events_by_organizer_id,
-                                           get_published_events, get_published_categories, update_event_image)
-from exceptions import InvalidEventTimeError, EventAccessDeniedError, InvalidEventStatusError, EventNotReadyToPublishError, EventNotFoundError, QuantityBelowSoldError
+                                           get_published_events, get_published_categories, update_event_image,
+                                           get_organizer_event_summaries)
+from exceptions import EventHasTicketsError, InvalidEventTimeError, EventAccessDeniedError, InvalidEventStatusError, EventNotReadyToPublishError, EventNotFoundError, QuantityBelowSoldError
 
 
 
@@ -57,6 +58,10 @@ def update_event_service(user_id: int, event_id: int, event_data: EventUpdate, d
 
     if organizer.id != event.organizer_id:
         raise EventAccessDeniedError()
+
+    # a cancelled event is history: it can be read and duplicated, not changed
+    if event.status == "cancelled":
+        raise InvalidEventStatusError()
 
     # only the fields that were sent: one left out keeps its value, one sent as null is cleared
     sent = event_data.model_dump(exclude_unset=True)
@@ -134,6 +139,9 @@ def publish_event_service(user_id: int, event_id: int, db: Session):
         raise EventNotReadyToPublishError()
 
     update_event_status(event, "published", db)
+    # the first time it goes public; kept through unpublish, so a cancelled event knows it was once public
+    if event.published_at is None:
+        event.published_at = datetime.now(timezone.utc)
     log_action(db, user_id, "event.published", "event", event.id, f'Published event "{event.title}"', event_id=event.id)
 
     db.commit()
@@ -151,6 +159,11 @@ def unpublish_event_service(user_id: int, event_id: int, db: Session):
 
     if event.status != "published":
         raise InvalidEventStatusError()
+
+    # tickets sold or held: going back to draft would hide the event from its ticket holders.
+    # The organizer cancels it instead, which refunds and tells everyone.
+    if event.tickets_sold > 0:
+        raise EventHasTicketsError()
 
     update_event_status(event, "draft", db)
     log_action(db, user_id, "event.unpublished", "event", event.id, f'Unpublished event "{event.title}"', event_id=event.id)
@@ -188,9 +201,17 @@ def get_published_events_service(db: Session, q: str | None = None, category: st
     # by default the catalogue shows only events that haven't ended yet
     ended_before = None if include_past else datetime.now(timezone.utc)
 
-    items, total = get_published_events(db, q=q or None, category=category or None,
-                                        date_from=_as_utc(date_from), date_to=_as_utc(date_to),
-                                        ended_before=ended_before, limit=limit, offset=offset)
+    rows, total = get_published_events(db, q=q or None, category=category or None,
+                                       date_from=_as_utc(date_from), date_to=_as_utc(date_to),
+                                       ended_before=ended_before, limit=limit, offset=offset)
+
+    items = []
+    for event, min_price, types_left in rows:
+        remaining = types_left
+        if remaining is not None and event.capacity is not None:
+            remaining = min(remaining, max(event.capacity - event.tickets_sold, 0))
+        items.append({**EventResponse.model_validate(event).model_dump(), "min_price": min_price,
+                      "tickets_remaining": remaining})
 
     return {"items": items, "total": total}
 
@@ -297,3 +318,26 @@ def duplicate_event_service(user_id: int, event_id: int, data: EventDuplicate | 
 def get_event_for_owner_service(user_id: int, event_id: int, db: Session):
     # the organizer's own view of one event, in any status: previewing a draft before publishing (SRS 4.2)
     return ensure_event_owner_service(user_id, event_id, db)
+
+
+def get_public_event_page_service(event_id: int, db: Session):
+    """GET /events/{id}: published events, plus a cancelled event that was once public, so attendees with old links
+    and tickets see "this event was cancelled". Drafts, private and suspended events stay hidden (404)."""
+    event = get_event_by_id(event_id, db)
+
+    if event.visibility == "private" or event.suspended_at is not None:
+        raise EventNotFoundError()
+    if event.status == "published" or (event.status == "cancelled" and event.published_at is not None):
+        return event
+    raise EventNotFoundError()
+
+
+def get_my_event_summaries_service(user_id: int, db: Session) -> list[dict]:
+    organizer = ensure_organizer_approved_service(user_id, db)
+
+    return [
+        {"event_id": event.id, "title": event.title, "status": event.status, "lifecycle": event.lifecycle,
+         "start_time": event.start_time, "end_time": event.end_time, "image_url": event.image_url,
+         "capacity": event.capacity, "tickets_sold": sold, "revenue": revenue, "paid_sales_status": paid_status}
+        for event, sold, revenue, paid_status in get_organizer_event_summaries(organizer.id, db)
+    ]

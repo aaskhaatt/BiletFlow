@@ -105,11 +105,13 @@ def main() -> bool:
         s, _, body = get("/orders/99999999/pdf", alice)
         t.check("unknown order", s == 404 and error_of(body) == "OrderNotFoundError", f"status {s}")
 
-        # cancelled and refunded tickets never print
-        t.call("POST", f"/orders/{order['id']}/cancel", {}, alice)
-        s, _, body = get(f"/tickets/{second['id']}/pdf", alice)
+        # cancelled and refunded tickets never print (a registration with a scanned ticket can't be cancelled,
+        # so this uses a fresh one)
+        s, unused = t.order(alice, eid, [(free, 1)])
+        t.call("POST", f"/orders/{unused['id']}/cancel", {}, alice)
+        s, _, body = get(f"/tickets/{unused['tickets'][0]['id']}/pdf", alice)
         t.check("cancelled ticket: refused", s == 409 and error_of(body) == "TicketNotPrintableError", f"status {s}")
-        s, _, body = get(f"/orders/{order['id']}/pdf", alice)
+        s, _, body = get(f"/orders/{unused['id']}/pdf", alice)
         t.check("cancelled order: refused", s == 409 and error_of(body) == "TicketNotPrintableError", f"status {s}")
         t.call("POST", f"/orders/{paid['id']}/refund", {"reason": "E2E refund"}, org)
         s, _, body = get(f"/orders/{paid['id']}/pdf", alice)

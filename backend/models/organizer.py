@@ -13,6 +13,10 @@ class OrganizerProfile(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
     status: Mapped[str] = mapped_column(nullable=False, default="pending")
     legal_name: Mapped[str | None] = mapped_column(nullable=True)
+    # the name attendees see on event pages, chosen by the organizer (falls back to legal_name)
+    display_name: Mapped[str | None] = mapped_column(nullable=True)
+    # set when an admin rejects the application (status "rejected"); applying again resets it
+    rejection_reason: Mapped[str | None] = mapped_column(nullable=True)
     contact_phone: Mapped[str | None] = mapped_column(nullable=True)
     # set by the simulated identity check; production KYC is out of the MVP scope
     identity_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

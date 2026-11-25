@@ -21,6 +21,8 @@ class CheckInTicket(BaseModel):
     ticket_type_name: str
     status: str
     checked_in_at: datetime | None
+    # email of the staff member who scanned it in; null unless status is checked_in
+    checked_in_by: str | None = None
 
 
 class CheckInResult(BaseModel):

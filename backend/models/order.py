@@ -35,6 +35,8 @@ class Order(Base):
     discount_amount: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
 
     items: Mapped[list["OrderItem"]] = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
+    # read-only: lets an order show its event's name, date and venue (even after the event is cancelled or suspended)
+    event: Mapped["Event"] = relationship("Event", viewonly=True)
     tickets: Mapped[list["Ticket"]] = relationship("Ticket", back_populates="order", cascade="all, delete-orphan")
 
 

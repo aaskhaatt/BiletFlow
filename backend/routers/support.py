@@ -4,7 +4,7 @@ from typing import Literal
 from database import get_db
 from dependencies import get_current_user
 from models import User
-from schemas.support import (SupportAssigneeUpdate, SupportCaseCreate, SupportCaseResponse, SupportCaseSummary,
+from schemas.support import (SupportCaseDetail, SupportAssigneeUpdate, SupportCaseCreate, SupportCaseResponse, SupportCaseSummary,
                              SupportMessageCreate, SupportMessageResponse, SupportStatus, SupportStatusUpdate)
 from services.support_service import (add_support_message_service, assign_support_case_service,
                                       change_support_status_service, get_my_support_cases_service,
@@ -32,7 +32,7 @@ def get_support_inbox(kind: Literal["attendee", "platform"] | None = None, statu
 
 
 # the thread comes with the case; clients poll this for new messages (no WebSockets, SRS 4.13)
-@router.get("/{case_id}", response_model=SupportCaseResponse)
+@router.get("/{case_id}", response_model=SupportCaseDetail)
 def get_support_case(case_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return get_support_case_service(current_user, case_id, db)
 

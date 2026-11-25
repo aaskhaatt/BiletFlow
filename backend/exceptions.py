@@ -189,3 +189,15 @@ class PlatformAdminRequiredError(Exception):
 # --- deployment (Dev B) ---
 class DatabaseUnavailableError(Exception):
     pass
+
+class EventHasTicketsError(Exception):
+    pass
+
+class EventAlreadyEndedError(Exception):
+    pass
+
+class CurrentPasswordIncorrectError(Exception):
+    pass
+
+class InvalidOrganizerStatusError(Exception):
+    pass

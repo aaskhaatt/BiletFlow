@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from repositories.check_in_repository import _checked_in_by
 from sqlalchemy import select, update
 from models import Ticket, TicketType, Order
 from exceptions import TicketNotFoundError
@@ -42,6 +43,8 @@ def get_attendees_by_event_id(event_id: int, db: Session):
             TicketType.name.label("ticket_type_name"),
             Order.id.label("order_id"),
             Order.buyer_email,
+            Ticket.checked_in_at,
+            _checked_in_by(),
         )
         .join(TicketType, Ticket.ticket_type_id == TicketType.id)
         .join(Order, Ticket.order_id == Order.id)

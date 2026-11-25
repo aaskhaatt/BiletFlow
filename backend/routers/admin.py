@@ -11,7 +11,11 @@ from services.settings_service import get_settings_service, set_activation_fee_s
 # --- Dev B: admin tools (Feature 13) ---
 from fastapi import Query, Response
 from services.campaign_service import search_campaigns_service
-from schemas.admin import AdminCampaignRow
+from schemas.admin import AdminCampaignRow, AdminOrganizerRow, AdminAuditRow
+from schemas.organizer import OrganizerResponse, OrganizerRejectRequest
+from services.organizer_service import search_organizers_service, reject_organizer_service
+from services.admin_service import search_audit_log_service
+from datetime import datetime
 from schemas.admin import (AdminOrderRow, AdminPaymentRow, AdminRefundRow, AdminUserResponse, EventReportResponse,
                            EventReportReview, Page, SuspendRequest)
 from schemas.event import EventResponse
@@ -155,3 +159,35 @@ def search_campaigns(q: str | None = Query(None, max_length=100, description="Co
                      format: Format = "json", admin: User = Depends(require_platform_admin), db: Session = Depends(get_db)):
     return _page(search_campaigns_service(q, event_id, active, _limit(format, limit), offset, db),
                  AdminCampaignRow, format, "campaigns")
+
+
+# --- organizer applications (SRS 4.12) ---
+# approve stays at PATCH /organizers/{user_id}/approve (the frontend already calls it)
+
+@router.get("/organizers", response_model=Page[AdminOrganizerRow])
+def search_organizers(status: Literal["pending", "approved", "rejected"] | None = None,
+                      q: str | None = Query(None, max_length=100, description="Email, legal or display name, id"),
+                      limit: int = Limit, offset: int = Offset, format: Format = "json",
+                      admin: User = Depends(require_platform_admin), db: Session = Depends(get_db)):
+    return _page(search_organizers_service(status, q, _limit(format, limit), offset, db),
+                 AdminOrganizerRow, format, "organizers")
+
+
+@router.post("/organizers/{user_id}/reject", response_model=OrganizerResponse)
+def reject_organizer(user_id: int, data: OrganizerRejectRequest, admin: User = Depends(require_platform_admin),
+                     db: Session = Depends(get_db)):
+    return reject_organizer_service(admin.id, user_id, data.reason, db)
+
+
+# --- the whole audit log ---
+
+@router.get("/audit-log", response_model=Page[AdminAuditRow])
+def search_audit_log(type: str | None = Query(None, description="Action prefix: event, order, organizer, ..."),
+                     action: str | None = None, actor_user_id: int | None = None, event_id: int | None = None,
+                     entity_type: str | None = None, entity_id: int | None = None,
+                     date_from: datetime | None = None, date_to: datetime | None = None,
+                     limit: int = Limit, offset: int = Offset, format: Format = "json",
+                     admin: User = Depends(require_platform_admin), db: Session = Depends(get_db)):
+    return _page(search_audit_log_service(type, action, actor_user_id, event_id, entity_type, entity_id, date_from,
+                                          date_to, _limit(format, limit), offset, db),
+                 AdminAuditRow, format, "audit-log")

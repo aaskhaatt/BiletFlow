@@ -14,10 +14,11 @@ from repositories.support_repository import (add_support_message, create_support
                                              get_support_case_by_id, list_support_cases)
 from repositories.ticket_repository import get_ticket_by_id
 from repositories.user_repository import get_user_by_id
-from schemas.support import SupportCaseCreate
+from schemas.support import SupportCaseCreate, SupportCaseResponse
 from services.audit_service import log_action
+from repositories.audit_repository import get_entity_history
 from services.email_service import queue_email
-from services.event_service import ensure_event_owner_service, get_public_event_service
+from services.event_service import ensure_event_owner_service, get_public_event_page_service
 from services.organizer_service import ensure_organizer_approved_service
 
 
@@ -68,7 +69,8 @@ def open_support_case_service(user: User, data: SupportCaseCreate, db: Session):
             order = _own_order(user, data.order_id, OrderNotFoundError, db)
             context = {"event_id": order.event_id, "order_id": order.id, "ticket_id": None}
         else:
-            get_public_event_service(data.event_id, db)
+            # any event whose page people can open, including a cancelled one (refund questions)
+            get_public_event_page_service(data.event_id, db)
     else:
         get_organizer_by_user_id(user.id, db)  # 404 for non-organizers
         if data.event_id is not None:
@@ -83,8 +85,23 @@ def open_support_case_service(user: User, data: SupportCaseCreate, db: Session):
     return case
 
 
+def _history_entry(row) -> dict:
+    # descriptions are written by this file: 'Support case "<subject>": open -> resolved' and
+    # '...: assigned to user 7' / '...: unassigned'. The subject may contain anything, so read from the end.
+    change = row.description.rsplit(": ", 1)[-1]
+    entry = {"created_at": row.created_at, "actor_user_id": row.actor_user_id}
+    if row.action == "support_case.status_changed":
+        old, _, new = change.partition(" -> ")
+        return {**entry, "action": "status_changed", "from_status": old, "to_status": new}
+    assignee = change.removeprefix("assigned to user ")
+    return {**entry, "action": "assigned", "assigned_user_id": int(assignee) if assignee.isdigit() else None}
+
+
 def get_support_case_service(user: User, case_id: int, db: Session):
-    return _readable_case(user, case_id, db)
+    case = _readable_case(user, case_id, db)
+    rows = get_entity_history("support_case", case.id, ["support_case.status_changed", "support_case.assigned"], db)
+
+    return {**SupportCaseResponse.model_validate(case).model_dump(), "history": [_history_entry(r) for r in rows]}
 
 
 def add_support_message_service(user: User, case_id: int, body: str, db: Session):

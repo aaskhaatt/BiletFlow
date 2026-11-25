@@ -9,7 +9,7 @@ from services.event_service import ensure_event_owner_service
 from services.payment_service import simulate_refund
 from services.audit_service import log_action
 from services.notification_service import notify_order_cancelled, notify_order_refunded, notify_event_cancelled
-from exceptions import (OrderNotFoundError, OrderNotCancellableError, OrderNotRefundableError, InvalidEventStatusError,
+from exceptions import (EventAlreadyEndedError, OrderNotFoundError, OrderNotCancellableError, OrderNotRefundableError, InvalidEventStatusError,
                         OrganizerNotFoundError, OrganizerNotApprovedError, EventAccessDeniedError)
 
 
@@ -82,6 +82,11 @@ def cancel_order_service(user_id: int, order_id: int, reason: str | None, db: Se
     if order.status != "pending" and not is_free_registration:
         raise OrderNotCancellableError()
 
+    # a registration that was used, or whose event is over, stays: cancelling it would rewrite attendance
+    if is_free_registration and (event.end_time <= datetime.now(timezone.utc)
+                                 or any(ticket.status == "checked_in" for ticket in order.tickets)):
+        raise OrderNotCancellableError()
+
     _cancel_order(order, user_id, reason, db)
     db.commit()
     db.refresh(order)
@@ -123,7 +128,12 @@ def cancel_event_service(user_id: int, event_id: int, db: Session):
     if event.status == "cancelled":
         raise InvalidEventStatusError()
 
+    # after the event, cancelling would refund people who already attended
+    if event.end_time <= datetime.now(timezone.utc):
+        raise EventAlreadyEndedError()
+
     update_event_status(event, "cancelled", db)
+    event.cancelled_at = datetime.now(timezone.utc)
 
     refunded, cancelled = 0, 0
     # everyone affected gets ONE "event cancelled" email, instead of one per order on top of it

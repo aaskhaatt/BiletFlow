@@ -26,6 +26,10 @@ class Event(Base):
     tickets_sold: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
     # free text shown to attendees, e.g. "Full refund up to 7 days before the event" (SRS 4.9)
     refund_policy: Mapped[str | None] = mapped_column(nullable=True)
+    # first time it went public, and when it was cancelled: a cancelled event that was once public keeps a public
+    # "this event was cancelled" page; one that never went public stays hidden
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # where the cover image lives in file storage, e.g. "events/12/3f9a....jpg"; the URL is built from it
     image_key: Mapped[str | None] = mapped_column(nullable=True)
     # Dev B: a suspended event is hidden from the public and sells nothing; issued tickets still scan
@@ -37,6 +41,13 @@ class Event(Base):
     def image_url(self) -> str | None:
         # the full address clients load the image from; storing only the key means moving storage never needs a data migration
         return public_url(self.image_key)
+
+    @property
+    def organizer_name(self) -> str | None:
+        # what attendees see as the organizer: the chosen public name, else the verified legal name
+        if self.organizer is None:
+            return None
+        return self.organizer.display_name or self.organizer.legal_name
 
     @property
     def lifecycle(self) -> str:

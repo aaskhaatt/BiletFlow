@@ -12,6 +12,7 @@ from repositories.event_repository import get_event_by_id
 from repositories.refresh_token_repository import delete_user_refresh_tokens
 from repositories.user_repository import get_user_by_id
 from services.audit_service import log_action
+from repositories.audit_repository import search_audit_log
 
 
 def _set_suspension(target, reason: str | None):
@@ -152,3 +153,25 @@ def review_event_report_service(admin_user_id: int, report_id: int, status: str,
     db.commit()
     db.refresh(report)
     return report
+
+
+# --- the whole audit log (SRS 4.12 monitoring) -------------------------------------------------
+
+def _utc(moment):
+    if moment is not None and moment.tzinfo is None:
+        return moment.replace(tzinfo=timezone.utc)
+    return moment
+
+
+def search_audit_log_service(action_type, action, actor_user_id, event_id, entity_type, entity_id, date_from, date_to,
+                             limit, offset, db: Session):
+    rows, total = search_audit_log({"type": action_type, "action": action, "actor_user_id": actor_user_id,
+                                    "event_id": event_id, "entity_type": entity_type, "entity_id": entity_id},
+                                   _utc(date_from), _utc(date_to), limit, offset, db)
+    items = [{"id": row.AuditLog.id, "created_at": row.AuditLog.created_at, "action": row.AuditLog.action,
+              "type": row.AuditLog.action.split(".")[0], "entity_type": row.AuditLog.entity_type,
+              "entity_id": row.AuditLog.entity_id, "event_id": row.AuditLog.event_id,
+              "description": row.AuditLog.description, "actor_user_id": row.AuditLog.actor_user_id,
+              "actor_email": row.actor_email}
+             for row in rows]
+    return items, total

@@ -123,7 +123,7 @@ def seed(domain: str) -> dict:
         admin = s.user("admin")
         s.sql("update users set is_platform_admin = true where id = :i", i=admin.id)
         org = s.user("organizer")
-        apply_for_organizer_service(org.id, db)
+        apply_for_organizer_service(org.id, "Dala Events", db)
         approve_organizer_service(admin.id, org.id, db)
         verify_identity_service(org.id, "TOO Dala Events", "+77011234567", db)
         set_payout_account_service(org.id, "TOO Dala Events", "Halyk Bank", "KZ86125KZT5004100100", db)
