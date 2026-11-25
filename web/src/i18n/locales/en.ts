@@ -6,6 +6,7 @@ export const en: Messages = {
     close: 'Close',
     language: 'Language',
     loading: 'Loading…',
+    retry: 'Try again',
     toHome: 'Go to the home page',
   },
   dev: {
@@ -71,6 +72,16 @@ export const en: Messages = {
       unknown: 'Unknown status',
     },
     demoPayment: 'Demo payment',
+    feedback: {
+      title: 'Feedback states',
+      loading: 'Loading a list',
+      emptyTitle: 'No events yet',
+      emptyDescription: 'New events will appear here once they are published.',
+      loadError: 'Could not load events',
+      recovered: 'Events loaded.',
+      alerts: 'Inline alerts',
+      warning: 'Your reservation expires soon.',
+    },
   },
   notFound: {
     title: 'Page not found',

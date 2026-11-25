@@ -8,6 +8,7 @@ export const kk: Messages = {
     close: 'Жабу',
     language: 'Тіл',
     loading: 'Жүктелуде…',
+    retry: 'Қайталап көру',
     toHome: 'Басты бетке',
   },
   dev: {
@@ -75,6 +76,16 @@ export const kk: Messages = {
       unknown: 'Белгісіз мәртебе',
     },
     demoPayment: 'Демо төлем',
+    feedback: {
+      title: 'Интерфейс күйлері',
+      loading: 'Тізім жүктелуде',
+      emptyTitle: 'Әзірге іс-шаралар жоқ',
+      emptyDescription: 'Жаңа іс-шаралар жарияланғаннан кейін осында шығады.',
+      loadError: 'Іс-шаралар жүктелмеді',
+      recovered: 'Іс-шаралар жүктелді.',
+      alerts: 'Хабарламалар',
+      warning: 'Бронь мерзімі жақында аяқталады.',
+    },
   },
   notFound: {
     title: 'Бет табылмады',

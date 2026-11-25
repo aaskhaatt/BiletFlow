@@ -1,5 +1,5 @@
 import { Outlet, type RouteObject } from 'react-router'
-import DevUiPage from '@/pages/dev/DevUiPage'
+import Skeleton from '@/components/Skeleton'
 import NotFoundPage from '@/pages/NotFoundPage'
 import PlaceholderPage from '@/pages/PlaceholderPage'
 import RouteErrorPage from '@/pages/RouteErrorPage'
@@ -84,7 +84,15 @@ export const routes: RouteObject[] = [
       },
 
       // Developer pages (dev server only)
-      ...(import.meta.env.DEV ? [{ path: 'dev/ui', element: <DevUiPage /> }] : []),
+      ...(import.meta.env.DEV
+        ? [
+            {
+              path: 'dev/ui',
+              hydrateFallbackElement: <Skeleton className="m-6 w-48" />,
+              lazy: async () => ({ Component: (await import('@/pages/dev/DevUiPage')).default }),
+            },
+          ]
+        : []),
 
       { path: '*', element: <NotFoundPage /> },
     ],

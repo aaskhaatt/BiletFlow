@@ -1,12 +1,16 @@
 // Developer page: every design token in one place. W2 adds the shared components here.
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { errorMessageKey } from '@/api/error-codes'
 import { useEvents } from '@/api/hooks/events'
 import DemoBanner from '@/components/DemoBanner'
+import ErrorState from '@/components/ErrorState'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
+import Skeleton from '@/components/Skeleton'
 import { getApiUrl } from '@/lib/env'
 import ButtonsSection from '@/pages/dev/ButtonsSection'
 import ControlsSection from '@/pages/dev/ControlsSection'
+import FeedbackSection from '@/pages/dev/FeedbackSection'
 import FieldsSection from '@/pages/dev/FieldsSection'
 import IconsSection from '@/pages/dev/IconsSection'
 import PrimitivesSection from '@/pages/dev/PrimitivesSection'
@@ -14,9 +18,28 @@ import StatusBadgesSection from '@/pages/dev/StatusBadgesSection'
 
 // The generated client talking to the real API
 function EventsSample() {
+  const { t } = useTranslation()
   const events = useEvents({ limit: 3 })
-  if (events.isPending) return <p className="type-body text-ink-2">GET /events …</p>
-  if (events.isError) return <p className="type-body text-status-danger-fg">GET /events: error</p>
+  if (events.isPending) {
+    return (
+      <div className="max-w-sm space-y-2" role="status">
+        <span className="sr-only">{t('common.loading')}</span>
+        <Skeleton className="w-2/3" />
+        <Skeleton className="w-full" />
+      </div>
+    )
+  }
+  if (events.isError) {
+    return (
+      <ErrorState
+        heading="h3"
+        title={t('dev.feedback.loadError')}
+        description={t(errorMessageKey(events.error))}
+        onRetry={() => void events.refetch()}
+        retrying={events.isFetching}
+      />
+    )
+  }
 
   return (
     <div className="type-body text-ink-2" data-testid="events-sample">
@@ -176,6 +199,8 @@ export default function DevUiPage() {
         <h2 className="type-card-title">{t('dev.demoPayment')}</h2>
         <DemoBanner />
       </section>
+
+      <FeedbackSection />
 
       <PrimitivesSection />
     </main>

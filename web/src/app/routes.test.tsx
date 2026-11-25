@@ -64,4 +64,20 @@ describe('routes', () => {
       await screen.findByRole('heading', { level: 1, name: 'Страница не найдена' }),
     ).toBeInTheDocument()
   })
+
+  it('shows the shared error and retry button when a route fails', async () => {
+    renderRoutes([
+      {
+        ...routes[0],
+        loader: () => {
+          throw new Error('Test route failure')
+        },
+      },
+    ])
+
+    expect(await screen.findByRole('button', { name: 'Повторить' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Что-то пошло не так' }),
+    ).toBeInTheDocument()
+  })
 })

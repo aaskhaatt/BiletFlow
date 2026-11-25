@@ -89,6 +89,7 @@ export const ru = {
     close: 'Закрыть',
     language: 'Язык',
     loading: 'Загрузка…',
+    retry: 'Повторить',
     toHome: 'На главную',
   },
   // the developer page /dev/ui
@@ -156,6 +157,16 @@ export const ru = {
       unknown: 'Неизвестный статус',
     },
     demoPayment: 'Демо-оплата',
+    feedback: {
+      title: 'Состояния интерфейса',
+      loading: 'Загрузка списка',
+      emptyTitle: 'Событий пока нет',
+      emptyDescription: 'Новые события появятся здесь после публикации.',
+      loadError: 'Не удалось загрузить события',
+      recovered: 'События загружены.',
+      alerts: 'Уведомления',
+      warning: 'Срок брони скоро истечёт.',
+    },
   },
   notFound: {
     title: 'Страница не найдена',
