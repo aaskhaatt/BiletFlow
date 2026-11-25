@@ -7,6 +7,30 @@ import { sessionStore } from '@/auth/session-store'
 import { apiUrl, server } from '@/test/msw-server'
 import { renderRoutes } from '@/test/render'
 
+// The pages that are built already load data: answer with empty lists
+beforeEach(() => {
+  server.use(
+    http.get(apiUrl('/events'), () => HttpResponse.json({ items: [], total: 0 })),
+    http.get(apiUrl('/events/categories'), () => HttpResponse.json([])),
+    http.get(apiUrl('/events/3'), () =>
+      HttpResponse.json({
+        id: 3,
+        title: 'Event fixture',
+        category: 'Music',
+        status: 'published',
+        start_time: '2030-11-25T12:00:00Z',
+        end_time: '2030-11-25T14:00:00Z',
+        lifecycle: 'upcoming',
+        visibility: 'public',
+      }),
+    ),
+    http.get(apiUrl('/events/3/ticket-types'), () => HttpResponse.json([])),
+    http.get(apiUrl('/campaign-links/C-abc'), () =>
+      HttpResponse.json({ event_id: 3, promo_code: null }),
+    ),
+  )
+})
+
 // Each address opens its page (W1.7). The ones the backend puts in emails and
 // QR codes are listed first: they must never break.
 const pages: [address: string, page: string][] = [

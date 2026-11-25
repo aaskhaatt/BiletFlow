@@ -72,14 +72,35 @@ export const routes: RouteObject[] = [
         lazy: async () => ({ Component: (await import('@/app/layouts/PublicLayout')).default }),
         children: [
           // Public
-          { index: true, ...stub('catalog') },
-          { path: 'events/:eventId', ...stub('event') },
+          {
+            index: true,
+            lazy: async () => ({
+              Component: (await import('@/pages/catalog/CatalogPage')).default,
+            }),
+          },
+          {
+            path: 'events/:eventId',
+            lazy: async () => ({ Component: (await import('@/pages/events/EventPage')).default }),
+            children: [
+              {
+                path: 'report',
+                lazy: async () => ({
+                  Component: (await import('@/pages/events/ReportEventPage')).default,
+                }),
+              },
+            ],
+          },
 
           {
             lazy: async () => ({ Component: (await import('@/auth/route-guards')).RequireAuth }),
             children: [
               // Attendee (signed in)
-              { path: 'events/:eventId/checkout', ...stub('checkout') },
+              {
+                path: 'events/:eventId/checkout',
+                lazy: async () => ({
+                  Component: (await import('@/pages/events/CheckoutDraftPage')).default,
+                }),
+              },
               { path: 'orders/:orderId', ...stub('order') },
               { path: 'tickets/:ticketId', ...stub('ticket') },
               { path: 'my/tickets', ...stub('my-tickets') },

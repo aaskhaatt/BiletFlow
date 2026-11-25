@@ -9,6 +9,17 @@
  */
 @custom-variant dark (&:is(.dark *));
 
+@utility viewer-container {
+  width: 100%;
+  max-width: 720px;
+  margin-inline: auto;
+
+  @media (min-width: 1024px) {
+    width: calc(100% - 80px);
+    max-width: 1200px;
+  }
+}
+
 /* Only our tokens exist: Tailwind's default palette and radii are switched off. */
 @theme {
   --color-*: initial;
@@ -24,9 +35,11 @@
 
   /* bg/* */
   --color-paper: var(--bf-bg-paper);
+  --color-cover-placeholder: var(--bf-bg-cover-placeholder);
   --color-surface: var(--bf-bg-surface);
   --color-sidebar: var(--bf-bg-sidebar);
   --color-sidebar-soft: var(--bf-bg-sidebar-soft);
+  --color-dialog-overlay: var(--bf-bg-dialog-overlay);
 
   /* line/* */
   --color-line: var(--bf-line-default);
@@ -155,6 +168,16 @@
 @media (width < 48rem) {
   html:has([data-slot='bottom-navigation']) {
     scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
+}
+
+@media (width < 1024px) {
+  html:has([data-route-id='catalog']) {
+    scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
+
+  html:has([data-slot='event-checkout-bar']) {
+    scroll-padding-bottom: calc(8rem + env(safe-area-inset-bottom));
   }
 }
 
