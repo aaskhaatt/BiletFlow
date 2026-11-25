@@ -47,8 +47,8 @@ export function useMyEvents(params?: EventsGetMyEventsParams, enabled = true) {
 }
 
 /** GET /events/me/summary: tickets sold, revenue and paid-sales status per event. */
-export function useMyEventSummaries() {
-  return useEventsGetMyEventSummaries()
+export function useMyEventSummaries(enabled = true) {
+  return useEventsGetMyEventSummaries({ query: { enabled } })
 }
 
 /** GET /events/{id}/manage: one of my events in any status (drafts and private too). */

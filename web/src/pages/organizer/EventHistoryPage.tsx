@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router'
 import { errorMessageKey } from '@/api/error-codes'
 import type { EventResponse } from '@/api/generated/model'
+import { useAdminEvent } from '@/api/hooks/admin'
 import {
   fetchWholeHistory,
   useEventHistory,
@@ -26,6 +27,7 @@ import DuplicateEventDialog from '@/pages/organizer/DuplicateEventDialog'
 import HistoryActionChip from '@/pages/organizer/HistoryActionChip'
 import OrganizerPage from '@/pages/organizer/OrganizerPage'
 import NotFoundPage from '@/pages/NotFoundPage'
+import { AdminError } from '@/pages/admin/AdminPage'
 
 const PAGE_SIZE = 20
 const ALL = 'all'
@@ -64,10 +66,10 @@ const STAGE_OF: Record<string, Stage> = {
   cancelled: 'cancelled',
 }
 
-function HistoryView({ event }: { event: EventResponse }) {
+function HistoryView({ event, admin }: { event: EventResponse; admin: boolean }) {
   const { t, i18n } = useTranslation()
-  const summaries = useMyEventSummaries()
-  const stats = useCheckInStats(event.id)
+  const summaries = useMyEventSummaries(!admin)
+  const stats = useCheckInStats(event.id, !admin)
   const [filters, setFilters] = useState<Filters>(NO_FILTERS)
   const [offset, setOffset] = useState(0)
   const [exporting, setExporting] = useState(false)
@@ -126,18 +128,22 @@ function HistoryView({ event }: { event: EventResponse }) {
 
   return (
     <OrganizerPage
-      routeId="organizer-event-history"
-      breadcrumb={[
-        { label: t('organizerEvents.title'), to: '/organizer' },
-        {
-          label:
-            stage === 'drafts'
-              ? t('organizerEvents.drafts.title')
-              : t(`organizerEvents.tabs.${stage}`),
-          to: '/organizer',
-        },
-        { label: event.title, to: `/organizer/events/${event.id}` },
-      ]}
+      routeId={admin ? 'admin-event-history' : 'organizer-event-history'}
+      breadcrumb={
+        admin
+          ? [{ label: t('adminZone.lists.events'), to: '/admin/events' }, { label: event.title }]
+          : [
+              { label: t('organizerEvents.title'), to: '/organizer' },
+              {
+                label:
+                  stage === 'drafts'
+                    ? t('organizerEvents.drafts.title')
+                    : t(`organizerEvents.tabs.${stage}`),
+                to: '/organizer',
+              },
+              { label: event.title, to: `/organizer/events/${event.id}` },
+            ]
+      }
       title={t('eventHistory.pageTitle', { title: event.title })}
       meta={
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -156,14 +162,16 @@ function HistoryView({ event }: { event: EventResponse }) {
           >
             {t('eventHistory.export')}
           </Button>
-          <DuplicateEventDialog
-            event={event}
-            trigger={
-              <Button type="button" size="sm">
-                {t('organizerEvent.actions.duplicate')}
-              </Button>
-            }
-          />
+          {!admin && (
+            <DuplicateEventDialog
+              event={event}
+              trigger={
+                <Button type="button" size="sm">
+                  {t('organizerEvent.actions.duplicate')}
+                </Button>
+              }
+            />
+          )}
         </>
       }
     >
@@ -172,7 +180,7 @@ function HistoryView({ event }: { event: EventResponse }) {
           {t('eventHistory.exportFailed', { reason: t(errorMessageKey(exportError)) })}
         </InlineAlert>
       )}
-      <InlineAlert tone="info">{t('eventHistory.duplicateNote')}</InlineAlert>
+      {!admin && <InlineAlert tone="info">{t('eventHistory.duplicateNote')}</InlineAlert>}
 
       <section aria-labelledby="journal-title" className="rounded-lg border border-line bg-surface">
         <div className="flex flex-wrap items-end justify-between gap-4 p-6">
@@ -246,12 +254,20 @@ function HistoryView({ event }: { event: EventResponse }) {
 
         {history.isError ? (
           <div className="border-t border-line p-6">
-            <ErrorState
-              title={t('routeError.title')}
-              description={t(errorMessageKey(history.error))}
-              onRetry={() => void history.refetch()}
-              retrying={history.isFetching}
-            />
+            {admin ? (
+              <AdminError
+                error={history.error}
+                retry={() => void history.refetch()}
+                retrying={history.isFetching}
+              />
+            ) : (
+              <ErrorState
+                title={t('routeError.title')}
+                description={t(errorMessageKey(history.error))}
+                onRetry={() => void history.refetch()}
+                retrying={history.isFetching}
+              />
+            )}
           </div>
         ) : !history.data ? (
           <div role="status" className="space-y-3 border-t border-line p-6">
@@ -329,34 +345,43 @@ function HistoryView({ event }: { event: EventResponse }) {
 }
 
 /** /organizer/events/:eventId/history (Figma "История события"): the audit log of one event. */
-export default function EventHistoryPage() {
+export default function EventHistoryPage({ admin = false }: { admin?: boolean } = {}) {
   const { t } = useTranslation()
   const eventId = Number(useParams().eventId)
-  const valid = Number.isInteger(eventId) && eventId > 0
-  const event = useManagedEvent(eventId, { enabled: valid })
-  const home = { label: t('organizerEvents.title'), to: '/organizer' }
+  const valid = Number.isSafeInteger(eventId) && eventId > 0
+  const ownedEvent = useManagedEvent(eventId, { enabled: valid && !admin })
+  const adminEvent = useAdminEvent(eventId, valid && admin)
+  const event = admin ? adminEvent : ownedEvent
+  const routeId = admin ? 'admin-event-history' : 'organizer-event-history'
+  const home = admin
+    ? { label: t('adminZone.lists.events'), to: '/admin/events' }
+    : { label: t('organizerEvents.title'), to: '/organizer' }
 
-  if (!valid) return <NotFoundPage />
+  if (!valid || (admin && event.data === null)) return <NotFoundPage />
   if (event.isError) {
     return (
-      <OrganizerPage
-        routeId="organizer-event-history"
-        breadcrumb={[home]}
-        title={t('routeError.title')}
-      >
-        <ErrorState
-          title={t('routeError.title')}
-          description={t(errorMessageKey(event.error))}
-          onRetry={() => void event.refetch()}
-          retrying={event.isFetching}
-        />
+      <OrganizerPage routeId={routeId} breadcrumb={[home]} title={t('routeError.title')}>
+        {admin ? (
+          <AdminError
+            error={event.error}
+            retry={() => void event.refetch()}
+            retrying={event.isFetching}
+          />
+        ) : (
+          <ErrorState
+            title={t('routeError.title')}
+            description={t(errorMessageKey(event.error))}
+            onRetry={() => void event.refetch()}
+            retrying={event.isFetching}
+          />
+        )}
       </OrganizerPage>
     )
   }
   if (!event.data) {
     return (
       <OrganizerPage
-        routeId="organizer-event-history"
+        routeId={routeId}
         breadcrumb={[home]}
         title={<Skeleton className="h-9 w-72" />}
       >
@@ -368,5 +393,5 @@ export default function EventHistoryPage() {
     )
   }
 
-  return <HistoryView event={event.data} />
+  return <HistoryView key={eventId} event={event.data} admin={admin} />
 }

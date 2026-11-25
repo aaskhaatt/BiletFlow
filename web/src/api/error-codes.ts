@@ -53,6 +53,7 @@ export const API_ERROR_CODES_BY_STATUS = {
     'UserAlreadyExistsError',
     'OrganizerProfileAlreadyExistsError',
     'InvalidEventStatusError',
+    'InvalidOrganizerStatusError',
     'EventHasTicketsError',
     'EventAlreadyEndedError',
     'RegistrationClosedError',

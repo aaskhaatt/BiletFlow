@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { setRequestSession } from '@/api/access-token'
 import { routes } from '@/app/routes'
 import { sessionStore } from '@/auth/session-store'
+import { mockAdmin } from '@/test/admin-fixtures'
 import { eventResponse } from '@/test/fixtures'
 import { apiUrl, server } from '@/test/msw-server'
 import { renderRoutes } from '@/test/render'
@@ -145,6 +146,9 @@ describe('routes', () => {
   })
 
   it.each(pages)('%s opens the "%s" page', async (address, page) => {
+    if (address.startsWith('/admin')) {
+      mockAdmin({ events: [eventResponse({ id: 3, title: 'Event fixture' })] })
+    }
     if (page === 'verify-email') {
       server.use(
         http.post(apiUrl('/auth/verify-email'), () => HttpResponse.json({ message: 'Verified' })),

@@ -2,7 +2,6 @@ import { Outlet, type RouteObject } from 'react-router'
 import SkipLink from '@/app/layouts/SkipLink'
 import Skeleton from '@/components/Skeleton'
 import NotFoundPage from '@/pages/NotFoundPage'
-import PlaceholderPage from '@/pages/PlaceholderPage'
 import RouteErrorPage from '@/pages/RouteErrorPage'
 
 function workspaceLayout(area: 'organizer' | 'admin') {
@@ -22,9 +21,8 @@ function workspaceLayout(area: 'organizer' | 'admin') {
   }
 }
 
-// A page that a later phase (W3-W12) builds. The id names the screen.
-function stub(id: string) {
-  return { element: <PlaceholderPage id={id} /> }
+function adminList(page: keyof typeof import('@/pages/admin/AdminLists')) {
+  return async () => ({ Component: (await import('@/pages/admin/AdminLists'))[page] })
 }
 
 function organizerOperations(section: 'attendees' | 'orders' | 'refunds' | 'staff') {
@@ -264,17 +262,39 @@ export const routes: RouteObject[] = [
         path: 'admin',
         lazy: workspaceLayout('admin'),
         children: [
-          { index: true, ...stub('admin-moderation') },
-          { path: 'reports', ...stub('admin-reports') },
-          { path: 'paid-sales', ...stub('admin-paid-sales') },
-          { path: 'organizers', ...stub('admin-organizers') },
-          { path: 'users', ...stub('admin-users') },
-          { path: 'events', ...stub('admin-events') },
-          { path: 'events/:eventId/history', ...stub('admin-event-history') },
-          { path: 'orders', ...stub('admin-orders') },
-          { path: 'payments', ...stub('admin-payments') },
-          { path: 'refunds', ...stub('admin-refunds') },
-          { path: 'campaigns', ...stub('admin-campaigns') },
+          {
+            index: true,
+            lazy: async () => ({
+              Component: (await import('@/pages/admin/ModerationPage')).default,
+            }),
+          },
+          {
+            path: 'reports',
+            lazy: async () => ({
+              Component: (await import('@/pages/admin/AdminReportsPage')).default,
+            }),
+          },
+          {
+            path: 'paid-sales',
+            lazy: async () => ({
+              Component: (await import('@/pages/admin/AdminPaidSalesPage')).default,
+            }),
+          },
+          { path: 'organizers', lazy: adminList('AdminOrganizersPage') },
+          { path: 'users', lazy: adminList('AdminUsersPage') },
+          { path: 'events', lazy: adminList('AdminEventsPage') },
+          {
+            path: 'events/:eventId/history',
+            lazy: async () => {
+              const { default: EventHistoryPage } =
+                await import('@/pages/organizer/EventHistoryPage')
+              return { Component: () => <EventHistoryPage admin /> }
+            },
+          },
+          { path: 'orders', lazy: adminList('AdminOrdersPage') },
+          { path: 'payments', lazy: adminList('AdminPaymentsPage') },
+          { path: 'refunds', lazy: adminList('AdminRefundsPage') },
+          { path: 'campaigns', lazy: adminList('AdminCampaignsPage') },
           {
             path: 'support',
             lazy: async () => {
@@ -282,7 +302,12 @@ export const routes: RouteObject[] = [
               return { Component: () => <SupportInboxPage admin /> }
             },
           },
-          { path: 'settings', ...stub('admin-settings') },
+          {
+            path: 'settings',
+            lazy: async () => ({
+              Component: (await import('@/pages/admin/AdminSettingsPage')).default,
+            }),
+          },
         ],
       },
 

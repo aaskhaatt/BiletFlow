@@ -14,9 +14,9 @@ const languages = { ru, kk, en }
 
 describe('error texts', () => {
   it('covers every error code of the API reference plus the client-made ones', () => {
-    // 69 codes in docs/api-reference.md "Errors" (VALIDATION_ERROR included), 67 of them here:
-    // CurrentPasswordIncorrectError and InvalidOrganizerStatusError wait for the screens that need them
-    expect(Object.values(API_ERROR_CODES_BY_STATUS).flat()).toHaveLength(67)
+    // 69 codes in docs/api-reference.md "Errors" (VALIDATION_ERROR included), 68 of them here:
+    // CurrentPasswordIncorrectError waits for the screen that needs it
+    expect(Object.values(API_ERROR_CODES_BY_STATUS).flat()).toHaveLength(68)
     expect(ERROR_CODES).toContain('NETWORK_ERROR')
     expect(ERROR_CODES).toContain('UNKNOWN_ERROR')
     expect(new Set(ERROR_CODES).size).toBe(ERROR_CODES.length)

@@ -83,6 +83,25 @@ export const STATUS_BADGES = {
     ended: { tone: 'neutral', icon: 'clock' },
     used_up: { tone: 'warn', icon: 'warning' },
   },
+  eventReport: {
+    open: { tone: 'warn', icon: 'warning' },
+    dismissed: { tone: 'neutral', icon: 'close' },
+    actioned: { tone: 'ok', icon: 'check' },
+  },
+  adminUser: {
+    active: { tone: 'ok', icon: 'check' },
+    suspended: { tone: 'danger', icon: 'warning' },
+  },
+  adminEvent: {
+    draft: { tone: 'dark', icon: 'settings' },
+    published: { tone: 'ok', icon: 'check' },
+    cancelled: { tone: 'danger', icon: 'close' },
+    suspended: { tone: 'danger', icon: 'warning' },
+  },
+  adminPayment: {
+    succeeded: { tone: 'ok', icon: 'check' },
+    failed: { tone: 'danger', icon: 'warning' },
+  },
   // Figma: "В работе" is blue
   support: {
     open: { tone: 'warn', icon: 'chat' },

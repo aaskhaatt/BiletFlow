@@ -6,8 +6,8 @@ import {
 } from '@/api/generated/endpoints/orders/orders'
 
 /** GET /events/{id}/check-in/stats: tickets registered and checked in so far. */
-export function useCheckInStats(eventId: number) {
-  return useCheckInCheckInStats(eventId)
+export function useCheckInStats(eventId: number, enabled = true) {
+  return useCheckInCheckInStats(eventId, { query: { enabled } })
 }
 
 /**

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { CurrentUserResponse, SupportCaseSummary } from '@/api/generated/model'
 import { routes } from '@/app/routes'
 import i18n from '@/i18n'
+import { mockAdmin } from '@/test/admin-fixtures'
 import { apiUrl, server } from '@/test/msw-server'
 import { mockOrganizerApi } from '@/test/organizer-fixtures'
 import { renderRoutes } from '@/test/render'
@@ -178,6 +179,7 @@ describe('support badge in the sidebar', () => {
 
   it('is left out of the admin area, which does not ask for the inbox', async () => {
     const asked = mockInbox('open')
+    mockAdmin()
     await signIn({ ...attendee, is_platform_admin: true })
     const { container, queryClient } = renderRoutes(routes, { route: '/admin' })
     const menu = await screen.findByRole('navigation', { name: 'Администрирование' })
