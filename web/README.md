@@ -86,7 +86,9 @@ Another schema address: `OPENAPI_URL=https://.../openapi.json npm run api:gen`.
 
 **Unit and component tests**: `npm test`. Vitest with Testing Library; the API is mocked with MSW (`src/test/msw-server.ts`), and a request without a mock fails the test. Test files sit next to the code: `something.test.ts(x)`.
 
-**End-to-end tests**: `npm run e2e`. Playwright opens the app in headless Chrome. It starts the dev server itself (or uses the one already on 5173), but the backend with demo data must already be running. To use Playwright's own Chromium instead of Chrome, run `npx playwright install chromium` and remove the `channel` line in `playwright.config.ts`.
+**End-to-end tests**: `npm run e2e`. Playwright starts the dev server or reuses the one already on 5173. Some tests use the real API, so start the backend first. Local runs use Chrome. GitHub Actions uses Playwright Chromium.
+
+The live session test registers a user. Run it with `BILETFLOW_E2E_LIVE_AUTH=1` against a disposable database with SMTP disabled. The web session workflow supplies this database in CI. Set `PLAYWRIGHT_PORT` and `VITE_API_URL` to test on separate ports, and add the test frontend's origin to the backend's `CORS_ORIGINS`.
 
 ## Rules of the codebase
 

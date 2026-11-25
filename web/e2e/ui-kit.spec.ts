@@ -110,7 +110,29 @@ test('mobile navigation, table, chart data, and skip link remain usable', async 
     .getByRole('navigation', { name: 'Attendee navigation' })
     .getByRole('link', { name: 'Tickets' })
     .click()
-  await expect(page).toHaveURL(/\/my\/tickets$/)
+  await expect(page).toHaveURL((url) => {
+    return url.pathname === '/login' && url.searchParams.get('returnTo') === '/my/tickets'
+  })
+
+  const headers = { 'Access-Control-Allow-Origin': '*' }
+  await page.route(`${API_URL}/auth/refresh`, (route) =>
+    route.fulfill({
+      headers,
+      json: { access_token: 'test-access', refresh_token: 'test-refresh', token_type: 'bearer' },
+    }),
+  )
+  await page.route(`${API_URL}/auth/me`, (route) =>
+    route.fulfill({
+      headers,
+      json: {
+        email_verified: true,
+        is_platform_admin: true,
+        organizer: { id: 10, user_id: 1, status: 'approved' },
+      },
+    }),
+  )
+  await page.evaluate(() => localStorage.setItem('biletflow.refresh-token', 'saved-refresh'))
+
   await page.goto('/organizer/support')
   await expect(
     page.getByRole('navigation', { name: 'Organizer' }).getByRole('link', { name: 'Support' }),
