@@ -148,6 +148,9 @@ function OrderDetails({ order, refresh }: { order: OrderResponse; refresh: () =>
             <dd className="font-semibold">{formatKZT(order.total_amount)}</dd>
           </div>
         </dl>
+        <Button variant="link" asChild className="px-0">
+          <Link to={`/support/new?order_id=${order.id}`}>{t('supportCases.contact')}</Link>
+        </Button>
         {statusText && (
           <InlineAlert tone={status === 'confirmed' ? 'ok' : 'warn'} role="status">
             {statusText}

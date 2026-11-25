@@ -13,6 +13,11 @@ beforeEach(() => {
   server.use(
     http.get(apiUrl('/events'), () => HttpResponse.json({ items: [], total: 0 })),
     http.get(apiUrl('/events/me'), () => HttpResponse.json([])),
+    http.get(apiUrl('/support/cases/me'), () => HttpResponse.json([])),
+    http.get(apiUrl('/support/cases/inbox'), () => HttpResponse.json([])),
+    http.get(apiUrl('/support/cases/5'), () =>
+      HttpResponse.json({ error: 'SupportCaseNotFoundError' }, { status: 404 }),
+    ),
     http.get(apiUrl('/events/categories'), () => HttpResponse.json([])),
     http.get(apiUrl('/events/3'), () =>
       HttpResponse.json(
@@ -105,6 +110,8 @@ const pages: [address: string, page: string][] = [
   ['/organizer/campaigns/4', 'organizer-campaign'],
   ['/organizer/analytics', 'organizer-analytics'],
   ['/organizer/support', 'organizer-support-inbox'],
+  ['/organizer/support/new', 'organizer-new-support-case'],
+  ['/organizer/support/mine', 'organizer-my-support-cases'],
   ['/organizer/profile', 'organizer-profile'],
   ['/admin', 'admin-moderation'],
   ['/admin/reports', 'admin-reports'],

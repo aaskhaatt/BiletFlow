@@ -132,9 +132,19 @@ export const routes: RouteObject[] = [
                   Component: (await import('@/pages/attendee/OrderHistoryPage')).MyOrdersPage,
                 }),
               },
-              { path: 'support', ...stub('my-support-cases') },
-              { path: 'support/new', ...stub('new-support-case') },
-              { path: 'support/:caseId', ...stub('support-case') },
+              {
+                path: 'support',
+                lazy: async () => ({
+                  Component: (await import('@/pages/support/MySupportCasesPage'))
+                    .MySupportCasesPage,
+                }),
+              },
+              {
+                path: 'support/new',
+                lazy: async () => ({
+                  Component: (await import('@/pages/support/SupportCaseForm')).NewSupportCasePage,
+                }),
+              },
               {
                 path: 'become-organizer',
                 lazy: async () => ({
@@ -144,6 +154,13 @@ export const routes: RouteObject[] = [
             ],
           },
         ],
+      },
+
+      {
+        path: 'support/:caseId',
+        lazy: async () => ({
+          Component: (await import('@/pages/support/SupportCasePage')).default,
+        }),
       },
 
       // Organizer
@@ -215,7 +232,24 @@ export const routes: RouteObject[] = [
               Component: (await import('@/pages/organizer/OrganizerAnalyticsPage')).default,
             }),
           },
-          { path: 'support', ...stub('organizer-support-inbox') },
+          {
+            path: 'support',
+            lazy: async () => ({
+              Component: (await import('@/pages/support/SupportInboxPage')).default,
+            }),
+          },
+          {
+            path: 'support/new',
+            lazy: async () => ({
+              Component: (await import('@/pages/support/SupportCaseForm')).NewPlatformCasePage,
+            }),
+          },
+          {
+            path: 'support/mine',
+            lazy: async () => ({
+              Component: (await import('@/pages/support/MySupportCasesPage')).MyPlatformCasesPage,
+            }),
+          },
           {
             path: 'profile',
             lazy: async () => ({
@@ -241,7 +275,13 @@ export const routes: RouteObject[] = [
           { path: 'payments', ...stub('admin-payments') },
           { path: 'refunds', ...stub('admin-refunds') },
           { path: 'campaigns', ...stub('admin-campaigns') },
-          { path: 'support', ...stub('admin-support-inbox') },
+          {
+            path: 'support',
+            lazy: async () => {
+              const { default: SupportInboxPage } = await import('@/pages/support/SupportInboxPage')
+              return { Component: () => <SupportInboxPage admin /> }
+            },
+          },
           { path: 'settings', ...stub('admin-settings') },
         ],
       },
