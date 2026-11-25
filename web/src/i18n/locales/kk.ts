@@ -64,6 +64,16 @@ export const kk: Messages = {
       accessLink: 'Сілтеме арқылы',
       accessLinkText: 'Каталогта көрінбейді, тек тікелей сілтеме арқылы ашылады',
     },
+    statusBadges: {
+      title: 'Мәртебе белгілері',
+      ticket: 'Билеттер',
+      order: 'Тапсырыстар',
+      event: 'Іс-шаралар',
+      paidSales: 'Ақылы сатылымдар',
+      support: 'Қолдау қызметіне өтініштер',
+      compact: 'Шағын белгі',
+      unknown: 'Белгісіз мәртебе',
+    },
   },
   notFound: {
     title: 'Бет табылмады',
@@ -81,6 +91,40 @@ export const kk: Messages = {
   },
   time: {
     astanaZone: 'Астана уақыты (UTC+5)',
+  },
+  status: {
+    ticket: {
+      valid: 'Жарамды',
+      checked_in: 'Кіруде белгіленді',
+      cancelled: 'Бас тартылды',
+      refunded: 'Қайтарылды',
+    },
+    order: {
+      pending: 'Төлем күтілуде',
+      confirmed: 'Расталды',
+      cancelled: 'Бас тартылды',
+      refunded: 'Қайтарылды',
+      expired: 'Уақыты өтті',
+    },
+    event: {
+      draft: 'Жоба',
+      upcoming: 'Алда',
+      active: 'Қазір өтіп жатыр',
+      completed: 'Аяқталды',
+      cancelled: 'Бас тартылды',
+    },
+    paidSales: {
+      not_started: 'Қосылмаған',
+      pending: 'Қосылу жүріп жатыр',
+      active: 'Белсенді',
+      suspended: 'Тоқтатылған',
+    },
+    support: {
+      open: 'Ашық',
+      in_progress: 'Жұмыста',
+      waiting_for_customer: 'Клиентті күтуде',
+      resolved: 'Шешілді',
+    },
   },
   errors: {
     // 400

@@ -145,6 +145,16 @@ export const ru = {
       accessLink: 'По ссылке',
       accessLinkText: 'Не попадает в каталог, открывается только по прямой ссылке',
     },
+    statusBadges: {
+      title: 'Бейджи статусов',
+      ticket: 'Билеты',
+      order: 'Заказы',
+      event: 'События',
+      paidSales: 'Платные продажи',
+      support: 'Обращения в поддержку',
+      compact: 'Компактный бейдж',
+      unknown: 'Неизвестный статус',
+    },
   },
   notFound: {
     title: 'Страница не найдена',
@@ -162,6 +172,41 @@ export const ru = {
   },
   time: {
     astanaZone: 'Время Астаны (UTC+5)',
+  },
+  // StatusBadge: the key is the status as the API sends it
+  status: {
+    ticket: {
+      valid: 'Действителен',
+      checked_in: 'Отмечен на входе',
+      cancelled: 'Отменён',
+      refunded: 'Возвращён',
+    },
+    order: {
+      pending: 'Ожидает оплаты',
+      confirmed: 'Подтверждён',
+      cancelled: 'Отменён',
+      refunded: 'Возвращён',
+      expired: 'Время вышло',
+    },
+    event: {
+      draft: 'Черновик',
+      upcoming: 'Предстоит',
+      active: 'Идёт сейчас',
+      completed: 'Завершено',
+      cancelled: 'Отменено',
+    },
+    paidSales: {
+      not_started: 'Не подключены',
+      pending: 'Идёт подключение',
+      active: 'Активны',
+      suspended: 'Приостановлены',
+    },
+    support: {
+      open: 'Открыто',
+      in_progress: 'В работе',
+      waiting_for_customer: 'Ожидает клиента',
+      resolved: 'Решено',
+    },
   },
   errors,
 }

@@ -9,6 +9,7 @@ import ControlsSection from '@/pages/dev/ControlsSection'
 import FieldsSection from '@/pages/dev/FieldsSection'
 import IconsSection from '@/pages/dev/IconsSection'
 import PrimitivesSection from '@/pages/dev/PrimitivesSection'
+import StatusBadgesSection from '@/pages/dev/StatusBadgesSection'
 
 // The generated client talking to the real API
 function EventsSample() {
@@ -167,6 +168,8 @@ export default function DevUiPage() {
       <FieldsSection />
 
       <ControlsSection />
+
+      <StatusBadgesSection />
 
       <PrimitivesSection />
     </main>

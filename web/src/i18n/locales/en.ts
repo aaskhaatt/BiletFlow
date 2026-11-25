@@ -60,6 +60,16 @@ export const en: Messages = {
       accessLink: 'By link',
       accessLinkText: 'Not in the catalog, opens only from a direct link',
     },
+    statusBadges: {
+      title: 'Status badges',
+      ticket: 'Tickets',
+      order: 'Orders',
+      event: 'Events',
+      paidSales: 'Paid sales',
+      support: 'Support cases',
+      compact: 'Compact badge',
+      unknown: 'Unknown status',
+    },
   },
   notFound: {
     title: 'Page not found',
@@ -77,6 +87,40 @@ export const en: Messages = {
   },
   time: {
     astanaZone: 'Astana time (UTC+5)',
+  },
+  status: {
+    ticket: {
+      valid: 'Valid',
+      checked_in: 'Checked in',
+      cancelled: 'Cancelled',
+      refunded: 'Refunded',
+    },
+    order: {
+      pending: 'Awaiting payment',
+      confirmed: 'Confirmed',
+      cancelled: 'Cancelled',
+      refunded: 'Refunded',
+      expired: 'Expired',
+    },
+    event: {
+      draft: 'Draft',
+      upcoming: 'Upcoming',
+      active: 'Happening now',
+      completed: 'Completed',
+      cancelled: 'Cancelled',
+    },
+    paidSales: {
+      not_started: 'Not set up',
+      pending: 'Setting up',
+      active: 'Active',
+      suspended: 'Suspended',
+    },
+    support: {
+      open: 'Open',
+      in_progress: 'In progress',
+      waiting_for_customer: 'Waiting for customer',
+      resolved: 'Resolved',
+    },
   },
   errors: {
     // 400
