@@ -116,7 +116,7 @@ backend/
 **Data.**
 - Money is an **integer number of KZT** (no floats, no decimals).
 - All datetimes are timezone-aware: `DateTime(timezone=True)`, created with `datetime.now(timezone.utc)`.
-- Statuses are plain strings. Event: `draft` / `published` / `cancelled`. Organizer profile: `pending` / `approved`. Order: `pending` (F5) / `confirmed` / `cancelled` / `refunded` / `expired` (F5). Ticket: `valid` / `checked_in` / `cancelled` / `refunded`.
+- Statuses are plain strings. Event: `draft` / `published` / `cancelled`. Organizer profile: `pending` / `approved` / `rejected`. Order: `pending` (F5) / `confirmed` / `cancelled` / `refunded` / `expired` (F5). Ticket: `valid` / `checked_in` / `cancelled` / `refunded`.
 - **Inventory** changes only through the atomic reserve queries (`reserve_ticket_type_inventory`, `reserve_event_capacity`): one `UPDATE ... WHERE sold + n <= limit RETURNING`. Never check availability in Python and then write, because that double-sells under concurrency.
 - Orders copy `unit_price`, `buyer_name` and `buyer_email` at purchase time (snapshots), so later edits never rewrite history.
 - **User emails are lowercase.** `NormalizedEmail` in `schemas/user.py` lowercases input, `get_user_by_email` matches case-insensitively, and the unique index `ux_users_email_lower` on `lower(email)` is the final guarantee. Use `NormalizedEmail` for any new request field that holds a user's email.
@@ -225,6 +225,14 @@ Done:
   - SRS gaps closed after a line-by-line check: `GET /events/{id}/orders` (organizer: orders with payment reference and refund details, `status`/`q`/paging); `attendee_names` per order item (stored on `order_items` until tickets are issued); `GET /events/{id}/manage` (preview a draft); `refunded` and `checked_in` per ticket type in `/sales`; `absent` in analytics; platform admins can read event history; the Campaign QR PNG has an orange frame and a "NOT AN ENTRY TICKET" caption.
 - Case-insensitive emails: `Ann@x.com` and `ann@x.com` are one account (register, login, staff assignment, order snapshots). Simultaneous sign-ups with the same address give one 201 and 409s instead of a 500.
 - Final audit fixes (the whole backend checked against SRS v0.3): CSV exports put a `'` before cells starting with `=`, `+`, `-`, `@` (formula injection); suspended events are refused by the atomic reservation itself and at payment (409 `OrderNotPayableError`); `GET /admin/campaigns` shows promo-code activity across events (paged, CSV); every email is in Kazakh, Russian and English (`services/email_templates.py`; Kazakh first; have a native speaker check the texts); the Docker Compose API reaches storage as `storage:9000`; database backups and recovery.
+- Integration fixes (the web team's questions, `tests/e2e/test_integration_fixes.py`):
+  - State guards: unpublish refuses events with sold or held tickets (409 `EventHasTicketsError`); an ended event can't be cancelled (409 `EventAlreadyEndedError`); a free registration can't be cancelled after a ticket was scanned or the event ended; a cancelled event and its ticket types can't be changed (409 `InvalidEventStatusError`).
+  - `events.published_at` (first publish) and `cancelled_at`, backfilled from the audit log. A once-public cancelled event keeps its public page and ticket-type list (nothing on sale); one cancelled before publishing stays 404.
+  - Ticket-type lists add `available`, `max_now`, `on_sale`, `unavailable_reason` (`_with_availability` in `ticket_type_service.py`, the same rules as ordering).
+  - Every event has `organizer_name` (`display_name`, else `legal_name`); `GET /events` items add `min_price` and `tickets_remaining`; orders carry an `event` summary; `GET /events/me/summary` gives tickets sold, revenue and paid-sales status per event.
+  - `checked_in_by` (staff email, from `check_in_records`) on the attendee list and scanner tickets.
+  - Organizers: optional `display_name` on apply, `PATCH /organizers/me`; admins `GET /admin/organizers` and `POST /admin/organizers/{user_id}/reject` `{reason}`; a rejected user applies again to go back to pending.
+  - `history` (status changes, assignments) on `GET /support/cases/{id}`, read from the audit log; `POST /auth/change-password` (other devices signed out, new tokens returned); `GET /admin/audit-log` (paged, CSV).
 
 Roadmap (build in this order; each feature must work end to end before the next):
 
@@ -258,3 +266,5 @@ Known issues / polish later:
 - Analytics money is per order, so the ticket-type filter doesn't split gross or discounts (a discount covers the whole order). Documented in `schemas/analytics.py`.
 - Client-facing auth and permission rules are documented in `docs/auth-and-roles.md`. Update it when permissions change.
 - `users.email_verified_at` is recorded but not enforced. Decision: attendees don't have to verify before ordering.
+- Suspending an organizer's account doesn't stop their events (they keep selling and scanning); admins suspend the events separately.
+- Rejecting an organizer sends no email yet (needs a new template agreed with Dev B); the applicant sees the reason in `/auth/me`.

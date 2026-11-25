@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import select, update, func, or_
-from models import Ticket, TicketType, Order, CheckInRecord
+from sqlalchemy import select, update, func, or_, case
+from models import Ticket, TicketType, Order, CheckInRecord, User
 
 
 
@@ -45,7 +45,7 @@ def _ticket_details():
     return (
         select(
             Ticket.id, Ticket.code, Ticket.event_id, Ticket.attendee_name, Ticket.status, Ticket.checked_in_at,
-            TicketType.name.label("ticket_type_name"),
+            TicketType.name.label("ticket_type_name"), _checked_in_by(),
         )
         .join(TicketType, Ticket.ticket_type_id == TicketType.id)
     )
@@ -79,3 +79,13 @@ def get_ticket_status_counts(event_id: int, db: Session) -> dict[str, int]:
     stmt = select(Ticket.status, func.count()).where(Ticket.event_id == event_id).group_by(Ticket.status)
 
     return {status: count for status, count in db.execute(stmt).all()}
+
+
+def _checked_in_by():
+    # the email of whoever made the latest check-in of this ticket; only meaningful while it's checked in
+    latest = (select(User.email)
+              .join(CheckInRecord, CheckInRecord.staff_user_id == User.id)
+              .where(CheckInRecord.ticket_id == Ticket.id, CheckInRecord.action == "check_in")
+              .order_by(CheckInRecord.id.desc()).limit(1)
+              .correlate(Ticket).scalar_subquery())
+    return case((Ticket.status == "checked_in", latest), else_=None).label("checked_in_by")

@@ -2,12 +2,34 @@ import re
 from pydantic import ConfigDict, BaseModel, Field, field_validator
 from datetime import datetime
 
+DisplayName = Field(default=None, min_length=2, max_length=100)
+
+
 class OrganizerResponse(BaseModel):
     model_config = ConfigDict(from_attributes = True)
 
     id: int
     user_id: int
-    status: str
+    status: str                         # pending / approved / rejected
+    display_name: str | None = None
+    # why an admin rejected the application; cleared when the user applies again
+    rejection_reason: str | None = None
+
+
+class OrganizerApplyRequest(BaseModel):
+    # optional: the name attendees will see on event pages (can be set later with PATCH /organizers/me)
+    display_name: str | None = DisplayName
+
+    model_config = ConfigDict(json_schema_extra={"examples": [{"display_name": "Almaty Jazz Club"}]})
+
+
+class OrganizerUpdateRequest(BaseModel):
+    # null clears it; event pages then show the verified legal name
+    display_name: str | None = DisplayName
+
+
+class OrganizerRejectRequest(BaseModel):
+    reason: str = Field(min_length=3, max_length=500)
 
 
 class IdentityVerificationRequest(BaseModel):
@@ -55,6 +77,8 @@ class OrganizerProfileResponse(BaseModel):
     id: int
     user_id: int
     status: str
+    display_name: str | None
+    rejection_reason: str | None
     legal_name: str | None
     contact_phone: str | None
     identity_verified_at: datetime | None

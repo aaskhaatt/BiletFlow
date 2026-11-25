@@ -47,6 +47,21 @@ class TicketResponse(BaseModel):
     checked_in_at: datetime | None
 
 
+class OrderEventSummary(BaseModel):
+    # enough to show an order or ticket without another request, even after the event is cancelled or suspended
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    start_time: datetime
+    end_time: datetime
+    venue_name: str | None
+    venue_address: str | None
+    status: str
+    image_url: str | None
+    cancelled_at: datetime | None
+
+
 class OrderResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -67,6 +82,7 @@ class OrderResponse(BaseModel):
     refunded_at: datetime | None
     items: list[OrderItemResponse]
     tickets: list[TicketResponse]
+    event: OrderEventSummary
 
 
 class AttendeeResponse(BaseModel):
@@ -79,6 +95,9 @@ class AttendeeResponse(BaseModel):
     order_id: int
     buyer_email: str
     created_at: datetime
+    # when and by whom (staff email) the ticket was scanned in; null unless status is checked_in
+    checked_in_at: datetime | None = None
+    checked_in_by: str | None = None
 
 
 class PayOrderRequest(BaseModel):

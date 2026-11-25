@@ -71,7 +71,11 @@ ERRORS = {
     PromoCodeNotActiveError: (409, "Promo Code Is Not Active"),
     PromoCodeUsedUpError: (409, "Promo Code Has Been Used Up"),
     PromoCodeNotApplicableError: (409, "Promo Code Does Not Apply To These Tickets"),
-    CampaignLinkNotFoundError: (404, "Campaign Link Not Found")
+    CampaignLinkNotFoundError: (404, "Campaign Link Not Found"),
+    EventHasTicketsError: (409, "Event Has Sold Or Held Tickets: Cancel It Instead"),
+    EventAlreadyEndedError: (409, "Event Has Already Ended"),
+    CurrentPasswordIncorrectError: (400, "Current Password Is Incorrect"),
+    InvalidOrganizerStatusError: (409, "Organizer Application Is Not Pending")
 }
 
 # 401s about the access token tell the client how to authenticate, as the OAuth2 standard asks

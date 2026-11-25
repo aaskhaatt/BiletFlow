@@ -1,3 +1,4 @@
+from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from schemas.partial import reject_nulls
 from datetime import datetime
@@ -44,3 +45,14 @@ class TicketTypeResponse(BaseModel):
     is_hidden: bool
     max_per_order: int
     sold_count: int
+
+
+class TicketTypeWithAvailability(TicketTypeResponse):
+    # worked out by the server with the same rules as ordering, so the page can show it before anyone orders.
+    # Seats held by checkouts still being paid count as taken; they come back if the checkout expires.
+    available: int                # tickets left of this type, capped by what's left of the event's capacity
+    max_now: int                  # how many one order may take right now (0 when it can't be bought)
+    on_sale: bool
+    # why it can't be bought now, null when on_sale is true
+    unavailable_reason: Literal["registration_closed", "hidden", "not_started", "ended", "paid_sales_inactive",
+                                "sold_out"] | None

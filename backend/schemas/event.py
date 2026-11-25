@@ -66,11 +66,21 @@ class EventResponse(BaseModel):
     suspension_reason: str | None = None
     # draft / upcoming / active (between start and end) / completed / cancelled, worked out on every read
     lifecycle: str
+    # the name attendees see: the organizer's display name, else their verified legal name; null if neither is set
+    organizer_name: str | None = None
+    published_at: datetime | None = None
+    cancelled_at: datetime | None = None
+
+
+class EventListItem(EventResponse):
+    # for catalogue cards, so the list needs no extra request per event
+    min_price: int | None = None          # cheapest visible ticket type; null = no ticket types yet
+    tickets_remaining: int | None = None  # left across visible types, capped by the event capacity; null = no ticket types
 
 
 class EventPage(BaseModel):
     # one page of GET /events; total counts every matching event, not just this page
-    items: list[EventResponse]
+    items: list[EventListItem]
     total: int
 
 
@@ -79,3 +89,18 @@ class EventDuplicate(BaseModel):
     # shift by the same amount, so "same concert, one month later" needs only the new start.
     title: str | None = Field(default=None, min_length=1, max_length=200)
     start_time: datetime | None = None
+
+
+class OrganizerEventSummary(BaseModel):
+    # one row of the organizer's home page: GET /events/me/summary
+    event_id: int
+    title: str
+    status: str
+    lifecycle: str
+    start_time: datetime
+    end_time: datetime
+    image_url: str | None
+    capacity: int | None
+    tickets_sold: int             # valid tickets issued (used or not)
+    revenue: int                  # what attendees paid on orders that stay paid, after discounts (KZT)
+    paid_sales_status: str        # not_started | pending | active | suspended
