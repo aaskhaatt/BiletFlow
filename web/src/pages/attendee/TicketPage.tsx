@@ -35,6 +35,9 @@ function TicketRoute({ id }: { id: number }) {
           <Button variant="link" asChild className="px-0">
             <Link to={`/orders/${order.id}`}>{t('attendee.orderTitle', { id: order.id })}</Link>
           </Button>
+          <Button variant="link" asChild className="px-0">
+            <Link to={`/support/new?ticket_id=${id}`}>{t('supportCases.contact')}</Link>
+          </Button>
         </>
       ) : orders.isPending ? (
         <p role="status">{t('common.loading')}</p>

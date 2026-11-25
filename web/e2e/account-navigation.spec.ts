@@ -27,6 +27,7 @@ test('offers sign-in to a visitor without fetching an authenticated profile', as
   })
   await page.goto('/')
   await expect(page.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login')
+  await expect(page.getByRole('link', { name: 'My support cases' })).toHaveCount(0)
   await expect(page.getByRole('navigation', { name: 'Account navigation' })).toHaveCount(0)
   expect(profileRequests).toBe(0)
 })
@@ -79,7 +80,13 @@ for (const { name, profile, links } of roles) {
     await expect(page.getByRole('link', { name: 'Sign in' })).toHaveCount(0)
     await expect(
       page.getByRole('navigation', { name: 'Attendee navigation' }).getByRole('link'),
-    ).toHaveText(mobile ? ['Events', 'Tickets', 'Orders'] : ['Catalog', 'My orders'])
+    ).toHaveText(
+      mobile ? ['Events', 'Tickets', 'Orders'] : ['Catalog', 'My orders', 'My support cases'],
+    )
+    await expect(page.getByRole('link', { name: 'My support cases' })).toHaveAttribute(
+      'href',
+      '/support',
+    )
     if (mobile) {
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
         360,

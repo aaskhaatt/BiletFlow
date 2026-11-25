@@ -1,4 +1,5 @@
 import { cn } from 'cn'
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, NavLink, Outlet, useMatch } from 'react-router'
 import AccountNavigation from '@/app/layouts/AccountNavigation'
@@ -14,12 +15,13 @@ const attendeeLinks = [
   { to: '/my/orders', message: 'nav.orders', Icon: UserIcon },
 ] as const
 
-export default function PublicLayout() {
+export default function PublicLayout({ children }: { children?: ReactNode }) {
   const { t } = useTranslation()
   const { status } = useSession()
   const report = useMatch('/events/:eventId/report') !== null
   const eventDetails = useMatch('/events/:eventId') !== null || report
   const catalog = useMatch('/') !== null
+  const supportScreen = useMatch('/support/*') !== null
   const publicEvents = catalog || eventDetails
   const wide = useViewerDesktop() && publicEvents
 
@@ -28,7 +30,7 @@ export default function PublicLayout() {
       className={cn(
         'min-h-dvh',
         publicEvents && 'flex flex-col',
-        !eventDetails && (catalog ? 'pb-20 min-[1024px]:pb-0' : 'pb-20 md:pb-0'),
+        !supportScreen && !eventDetails && (catalog ? 'pb-20 min-[1024px]:pb-0' : 'pb-20 md:pb-0'),
       )}
       data-slot="public-layout"
     >
@@ -37,6 +39,7 @@ export default function PublicLayout() {
           'border-b border-line',
           publicEvents ? 'bg-paper' : 'bg-surface',
           report && 'hidden min-[1024px]:block',
+          supportScreen && 'hidden md:block',
         )}
       >
         <div
@@ -68,6 +71,11 @@ export default function PublicLayout() {
               <NavLink to="/my/orders" className="py-2 hover:text-brand">
                 {t('catalog.ordersNav')}
               </NavLink>
+              {status === 'authenticated' && (
+                <NavLink to="/support" className="py-2 hover:text-brand">
+                  {t('supportCases.myCases')}
+                </NavLink>
+              )}
             </nav>
           ) : (
             <nav
@@ -96,14 +104,26 @@ export default function PublicLayout() {
               ))}
             </nav>
           )}
+          {!wide && status === 'authenticated' && (
+            <NavLink
+              to="/support"
+              className="inline-flex min-h-11 items-center rounded-sm px-2 type-label text-brand hover:bg-line-soft"
+            >
+              {t('supportCases.myCases')}
+            </NavLink>
+          )}
           <LanguageSwitcher />
           <AccountNavigation showSignIn desktopViewer={wide} />
         </div>
       </header>
       <EmailVerificationBanner
-        className={cn('mx-auto mt-3 max-w-6xl px-4', report && 'hidden min-[1024px]:block')}
+        className={cn(
+          'mx-auto mt-3 max-w-6xl px-4',
+          report && 'hidden min-[1024px]:block',
+          supportScreen && 'hidden md:block',
+        )}
       />
-      <Outlet />
+      {children ?? <Outlet />}
     </div>
   )
 }

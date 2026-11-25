@@ -1,13 +1,30 @@
-// Our names for the support calls. Components import these, never the generated
-// hooks (see events.ts for why).
-import { useSupportGetSupportInbox } from '@/api/generated/endpoints/support/support'
-import type { SupportCaseSummary, SupportGetSupportInboxParams } from '@/api/generated/model'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { adminSearchUsers } from '@/api/generated/endpoints/admin/admin'
+import { eventsGetEvent, getEventsGetEventQueryKey } from '@/api/generated/endpoints/events/events'
+import {
+  supportAddSupportMessage,
+  supportAssignSupportCase,
+  supportChangeSupportStatus,
+  supportGetMySupportCases,
+  supportGetSupportCase,
+  supportGetSupportInbox,
+  supportOpenSupportCase,
+} from '@/api/generated/endpoints/support/support'
+import type {
+  SupportCaseSummary,
+  SupportCaseCreate,
+  SupportGetSupportInboxParams,
+  SupportStatusUpdateStatus,
+} from '@/api/generated/model'
+import { useSession } from '@/auth/session-store'
 
-/**
- * The statuses of a case that still waits for its handler: new ("open") and
- * taken into work ("in_progress"). "waiting_for_customer" waits for the other
- * side and "resolved" is done, so neither counts.
- */
+const SUPPORT_POLL_MS = 10_000
+const LOOKUP_STALE_MS = 5 * 60_000
+const supportKey = (generation: number) => ['support-cases', generation] as const
+const listsKey = (generation: number) => [...supportKey(generation), 'lists'] as const
+const detailKey = (generation: number, id: number) => [...supportKey(generation), id] as const
+
+/** Cases that still wait for their handler. Preserve the organizer sidebar count. */
 const OPEN_STATUSES: ReadonlySet<string> = new Set(['open', 'in_progress'])
 
 export function isOpenSupportCase(supportCase: SupportCaseSummary) {
@@ -18,23 +35,98 @@ export function countOpenSupportCases(cases: SupportCaseSummary[]) {
   return cases.filter(isOpenSupportCase).length
 }
 
-/**
- * GET /support/cases/inbox: the cases the signed-in organizer handles (an admin
- * gets all of them), without their messages. The answer is a plain list, not paged.
- */
-export function useSupportInbox(params?: SupportGetSupportInboxParams) {
-  return useSupportGetSupportInbox(params)
+export function useSupportInbox(params?: SupportGetSupportInboxParams, enabled = true) {
+  const { generation } = useSession()
+  return useQuery({
+    queryKey: [...listsKey(generation), 'inbox', params],
+    queryFn: ({ signal }) => supportGetSupportInbox(params, { signal }),
+    enabled,
+  })
 }
 
-/**
- * How many cases wait for the organizer: the number on "Поддержка" in the
- * sidebar. undefined until the inbox has loaded (and when it can't be read), so
- * the sidebar then shows no number instead of a wrong one. Shares the inbox
- * request with useSupportInbox().
- */
 export function useOpenSupportCaseCount({ enabled = true }: { enabled?: boolean } = {}) {
-  const { data } = useSupportGetSupportInbox(undefined, {
-    query: { enabled, select: countOpenSupportCases },
+  const { data } = useSupportInbox(undefined, enabled)
+  return data && countOpenSupportCases(data)
+}
+
+export function useMySupportCases() {
+  const { generation } = useSession()
+  return useQuery({
+    queryKey: [...listsKey(generation), 'mine'],
+    queryFn: ({ signal }) => supportGetMySupportCases({ signal }),
   })
-  return data
+}
+
+export function useSupportCase(id: number, enabled: boolean) {
+  const { generation } = useSession()
+  return useQuery({
+    queryKey: detailKey(generation, id),
+    queryFn: ({ signal }) => supportGetSupportCase(id, { signal }),
+    enabled,
+    refetchInterval: SUPPORT_POLL_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: 'always',
+  })
+}
+
+export function useOpenSupportCase() {
+  const client = useQueryClient()
+  const { generation } = useSession()
+  return useMutation({
+    mutationFn: (data: SupportCaseCreate) => supportOpenSupportCase(data),
+    onSuccess: () => client.invalidateQueries({ queryKey: listsKey(generation) }),
+    networkMode: 'always',
+  })
+}
+
+export function useSupportCaseActions(id: number) {
+  const client = useQueryClient()
+  const { generation } = useSession()
+
+  function refresh() {
+    return Promise.all([
+      client.invalidateQueries({ queryKey: listsKey(generation) }),
+      client.invalidateQueries({ queryKey: detailKey(generation, id) }),
+    ])
+  }
+
+  const send = useMutation({
+    mutationFn: (body: string) => supportAddSupportMessage(id, { body }),
+    onSuccess: refresh,
+    networkMode: 'always',
+  })
+  const status = useMutation({
+    mutationFn: (status: SupportStatusUpdateStatus) => supportChangeSupportStatus(id, { status }),
+    onSuccess: refresh,
+    networkMode: 'always',
+  })
+  const assignee = useMutation({
+    mutationFn: (userId: number | null) => supportAssignSupportCase(id, { user_id: userId }),
+    onSuccess: refresh,
+    networkMode: 'always',
+  })
+  return { send, status, assignee }
+}
+
+export function useSupportEventLabel(id: number) {
+  return useQuery({
+    queryKey: getEventsGetEventQueryKey(id),
+    queryFn: ({ signal }) => eventsGetEvent(id, { signal }),
+    staleTime: LOOKUP_STALE_MS,
+    retry: false,
+  })
+}
+
+export function useSupportUserEmail(id: number, enabled: boolean) {
+  const { generation } = useSession()
+  return useQuery({
+    queryKey: ['support-user-email', generation, id],
+    queryFn: async ({ signal }) => {
+      const users = await adminSearchUsers({ q: String(id) }, { signal })
+      return users.items.find((user) => user.id === id)?.email ?? null
+    },
+    enabled,
+    staleTime: LOOKUP_STALE_MS,
+    retry: false,
+  })
 }

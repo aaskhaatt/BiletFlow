@@ -1,4 +1,4 @@
-import { Fragment } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Outlet, useLocation } from 'react-router'
 import { useOpenSupportCaseCount } from '@/api/hooks/support'
@@ -37,6 +37,7 @@ type Workspace = 'organizer' | 'admin'
  * itself, except that the pages of one event (/organizer/events/...) belong to "События".
  */
 function isCurrent(pathname: string, to: string): boolean {
+  if (to.endsWith('/support') && pathname.startsWith('/support/')) return true
   if (to === '/organizer') return pathname === to || pathname.startsWith('/organizer/events')
   if (to === '/admin') return pathname === to
   return pathname === to || pathname.startsWith(`${to}/`)
@@ -117,7 +118,13 @@ function OrganizerCard() {
   )
 }
 
-export default function WorkspaceLayout({ area }: { area: Workspace }) {
+export default function WorkspaceLayout({
+  area,
+  children,
+}: {
+  area: Workspace
+  children?: ReactNode
+}) {
   const { t } = useTranslation()
   const supportCount = useOpenSupportCaseCount({ enabled: area === 'organizer' })
 
@@ -152,7 +159,7 @@ export default function WorkspaceLayout({ area }: { area: Workspace }) {
           <LanguageSwitcher />
         </header>
         <EmailVerificationBanner className="mx-auto mt-3 max-w-6xl px-4" />
-        <Outlet />
+        {children ?? <Outlet />}
       </div>
     </div>
   )

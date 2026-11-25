@@ -42,8 +42,8 @@ function useRefreshEvents() {
 }
 
 /** GET /events/me: my events with their details. Optional filter by lifecycle. */
-export function useMyEvents(params?: EventsGetMyEventsParams) {
-  return useEventsGetMyEvents(params)
+export function useMyEvents(params?: EventsGetMyEventsParams, enabled = true) {
+  return useEventsGetMyEvents(params, { query: { enabled } })
 }
 
 /** GET /events/me/summary: tickets sold, revenue and paid-sales status per event. */
