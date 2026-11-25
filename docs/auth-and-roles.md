@@ -1,6 +1,6 @@
 # BiletFlow: authentication, roles and permissions
 
-Reference for client implementers, including coding agents. It describes how the backend behaves as of commit `67770a3` (2026-11-12) and was checked against a running server. The backend code is the source of truth; file paths are given so you can verify.
+Reference for client implementers, including coding agents. It was first written against commit `67770a3` (2026-11-12) and checked against a running server, then updated on 2026-11-25 for Phase 2 (`GET /auth/me`, email verification and password reset, suspensions, support cases, admin tools). The backend code is the source of truth; file paths are given so you can verify.
 
 Summary: a login gives a JWT that identifies the **user only**. The server works out every role on each request from database rows, so roles are never in the token. One user can hold several roles at once.
 
@@ -18,7 +18,7 @@ Summary: a login gives a JWT that identifies the **user only**. The server works
 | Sent as | `Authorization: Bearer <access_token>` |
 | Revocable | No. It stays valid until `exp`, even after logout. |
 
-The client may base64url-decode the payload, without verifying the signature, to read `sub` (the user id) and `exp`. This is the only way to get your own user id after login, because there's no "current user" endpoint.
+To learn who is logged in and which roles they have, call `GET /auth/me` right after login. The client may also base64url-decode the payload, without verifying the signature, to read `exp` (when to refresh) and `sub` (the user id).
 
 ### Refresh token
 
