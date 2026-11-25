@@ -191,9 +191,24 @@ export const routes: RouteObject[] = [
               Component: (await import('@/pages/organizer/EventPreviewPage')).default,
             }),
           },
-          { path: 'campaigns', ...stub('organizer-campaigns') },
-          { path: 'campaigns/new', ...stub('organizer-campaign-new') },
-          { path: 'campaigns/:campaignId', ...stub('organizer-campaign') },
+          {
+            path: 'campaigns',
+            lazy: async () => ({
+              Component: (await import('@/pages/organizer/CampaignsPage')).default,
+            }),
+          },
+          {
+            path: 'campaigns/new',
+            lazy: async () => ({
+              Component: (await import('@/pages/organizer/CampaignFormPage')).NewCampaignPage,
+            }),
+          },
+          {
+            path: 'campaigns/:campaignId',
+            lazy: async () => ({
+              Component: (await import('@/pages/organizer/CampaignFormPage')).EditCampaignPage,
+            }),
+          },
           { path: 'analytics', ...stub('organizer-analytics') },
           { path: 'support', ...stub('organizer-support-inbox') },
           {

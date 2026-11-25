@@ -74,6 +74,15 @@ export const STATUS_BADGES = {
     registration_closed: { tone: 'neutral', icon: 'close' },
     unpublished: { tone: 'neutral', icon: 'pin' },
   },
+  // A promo campaign, worked out from `is_active`, its dates and its use limit
+  // (campaignStatus in pages/organizer/campaign-values.ts)
+  campaign: {
+    active: { tone: 'ok', icon: 'check' },
+    scheduled: { tone: 'info', icon: 'calendar' },
+    inactive: { tone: 'neutral', icon: 'settings' },
+    ended: { tone: 'neutral', icon: 'clock' },
+    used_up: { tone: 'warn', icon: 'warning' },
+  },
   // Figma: "В работе" is blue
   support: {
     open: { tone: 'warn', icon: 'chat' },
