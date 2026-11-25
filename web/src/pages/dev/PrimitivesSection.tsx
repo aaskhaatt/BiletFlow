@@ -1,6 +1,5 @@
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogClose,
@@ -11,14 +10,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 // The shadcn/ui primitives of W1.14 in our tokens. W2 turns them into the full UI kit.
@@ -26,22 +17,6 @@ export default function PrimitivesSection() {
   return (
     <section className="space-y-6" data-testid="primitives">
       <h2 className="type-card-title">Primitives</h2>
-
-      <div className="flex items-center gap-3">
-        <Checkbox id="dev-terms" />
-        <Label htmlFor="dev-terms">Согласен с условиями</Label>
-      </div>
-
-      <Select>
-        <SelectTrigger className="w-64" aria-label="Категория">
-          <SelectValue placeholder="Категория" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="concert">Концерт</SelectItem>
-          <SelectItem value="lecture">Лекция</SelectItem>
-          <SelectItem value="sport">Спорт</SelectItem>
-        </SelectContent>
-      </Select>
 
       <Tabs defaultValue="upcoming" className="max-w-md">
         <TabsList>
