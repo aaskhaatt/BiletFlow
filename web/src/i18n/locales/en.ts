@@ -322,6 +322,16 @@ export const en: Messages = {
     quantity: 'Quantity for {{name}}',
     checkoutEmpty: 'Choose available tickets on the event page.',
     backToEvent: 'Back to the event',
+    // The page of a cancelled event: a notice with the cancellation day
+    cancelled: {
+      title: 'Event cancelled',
+      description:
+        'The organizer cancelled this event on {{date}}. Paid orders were refunded automatically, free registrations were cancelled and tickets are no longer valid.',
+      descriptionNoDate:
+        'The organizer cancelled this event. Paid orders were refunded automatically, free registrations were cancelled and tickets are no longer valid.',
+      ticketStatus: 'Sales closed',
+      browse: 'Browse other events',
+    },
   },
   reportEvent: {
     cancelDialog: 'Cancel',

@@ -327,6 +327,16 @@ export const kk: Messages = {
     quantity: '«{{name}}» билеттерінің саны',
     checkoutEmpty: 'Іс-шара бетінен қолжетімді билеттерді таңдаңыз.',
     backToEvent: 'Іс-шараға оралу',
+    // The page of a cancelled event: a notice with the cancellation day
+    cancelled: {
+      title: 'Іс-шара жойылды',
+      description:
+        'Ұйымдастырушы іс-шараны {{date}} күні жойды. Төленген тапсырыстар автоматты түрде қайтарылды, тегін тіркелулер жойылды, билеттер жарамсыз.',
+      descriptionNoDate:
+        'Ұйымдастырушы іс-шараны жойды. Төленген тапсырыстар автоматты түрде қайтарылды, тегін тіркелулер жойылды, билеттер жарамсыз.',
+      ticketStatus: 'Сату жабық',
+      browse: 'Басқа іс-шараларды қарау',
+    },
   },
   reportEvent: {
     cancelDialog: 'Бас тарту',

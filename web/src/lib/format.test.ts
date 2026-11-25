@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatEventTime, formatKZT } from '@/lib/format'
+import { formatEventDay, formatEventTime, formatKZT } from '@/lib/format'
 
 const NBSP = ' '
 
@@ -47,5 +47,18 @@ describe('formatEventTime', () => {
     expect(formatEventTime('2026-11-30T19:30:00Z', { language: 'kk', withZone: true })).toMatch(
       /00:30 · Астана уақыты \(UTC\+5\)$/,
     )
+  })
+})
+
+describe('formatEventDay', () => {
+  it('names the day in each language, without the year', () => {
+    expect(formatEventDay('2026-10-20T12:00:00+05:00', 'ru')).toBe('20 октября')
+    expect(formatEventDay('2026-10-20T12:00:00+05:00', 'kk')).toBe('20 қазан')
+    expect(formatEventDay('2026-10-20T12:00:00+05:00', 'en')).toBe('20 October')
+  })
+
+  it('uses the day in Astana, not in UTC', () => {
+    // 22:30 UTC on 19 October is 03:30 on 20 October in Astana
+    expect(formatEventDay('2026-10-19T22:30:00Z', 'ru')).toBe('20 октября')
   })
 })

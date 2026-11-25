@@ -67,7 +67,7 @@ const tokens = {
 
 test.use({ locale: 'en-US' })
 
-async function mockEvent(page: Page, detail = event, types: object[] = [ticket]) {
+async function mockEvent(page: Page, detail: object = event, types: object[] = [ticket]) {
   await page.route(`${api}/events/${event.id}`, (route) => route.fulfill({ headers, json: detail }))
   await page.route(`${api}/events/${event.id}/ticket-types`, (route) =>
     route.fulfill({ headers, json: types }),
@@ -176,6 +176,66 @@ test('closed registration disables checkout inside the desktop tickets panel', a
   await expect(panel).toHaveCSS('top', '24px')
   await expect(panel.locator('[data-slot="event-checkout-bar"]')).toHaveCSS('position', 'static')
   await expect(page.getByRole('link', { name: 'Report this event' })).toBeVisible()
+})
+
+test('a cancelled event shows the notice and closed tickets, at 360px and on desktop', async ({
+  page,
+}) => {
+  const cancelled = {
+    ...event,
+    status: 'cancelled',
+    lifecycle: 'cancelled',
+    cancelled_at: hours(-72),
+  }
+  const closed = {
+    ...ticket,
+    available: 0,
+    max_now: 0,
+    on_sale: false,
+    unavailable_reason: 'ended',
+  }
+  await mockEvent(page, cancelled, [closed])
+
+  for (const width of [360, 1440]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto(`/events/${event.id}`)
+    const notice = page.locator('[data-slot="event-cancelled-notice"]')
+    await expect(notice).toContainText('Event cancelled')
+    await expect(notice).toContainText('The organizer cancelled this event on')
+    await expect(page.getByRole('heading', { level: 1, name: event.title })).toBeVisible()
+    await expect(page.locator('[data-slot="status-badge"]')).toHaveText('Cancelled')
+    await expect(page.getByText('Sales closed', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Continue to checkout' })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Browse other events' })).toHaveAttribute(
+      'href',
+      '/',
+    )
+    await expect(page.getByRole('link', { name: 'My orders' }).last()).toHaveAttribute(
+      'href',
+      '/my/orders',
+    )
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      width,
+    )
+    const a11y = await new AxeBuilder({ page }).analyze()
+    expect(
+      a11y.violations.filter(({ impact }) => impact === 'serious' || impact === 'critical'),
+    ).toEqual([])
+  }
+})
+
+test('a cancelled event that the server no longer shows still says "not found"', async ({
+  page,
+}) => {
+  await page.route(`${api}/events/${event.id}`, (route) =>
+    route.fulfill({
+      headers,
+      status: 404,
+      json: { error: 'EventNotFoundError', message: 'Event Not Found', fields: null },
+    }),
+  )
+  await page.goto(`/events/${event.id}`)
+  await expect(page.getByRole('heading', { name: 'Event not found' })).toBeVisible()
 })
 
 test('desktop catalog switches from one column to three and filters whole Astana days', async ({
