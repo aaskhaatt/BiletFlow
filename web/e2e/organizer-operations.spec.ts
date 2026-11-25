@@ -3,7 +3,6 @@ import { expect, test, type APIRequestContext, type APIResponse } from '@playwri
 
 const api = (process.env.VITE_API_URL || 'http://localhost:8000').replace(/\/+$/, '')
 const seedOrganizer = 'organizer@demo.example.com'
-const staffEmail = 'staff@demo.example.com'
 
 async function json<T>(response: APIResponse): Promise<T> {
   expect(response.ok(), `${response.status()} from ${new URL(response.url()).pathname}`).toBe(true)
@@ -54,13 +53,16 @@ test('organizer manages check-in, refunds a paid order, and the ticket is reject
   const buyerEmail = `w8-buyer-${randomUUID()}@example.com`
   const buyerPassword = randomUUID()
   const buyerName = 'Operations test attendee'
-  await json(
-    await request.post(`${api}/auth/register`, {
-      data: { email: buyerEmail, password: buyerPassword },
-    }),
-  )
-  const buyer = await auth(request, buyerEmail, buyerPassword)
-  const staff = await auth(request, staffEmail, password)
+  const staffEmail = `w8-staff-${randomUUID()}@example.com`
+  const staffPassword = randomUUID()
+  const register = async (email: string, password: string) => {
+    await json(await request.post(`${api}/auth/register`, { data: { email, password } }))
+    return auth(request, email, password)
+  }
+  const [buyer, staff] = await Promise.all([
+    register(buyerEmail, buyerPassword),
+    register(staffEmail, staffPassword),
+  ])
   const owner = await auth(request, seedOrganizer, password)
   const paid = await eventAndType(request, 'Astana Jazz Night', 'paid')
   const free = await eventAndType(request, 'Almaty Tech Meetup', 'free')
@@ -158,7 +160,9 @@ test('organizer manages check-in, refunds a paid order, and the ticket is reject
   expect((await scan(owner)).result).toBe('refunded')
 
   await page.getByRole('link', { name: 'Refunds', exact: true }).click()
-  await expect(page.getByRole('row').filter({ hasText: `#${confirmed.id}` })).toContainText(
+  await expect(page).toHaveURL(/\/refunds(?:\?|$)/)
+  const refunds = page.getByRole('table', { name: 'Refunds', exact: true })
+  await expect(refunds.getByRole('row').filter({ hasText: `#${confirmed.id}` })).toContainText(
     'Refund requested by the attendee',
   )
   const orderDownload = page.waitForEvent('download')
