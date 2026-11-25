@@ -472,7 +472,10 @@ export default function EventForm({ event, notice }: { event?: EventResponse; no
           {event ? (
             <>
               <TicketTypesCard event={event} />
-              <PaidSalesCard eventId={event.id} />
+              <PaidSalesCard
+                eventId={event.id}
+                locked={event.status === 'cancelled' || event.lifecycle === 'completed'}
+              />
             </>
           ) : (
             <section className="space-y-2 rounded-lg border border-line bg-surface p-5">

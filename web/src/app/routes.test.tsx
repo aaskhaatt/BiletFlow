@@ -28,6 +28,19 @@ beforeEach(() => {
     http.get(apiUrl('/orders/12'), () =>
       HttpResponse.json({ error: 'OrderNotFoundError' }, { status: 404 }),
     ),
+    http.get(apiUrl('/organizers/me'), () =>
+      HttpResponse.json({
+        id: 10,
+        user_id: 1,
+        status: 'approved',
+        display_name: null,
+        rejection_reason: null,
+        legal_name: null,
+        contact_phone: null,
+        identity_verified_at: null,
+        payout_account: null,
+      }),
+    ),
     http.get(apiUrl('/campaign-links/C-abc'), () =>
       HttpResponse.json({ event_id: 3, promo_code: null }),
     ),
