@@ -19,7 +19,8 @@ const live = eventOf({ id: 1, title: 'Jazz night' })
 
 async function openEvent(id = 1) {
   const result = renderRoutes(routes, { route: `/organizer/events/${id}` })
-  await screen.findByRole('heading', { level: 1, name: /\S/ })
+  // The first render loads the lazy route and its event data on the CI runner.
+  await screen.findByRole('heading', { level: 1, name: /\S/ }, { timeout: 3_000 })
   return result
 }
 
