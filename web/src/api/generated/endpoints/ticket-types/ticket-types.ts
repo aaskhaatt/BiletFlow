@@ -25,6 +25,7 @@ import type {
   TicketTypeCreate,
   TicketTypeResponse,
   TicketTypeUpdate,
+  TicketTypeWithAvailability,
 } from '../../model'
 
 import { apiFetch } from '../../../http'
@@ -184,8 +185,8 @@ export const getTicketTypesGetTicketTypesByEventIdUrl = (eventId: number) => {
 export const ticketTypesGetTicketTypesByEventId = async (
   eventId: number,
   options?: Parameters<typeof apiFetch>[1],
-): Promise<TicketTypeResponse[]> => {
-  return apiFetch<TicketTypeResponse[]>(getTicketTypesGetTicketTypesByEventIdUrl(eventId), {
+): Promise<TicketTypeWithAvailability[]> => {
+  return apiFetch<TicketTypeWithAvailability[]>(getTicketTypesGetTicketTypesByEventIdUrl(eventId), {
     ...options,
     method: 'GET',
   })
@@ -323,11 +324,14 @@ export const getTicketTypesGetTicketTypesForOrganizerUrl = (eventId: number) => 
 export const ticketTypesGetTicketTypesForOrganizer = async (
   eventId: number,
   options?: Parameters<typeof apiFetch>[1],
-): Promise<TicketTypeResponse[]> => {
-  return apiFetch<TicketTypeResponse[]>(getTicketTypesGetTicketTypesForOrganizerUrl(eventId), {
-    ...options,
-    method: 'GET',
-  })
+): Promise<TicketTypeWithAvailability[]> => {
+  return apiFetch<TicketTypeWithAvailability[]>(
+    getTicketTypesGetTicketTypesForOrganizerUrl(eventId),
+    {
+      ...options,
+      method: 'GET',
+    },
+  )
 }
 
 export const getTicketTypesGetTicketTypesForOrganizerQueryKey = (eventId: number) => {

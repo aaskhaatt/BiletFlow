@@ -10,6 +10,8 @@ export interface OrganizerProfileResponse {
   id: number
   user_id: number
   status: string
+  display_name: string | null
+  rejection_reason: string | null
   legal_name: string | null
   contact_phone: string | null
   identity_verified_at: string | null

@@ -90,7 +90,7 @@ export const routes: RouteObject[] = [
               {
                 path: 'become-organizer',
                 lazy: async () => ({
-                  Component: (await import('@/auth/route-guards')).BecomeOrganizerPage,
+                  Component: (await import('@/pages/BecomeOrganizerPage')).default,
                 }),
               },
             ],

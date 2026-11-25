@@ -43,6 +43,11 @@ export default function AccountNavigation({ showSignIn = false }: { showSignIn?:
           {t('nav.organizerPending')}
         </p>
       )}
+      {roles?.organizerStatus === 'rejected' && (
+        <NavLink to="/become-organizer" className={linkClassName}>
+          {t('nav.organizerRejected')}
+        </NavLink>
+      )}
       {roles?.organizerStatus === 'approved' && (
         <NavLink to="/organizer" end className={linkClassName}>
           {t('nav.organizer')}

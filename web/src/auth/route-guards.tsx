@@ -112,7 +112,10 @@ function RequireWorkspace({
       />
     )
   }
-  if (organizerStatus === 'none') return <Navigate replace to="/become-organizer" />
+  // No application yet, or a rejected one: that page has the form (and the reason).
+  if (organizerStatus === 'none' || organizerStatus === 'rejected') {
+    return <Navigate replace to="/become-organizer" />
+  }
   if (organizerStatus !== 'approved') {
     // Keep the deep link so the workspace can open when the profile reports approval.
     return <AccessPage id="organizer-pending" title={t('nav.organizerPending')} />
@@ -126,9 +129,4 @@ export function RequireOrganizer({ children }: { children: ReactNode }) {
 
 export function RequireAdmin({ children }: { children: ReactNode }) {
   return <RequireWorkspace area="admin">{children}</RequireWorkspace>
-}
-
-export function BecomeOrganizerPage() {
-  const { t } = useTranslation()
-  return <AccessPage id="become-organizer" title={t('nav.becomeOrganizer')} />
 }

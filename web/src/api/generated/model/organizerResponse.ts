@@ -9,4 +9,6 @@ export interface OrganizerResponse {
   id: number
   user_id: number
   status: string
+  display_name?: string | null
+  rejection_reason?: string | null
 }

@@ -23,8 +23,10 @@ import type {
 import type {
   HTTPValidationError,
   IdentityVerificationRequest,
+  OrganizerApplyRequest,
   OrganizerProfileResponse,
   OrganizerResponse,
+  OrganizerUpdateRequest,
   PayoutAccountRequest,
 } from '../../model'
 
@@ -91,11 +93,14 @@ export const getOrganizersApplyForOrganizerUrl = () => {
  * @summary Apply For Organizer
  */
 export const organizersApplyForOrganizer = async (
+  organizerApplyRequestNull?: OrganizerApplyRequest | null,
   options?: Parameters<typeof apiFetch>[1],
 ): Promise<OrganizerResponse> => {
   return apiFetch<OrganizerResponse>(getOrganizersApplyForOrganizerUrl(), {
     ...options,
     method: 'POST',
+    headers: getHeaders({ 'Content-Type': 'application/json' }, options?.headers),
+    body: JSON.stringify(organizerApplyRequestNull),
   })
 }
 
@@ -103,20 +108,20 @@ export const getOrganizersApplyForOrganizerMutationKey = () =>
   ['organizersApplyForOrganizer'] as const
 
 export const getOrganizersApplyForOrganizerMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<HTTPValidationError>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof organizersApplyForOrganizer>>,
     TError,
-    void,
+    OrganizersApplyForOrganizerMutationVariables,
     TContext
   >
   request?: SecondParameter<typeof apiFetch>
 }): UseMutationOptions<
   Awaited<ReturnType<typeof organizersApplyForOrganizer>>,
   TError,
-  void,
+  OrganizersApplyForOrganizerMutationVariables,
   TContext
 > => {
   const mutationKey = getOrganizersApplyForOrganizerMutationKey()
@@ -128,9 +133,11 @@ export const getOrganizersApplyForOrganizerMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof organizersApplyForOrganizer>>,
-    void
-  > = () => {
-    return organizersApplyForOrganizer(requestOptions)
+    OrganizersApplyForOrganizerMutationVariables
+  > = (props) => {
+    const { data } = props ?? {}
+
+    return organizersApplyForOrganizer(data, requestOptions)
   }
 
   return { mutationFn, ...mutationOptions }
@@ -139,16 +146,20 @@ export const getOrganizersApplyForOrganizerMutationOptions = <
 export type OrganizersApplyForOrganizerMutationResult = NonNullable<
   Awaited<ReturnType<typeof organizersApplyForOrganizer>>
 >
-
-export type OrganizersApplyForOrganizerMutationError = ErrorType<unknown>
+export type OrganizersApplyForOrganizerMutationBody = OrganizerApplyRequest | null | undefined
+export type OrganizersApplyForOrganizerMutationError = ErrorType<HTTPValidationError>
+export type OrganizersApplyForOrganizerMutationVariables = { data?: OrganizerApplyRequest | null }
 
 /** @summary Apply For Organizer */
-export const useOrganizersApplyForOrganizer = <TError = ErrorType<unknown>, TContext = unknown>(
+export const useOrganizersApplyForOrganizer = <
+  TError = ErrorType<HTTPValidationError>,
+  TContext = unknown,
+>(
   options?: {
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof organizersApplyForOrganizer>>,
       TError,
-      void,
+      OrganizersApplyForOrganizerMutationVariables,
       TContext
     >
     request?: SecondParameter<typeof apiFetch>
@@ -157,7 +168,7 @@ export const useOrganizersApplyForOrganizer = <TError = ErrorType<unknown>, TCon
 ): UseMutationResult<
   Awaited<ReturnType<typeof organizersApplyForOrganizer>>,
   TError,
-  void,
+  OrganizersApplyForOrganizerMutationVariables,
   TContext
 > => {
   return useMutation(getOrganizersApplyForOrganizerMutationOptions(options), queryClient)
@@ -374,6 +385,94 @@ export function useOrganizersGetMyOrganizerProfile<
   return withQueryKey(query, queryOptions.queryKey)
 }
 
+export const getOrganizersUpdateMyOrganizerProfileUrl = () => {
+  return `/organizers/me`
+}
+
+/**
+ * @summary Update My Organizer Profile
+ */
+export const organizersUpdateMyOrganizerProfile = async (
+  organizerUpdateRequest: OrganizerUpdateRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<OrganizerProfileResponse> => {
+  return apiFetch<OrganizerProfileResponse>(getOrganizersUpdateMyOrganizerProfileUrl(), {
+    ...options,
+    method: 'PATCH',
+    headers: getHeaders({ 'Content-Type': 'application/json' }, options?.headers),
+    body: JSON.stringify(organizerUpdateRequest),
+  })
+}
+
+export const getOrganizersUpdateMyOrganizerProfileMutationKey = () =>
+  ['organizersUpdateMyOrganizerProfile'] as const
+
+export const getOrganizersUpdateMyOrganizerProfileMutationOptions = <
+  TError = ErrorType<HTTPValidationError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof organizersUpdateMyOrganizerProfile>>,
+    TError,
+    OrganizersUpdateMyOrganizerProfileMutationVariables,
+    TContext
+  >
+  request?: SecondParameter<typeof apiFetch>
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof organizersUpdateMyOrganizerProfile>>,
+  TError,
+  OrganizersUpdateMyOrganizerProfileMutationVariables,
+  TContext
+> => {
+  const mutationKey = getOrganizersUpdateMyOrganizerProfileMutationKey()
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined }
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof organizersUpdateMyOrganizerProfile>>,
+    OrganizersUpdateMyOrganizerProfileMutationVariables
+  > = (props) => {
+    const { data } = props ?? {}
+
+    return organizersUpdateMyOrganizerProfile(data, requestOptions)
+  }
+
+  return { mutationFn, ...mutationOptions }
+}
+
+export type OrganizersUpdateMyOrganizerProfileMutationResult = NonNullable<
+  Awaited<ReturnType<typeof organizersUpdateMyOrganizerProfile>>
+>
+export type OrganizersUpdateMyOrganizerProfileMutationBody = OrganizerUpdateRequest
+export type OrganizersUpdateMyOrganizerProfileMutationError = ErrorType<HTTPValidationError>
+export type OrganizersUpdateMyOrganizerProfileMutationVariables = { data: OrganizerUpdateRequest }
+
+/** @summary Update My Organizer Profile */
+export const useOrganizersUpdateMyOrganizerProfile = <
+  TError = ErrorType<HTTPValidationError>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof organizersUpdateMyOrganizerProfile>>,
+      TError,
+      OrganizersUpdateMyOrganizerProfileMutationVariables,
+      TContext
+    >
+    request?: SecondParameter<typeof apiFetch>
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof organizersUpdateMyOrganizerProfile>>,
+  TError,
+  OrganizersUpdateMyOrganizerProfileMutationVariables,
+  TContext
+> => {
+  return useMutation(getOrganizersUpdateMyOrganizerProfileMutationOptions(options), queryClient)
+}
 export const getOrganizersVerifyIdentityUrl = () => {
   return `/organizers/me/verification`
 }

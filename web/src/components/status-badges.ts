@@ -55,6 +55,13 @@ export const STATUS_BADGES = {
     active: { tone: 'ok', icon: 'check' },
     suspended: { tone: 'danger', icon: 'warning' },
   },
+  // The organizer's application (`organizer.status` of GET /auth/me). Figma:
+  // "Статус / На рассмотрении" is the yellow pill. "Отклонена" has no frame yet.
+  organizerApplication: {
+    pending: { tone: 'warn', icon: 'clock' },
+    approved: { tone: 'ok', icon: 'check' },
+    rejected: { tone: 'danger', icon: 'close' },
+  },
   // Figma: "В работе" is blue
   support: {
     open: { tone: 'warn', icon: 'chat' },

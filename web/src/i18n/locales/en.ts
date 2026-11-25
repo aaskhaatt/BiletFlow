@@ -68,6 +68,7 @@ export const en: Messages = {
       order: 'Orders',
       event: 'Events',
       paidSales: 'Paid sales',
+      organizerApplication: 'Organizer application',
       support: 'Support cases',
       compact: 'Compact badge',
       unknown: 'Unknown status',
@@ -129,6 +130,7 @@ export const en: Messages = {
     account: 'Account navigation',
     becomeOrganizer: 'Become an organizer',
     organizerPending: 'Organizer approval pending',
+    organizerRejected: 'Organizer application rejected',
     organizer: 'Organizer',
     admin: 'Platform administration',
     events: 'Events',
@@ -233,6 +235,44 @@ export const en: Messages = {
   validation: {
     invalid: 'Check this field',
   },
+  organizerApplication: {
+    title: 'Become an organizer',
+    intro:
+      'Create events in Astana, issue free and paid tickets with a QR code, and check them at the entrance.',
+    benefits: {
+      tickets: 'Free registration and paid tickets',
+      promo: 'Promo codes and QR campaigns for posters',
+      analytics: 'Sales and attendance analytics',
+      staff: 'Event Admin to check tickets at the entrance',
+    },
+    howItWorks:
+      'A platform administrator reviews your application. You can create events once it is approved.',
+    displayName: {
+      label: 'Public name (optional)',
+      hint: 'Attendees see this name as the organizer on event pages. You can change it later in your profile.',
+      length: 'Between 2 and 100 characters.',
+    },
+    submit: 'Apply',
+    resubmit: 'Apply again',
+    pending: {
+      title: 'Application under review',
+      description:
+        'Your application is sent. A platform administrator will review it and open the organizer workspace.',
+      note: 'Meanwhile you can buy tickets as an attendee. The status updates on this page.',
+      toCatalog: 'Go to the catalog',
+    },
+    rejected: {
+      title: 'Application rejected',
+      description:
+        'A platform administrator did not approve your application. You can apply again: it goes back to review.',
+      reason: 'Reason',
+    },
+    approved: {
+      title: 'Application approved',
+      description: 'The organizer workspace is open: you can create events.',
+      open: 'Open the organizer workspace',
+    },
+  },
   money: {
     free: 'Free',
   },
@@ -268,6 +308,11 @@ export const en: Messages = {
       pending: 'Setting up',
       active: 'Active',
       suspended: 'Suspended',
+    },
+    organizerApplication: {
+      pending: 'Under review',
+      approved: 'Approved',
+      rejected: 'Rejected',
     },
     support: {
       open: 'Open',
