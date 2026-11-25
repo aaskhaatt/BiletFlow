@@ -52,7 +52,7 @@ function PasswordRecoveryPage({ mode }: { mode: Mode }) {
       } else if (mode.token) {
         await resetPassword(mode.token, new_password)
         // The backend revokes refresh tokens. Clear the session even if the user left this route.
-        if (sessionStore.getSnapshot().generation === generation) sessionStore.logout()
+        if (sessionStore.getSnapshot().generation === generation) sessionStore.clearSession()
         if (!signal.aborted) {
           await navigate(loginUrl, { replace: true, state: { passwordReset: true } })
         }

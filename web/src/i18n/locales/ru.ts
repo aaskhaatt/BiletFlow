@@ -209,6 +209,7 @@ export const ru = {
     skip: 'К содержимому',
     public: 'Публичная часть',
     signIn: 'Войти',
+    signOut: 'Выйти',
     attendee: 'Навигация зрителя',
     account: 'Навигация аккаунта',
     becomeOrganizer: 'Стать организатором',
@@ -265,6 +266,7 @@ export const ru = {
     text: 'Обновите страницу. Если ошибка повторится, напишите в поддержку.',
   },
   auth: {
+    signOutUnconfirmed: 'Вы вышли на этом устройстве. Сервер не смог подтвердить выход.',
     backToLogin: 'Вернуться ко входу',
     continueToEvents: 'К списку событий',
     verifyEmail: {

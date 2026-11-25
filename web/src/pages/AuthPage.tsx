@@ -7,7 +7,7 @@ import { isApiError } from '@/api/errors'
 import type { UserLogin } from '@/api/generated/model'
 import AccountLayout from '@/app/layouts/AccountLayout'
 import { safeReturnTo } from '@/auth/return-to'
-import { registerAccount, sessionStore } from '@/auth/session-store'
+import { registerAccount, sessionStore, useSession } from '@/auth/session-store'
 import { isValidEmail } from '@/auth/validation'
 import InlineAlert from '@/components/InlineAlert'
 import TextField from '@/components/TextField'
@@ -21,6 +21,7 @@ function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const [searchParams] = useSearchParams()
   const location = useLocation()
   const navigate = useNavigate()
+  const { status } = useSession()
   const registration = mode === 'register'
   const returnTo = safeReturnTo(searchParams.get('returnTo'))
   const returnSearch = returnTo ? `?${new URLSearchParams({ returnTo })}` : ''
@@ -35,6 +36,9 @@ function AuthPage({ mode }: { mode: 'login' | 'register' }) {
     setError,
     formState: { errors, isSubmitting },
   } = useForm<UserLogin>({ defaultValues: { email: registeredEmail, password: '' } })
+  const suspended = !registration && status === 'suspended'
+  const formError =
+    errors.root?.server?.message ?? (suspended ? t('errors.UserSuspendedError') : undefined)
 
   useEffect(() => () => pending.current?.abort(), [])
 
@@ -150,9 +154,9 @@ function AuthPage({ mode }: { mode: 'login' | 'register' }) {
             </Link>
           )}
         </div>
-        {errors.root?.server?.message && (
+        {formError && (
           <InlineAlert tone="danger" role="alert">
-            {errors.root.server.message}
+            {formError}
           </InlineAlert>
         )}
         <Button type="submit" loading={isSubmitting} className="h-[3.25rem] w-full text-base">

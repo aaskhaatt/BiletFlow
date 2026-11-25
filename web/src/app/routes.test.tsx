@@ -67,7 +67,7 @@ const publicPages = new Set([
 
 describe('routes', () => {
   beforeEach(() => {
-    sessionStore.logout()
+    sessionStore.clearSession()
     setRequestSession(sessionStore)
   })
 

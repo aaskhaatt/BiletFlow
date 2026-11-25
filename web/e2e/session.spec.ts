@@ -111,3 +111,35 @@ test('returns to login with the original URL after a refreshed request still get
   expect(eventTokens.at(-1)).toBe('Bearer access-2')
   expect(await page.evaluate((key) => localStorage.getItem(key), storageKey)).toBeNull()
 })
+
+test('signs out and explains a suspension received by the profile request', async ({ page }) => {
+  await page.route(`${api}/auth/refresh`, (route) => route.fulfill({ headers, json: tokens(1) }))
+  await page.route(`${api}/auth/me`, (route) =>
+    route.fulfill({
+      headers,
+      status: 403,
+      json: { error: 'UserSuspendedError', message: 'Internal suspension reason' },
+    }),
+  )
+
+  await page.goto('/organizer/support')
+  await expect(page.getByRole('alert')).toHaveText('This account is suspended.')
+  await expect(page).toHaveURL((url) => {
+    return url.pathname === '/login' && url.searchParams.get('returnTo') === '/organizer/support'
+  })
+  await expect(page.locator('[data-slot="organizer-layout"]')).toHaveCount(0)
+  expect(await page.evaluate((key) => localStorage.getItem(key), storageKey)).toBeNull()
+})
+
+test('signs out locally and reports unconfirmed revocation when offline', async ({ page }) => {
+  await page.route(`${api}/auth/refresh`, (route) => route.fulfill({ headers, json: tokens(1) }))
+  await page.route(`${api}/auth/logout`, (route) => route.abort('internetdisconnected'))
+
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Sign out' }).click()
+  await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible()
+  await expect(
+    page.getByText('Signed out on this device. The server could not confirm the sign-out.'),
+  ).toBeVisible()
+  expect(await page.evaluate((key) => localStorage.getItem(key), storageKey)).toBeNull()
+})

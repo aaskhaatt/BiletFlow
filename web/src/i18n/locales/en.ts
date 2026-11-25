@@ -124,6 +124,7 @@ export const en: Messages = {
     skip: 'Skip to content',
     public: 'Public layout',
     signIn: 'Sign in',
+    signOut: 'Sign out',
     attendee: 'Attendee navigation',
     account: 'Account navigation',
     becomeOrganizer: 'Become an organizer',
@@ -180,6 +181,7 @@ export const en: Messages = {
     text: 'Reload the page. If it happens again, contact support.',
   },
   auth: {
+    signOutUnconfirmed: 'Signed out on this device. The server could not confirm the sign-out.',
     backToLogin: 'Back to sign in',
     continueToEvents: 'Back to events',
     verifyEmail: {

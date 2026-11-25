@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { createBrowserRouter, RouterProvider } from 'react-router'
+import { createBrowserRouter, matchPath, RouterProvider } from 'react-router'
 import { toast } from 'sonner'
 import { setRequestSession } from '@/api/access-token'
 import { isApiError } from '@/api/errors'
@@ -21,10 +21,13 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (status !== 'expired') return
+    if (status !== 'expired' && status !== 'suspended') return
     const { pathname, search, hash } = router.state.navigation.location ?? router.state.location
     const loginPath = loginPathFor(pathname + search + hash)
     if (loginPath) void router.navigate(loginPath, { replace: true })
+    else if (status === 'suspended' && !matchPath('/login', pathname)) {
+      void router.navigate('/login', { replace: true })
+    }
   }, [status])
 
   useEffect(() => {

@@ -10,6 +10,7 @@ export type RequestSession = {
   getCredentials: () => RequestCredentials
   refresh: () => Promise<string | null>
   expire: () => void
+  suspend: () => void
 }
 
 const REFRESH_MARGIN_MS = 60_000

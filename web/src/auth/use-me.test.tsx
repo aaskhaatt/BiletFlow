@@ -31,7 +31,7 @@ function CurrentProfile() {
 }
 
 afterEach(() => {
-  sessionStore.logout()
+  sessionStore.clearSession()
   setRequestSession(null)
 })
 

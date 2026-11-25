@@ -128,6 +128,7 @@ export const kk: Messages = {
     skip: 'Мазмұнға өту',
     public: 'Ашық бөлім',
     signIn: 'Кіру',
+    signOut: 'Шығу',
     attendee: 'Көрермен мәзірі',
     account: 'Аккаунт мәзірі',
     becomeOrganizer: 'Ұйымдастырушы болу',
@@ -184,6 +185,7 @@ export const kk: Messages = {
     text: 'Бетті жаңартыңыз. Қате қайталанса, қолдау қызметіне жазыңыз.',
   },
   auth: {
+    signOutUnconfirmed: 'Осы құрылғыдағы аккаунттан шықтыңыз. Сервер шығуды растай алмады.',
     backToLogin: 'Кіру бетіне оралу',
     continueToEvents: 'Іс-шаралар тізіміне оралу',
     verifyEmail: {

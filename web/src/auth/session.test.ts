@@ -17,6 +17,10 @@ function unauthorized(error = 'InvalidTokenError') {
   return HttpResponse.json({ error, message: 'Unauthorized' }, { status: 401 })
 }
 
+function suspended() {
+  return HttpResponse.json({ error: 'UserSuspendedError', message: 'Suspended' }, { status: 403 })
+}
+
 function defer() {
   let resolve!: () => void
   const promise = new Promise<void>((done) => {
@@ -59,7 +63,7 @@ it('logs in with JSON, sends a Bearer token, and clears both credentials on loca
   expect(Object.values({ ...localStorage })).not.toContain('access-old')
   await expect(apiFetch('/auth/me')).resolves.toEqual({ authorization: 'Bearer access-old' })
 
-  session.logout()
+  session.clearSession()
   expect(session.getCredentials()).toMatchObject({ accessToken: null, canRefresh: false })
   expect(localStorage.getItem(storageKey)).toBeNull()
   await expect(apiFetch('/auth/me')).resolves.toEqual({ authorization: null })
@@ -267,7 +271,7 @@ it('discards a delayed refresh after local logout', async () => {
 
   const pending = session.refresh()
   await refreshStarted.promise
-  session.logout()
+  session.clearSession()
   releaseRefresh.resolve()
 
   await expect(pending).resolves.toBeNull()
@@ -299,4 +303,108 @@ it('does not replay an old account request with another account’s credentials'
   expect(refresh).not.toHaveBeenCalled()
   expect(events).toHaveBeenCalledTimes(1)
   expect(localStorage.getItem(storageKey)).toBe('refresh-other')
+})
+
+it.each(['/events', '/auth/me'])('ends the browser session on suspension from %s', async (path) => {
+  const session = connect()
+  mockLogin()
+  server.use(http.get(apiUrl(path), suspended))
+  await session.login(loginDetails)
+
+  await expect(apiFetch(path)).rejects.toMatchObject({ status: 403, error: 'UserSuspendedError' })
+  expect(session.getSnapshot().status).toBe('suspended')
+  expect(session.getCredentials()).toMatchObject({ accessToken: null, canRefresh: false })
+  expect(localStorage.getItem(storageKey)).toBeNull()
+})
+
+it('clears a suspended session during startup restoration', async () => {
+  localStorage.setItem(storageKey, 'refresh-old')
+  const session = connect()
+  server.use(http.post(apiUrl('/auth/refresh'), suspended))
+
+  await session.restore()
+
+  expect(session.getSnapshot()).toMatchObject({ status: 'suspended', refreshError: null })
+  expect(localStorage.getItem(storageKey)).toBeNull()
+})
+
+it('ignores a late suspension response from a previous account', async () => {
+  const session = connect()
+  const started = defer()
+  const reply = defer()
+  mockLogin()
+  server.use(
+    http.get(apiUrl('/auth/me'), async () => {
+      started.resolve()
+      await reply.promise
+      return suspended()
+    }),
+  )
+  await session.login(loginDetails)
+  const oldProfile = apiFetch('/auth/me')
+  await started.promise
+  mockLogin(tokens('new-account'))
+  await session.login(loginDetails)
+  reply.resolve()
+
+  await expect(oldProfile).rejects.toMatchObject({ error: 'UserSuspendedError' })
+  expect(session.getSnapshot().status).toBe('authenticated')
+  expect(localStorage.getItem(storageKey)).toBe('refresh-new-account')
+})
+
+it('waits for a pending rotation, then revokes the latest token once before clearing it', async () => {
+  const session = connect()
+  const refreshStarted = defer()
+  const finishRefresh = defer()
+  const logoutStarted = defer()
+  const finishLogout = defer()
+  mockLogin()
+  const logout = vi.fn(async ({ request }: { request: Request }) => {
+    expect(await request.json()).toEqual({ refresh_token: 'refresh-new' })
+    logoutStarted.resolve()
+    await finishLogout.promise
+    return HttpResponse.json({ message: 'Logged out' })
+  })
+  server.use(
+    http.post(apiUrl('/auth/refresh'), async () => {
+      refreshStarted.resolve()
+      await finishRefresh.promise
+      return HttpResponse.json(tokens('new'))
+    }),
+    http.post(apiUrl('/auth/logout'), logout),
+  )
+  await session.login(loginDetails)
+
+  const pendingRefresh = session.refresh()
+  await refreshStarted.promise
+  const pendingLogout = session.signOut()
+  expect(session.signOut()).toBe(pendingLogout)
+  expect(logout).not.toHaveBeenCalled()
+  finishRefresh.resolve()
+  await pendingRefresh
+  await logoutStarted.promise
+  try {
+    expect(localStorage.getItem(storageKey)).toBe('refresh-new')
+    await expect(session.refresh()).resolves.toBeNull()
+  } finally {
+    finishLogout.resolve()
+  }
+  await pendingLogout
+
+  expect(logout).toHaveBeenCalledTimes(1)
+  expect(session.getSnapshot().status).toBe('anonymous')
+  expect(session.getCredentials()).toMatchObject({ accessToken: null, canRefresh: false })
+  expect(localStorage.getItem(storageKey)).toBeNull()
+})
+
+it('clears local credentials when the logout request cannot reach the server', async () => {
+  const session = connect()
+  mockLogin()
+  server.use(http.post(apiUrl('/auth/logout'), () => HttpResponse.error()))
+  await session.login(loginDetails)
+
+  await expect(session.signOut()).rejects.toMatchObject({ error: 'NETWORK_ERROR' })
+  expect(session.getSnapshot().status).toBe('anonymous')
+  expect(session.getCredentials()).toMatchObject({ accessToken: null, canRefresh: false })
+  expect(localStorage.getItem(storageKey)).toBeNull()
 })

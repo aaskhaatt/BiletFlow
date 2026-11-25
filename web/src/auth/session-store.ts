@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react'
 import type { RequestCredentials } from '@/api/access-token'
 import { ApiError, CLIENT_ERROR_CODES, isApiError } from '@/api/errors'
 import {
+  authLogoutRouter,
   authRefreshTokenRouter,
   authUserLogin,
   authUserRegistration,
@@ -9,6 +10,7 @@ import {
 import type { RefreshTokenResponse, UserCreate, UserLogin } from '@/api/generated/model'
 
 const REFRESH_TOKEN_KEY = 'biletflow.refresh-token'
+const AUTH_REQUEST_TIMEOUT_MS = 10_000
 
 export async function registerAccount(
   credentials: UserCreate,
@@ -64,8 +66,9 @@ function requireTokens(tokens: RefreshTokenResponse): RefreshTokenResponse {
   return tokens
 }
 
-type SessionStatus = 'anonymous' | 'restoring' | 'authenticated' | 'expired'
+type SessionStatus = 'anonymous' | 'restoring' | 'authenticated' | 'expired' | 'suspended'
 type SessionSnapshot = { status: SessionStatus; refreshError: unknown; generation: number }
+type EndedSession = Extract<SessionStatus, 'anonymous' | 'expired' | 'suspended'>
 
 export function createSessionStore() {
   let refreshToken = readRefreshToken()
@@ -74,6 +77,7 @@ export function createSessionStore() {
   let generation = 0
   let loginAttempt = 0
   let refreshing: Promise<string | null> | null = null
+  let signingOut: { generation: number; promise: Promise<void> } | undefined
   let snapshot: SessionSnapshot = {
     status: refreshToken ? 'restoring' : 'anonymous',
     refreshError: null,
@@ -99,7 +103,7 @@ export function createSessionStore() {
     publish('authenticated')
   }
 
-  function clearTokens(status: 'anonymous' | 'expired') {
+  function clearTokens(status: EndedSession) {
     generation++
     refreshing = null
     accessToken = null
@@ -110,7 +114,12 @@ export function createSessionStore() {
   }
 
   function getCredentials(): RequestCredentials {
-    return { generation, accessToken, expiresAt, canRefresh: refreshToken !== null }
+    return {
+      generation,
+      accessToken,
+      expiresAt,
+      canRefresh: refreshToken !== null && signingOut?.generation !== generation,
+    }
   }
 
   async function login(credentials: UserLogin, signal?: AbortSignal): Promise<void> {
@@ -125,22 +134,54 @@ export function createSessionStore() {
     acceptTokens(tokens)
   }
 
-  function logout(): void {
+  function clearSession(): void {
     loginAttempt++
     clearTokens('anonymous')
+  }
+
+  function signOut(): Promise<void> {
+    const startedIn = generation
+    if (signingOut?.generation === startedIn) return signingOut.promise
+    const pendingRefresh = refreshing
+    const promise = (async () => {
+      try {
+        // Allow an existing rotation to finish so logout revokes the replacement.
+        await pendingRefresh?.catch(() => null)
+        if (generation === startedIn && refreshToken) {
+          await authLogoutRouter(
+            { refresh_token: refreshToken },
+            { signal: AbortSignal.timeout(AUTH_REQUEST_TIMEOUT_MS) },
+          )
+        }
+      } finally {
+        if (generation === startedIn) clearSession()
+      }
+    })().finally(() => {
+      if (signingOut?.promise === promise) signingOut = undefined
+    })
+    signingOut = { generation: startedIn, promise }
+    return promise
   }
 
   function expire(): void {
     clearTokens('expired')
   }
 
+  function suspend(): void {
+    loginAttempt++
+    clearTokens('suspended')
+  }
+
   function refresh(): Promise<string | null> {
     if (refreshing) return refreshing
-    if (!refreshToken) return Promise.resolve(null)
+    if (!getCredentials().canRefresh || !refreshToken) return Promise.resolve(null)
 
     const startedIn = generation
     const token = refreshToken
-    const promise = authRefreshTokenRouter({ refresh_token: token })
+    const promise = authRefreshTokenRouter(
+      { refresh_token: token },
+      { signal: AbortSignal.timeout(AUTH_REQUEST_TIMEOUT_MS) },
+    )
       .then((tokens) => {
         if (generation !== startedIn) return null
         const next = requireTokens(tokens)
@@ -180,13 +221,15 @@ export function createSessionStore() {
 
   return {
     login,
-    logout,
+    clearSession,
+    signOut,
     restore,
     subscribe,
     getSnapshot: () => snapshot,
     getCredentials,
     refresh,
     expire,
+    suspend,
   }
 }
 

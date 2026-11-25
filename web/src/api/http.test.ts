@@ -101,6 +101,7 @@ describe('apiFetch', () => {
       }),
       refresh: vi.fn(),
       expire: vi.fn(),
+      suspend: vi.fn(),
     })
 
     const me = await apiFetch<{ id: number }>('/auth/me')
