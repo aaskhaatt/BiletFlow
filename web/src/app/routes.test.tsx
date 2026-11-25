@@ -1,6 +1,10 @@
 import { screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { http, HttpResponse } from 'msw'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { setRequestSession } from '@/api/access-token'
 import { routes } from '@/app/routes'
+import { sessionStore } from '@/auth/session-store'
+import { apiUrl, server } from '@/test/msw-server'
 import { renderRoutes } from '@/test/render'
 
 // Each address opens its page (W1.7). The ones the backend puts in emails and
@@ -51,10 +55,56 @@ const pages: [address: string, page: string][] = [
   ['/admin/settings', 'admin-settings'],
 ]
 
+const publicPages = new Set([
+  'verify-email',
+  'reset-password',
+  'event',
+  'catalog',
+  'login',
+  'register',
+  'forgot-password',
+])
+
 describe('routes', () => {
+  beforeEach(() => {
+    sessionStore.clearSession()
+    setRequestSession(sessionStore)
+  })
+
   it.each(pages)('%s opens the "%s" page', async (address, page) => {
+    if (page === 'verify-email') {
+      server.use(
+        http.post(apiUrl('/auth/verify-email'), () => HttpResponse.json({ message: 'Verified' })),
+      )
+    }
+    if (!publicPages.has(page)) {
+      const email = 'tester@example.test'
+      server.use(
+        http.post(apiUrl('/auth/login'), () =>
+          HttpResponse.json({
+            access_token: 'test-access',
+            refresh_token: 'test-refresh',
+            token_type: 'bearer',
+          }),
+        ),
+        http.get(apiUrl('/auth/me'), () =>
+          HttpResponse.json({
+            id: 1,
+            email,
+            email_verified: true,
+            is_platform_admin: true,
+            is_event_staff: false,
+            organizer: { id: 10, user_id: 1, status: 'approved' },
+          }),
+        ),
+      )
+      await sessionStore.login({ email, password: 'test-password' })
+    }
     const { container } = renderRoutes(routes, { route: address })
     await screen.findByRole('heading', { level: 1 })
+    if (page === 'verify-email') {
+      await screen.findByText('Ваша почта подтверждена.')
+    }
     expect(container.querySelector('[data-route-id]')).toHaveAttribute('data-route-id', page)
   })
 

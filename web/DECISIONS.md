@@ -34,9 +34,7 @@ Components don't call generated hooks directly. They use our own wrappers (`useE
 
 ## T6. Login tokens in the browser
 
-The access token lives only in memory; the refresh token is kept in `localStorage`. Implemented in W3.
-
-Trade-off: a page reload keeps the user signed in, at the cost of a refresh token that a script injected into the page could read. The risk is limited because the backend makes refresh tokens single-use and rotates them on every refresh.
+The access token stays in memory, and the single-use refresh token goes in `localStorage` so the app can restore the session after a reload. Any script running on the same origin can read the stored refresh token, which the app replaces after each successful refresh and clears at sign-out.
 
 ## T7. Default language
 
@@ -44,7 +42,12 @@ The browser's language if it is `kk`, `ru` or `en`, otherwise `ru`. The user's c
 
 ## T8. Mobile stack
 
-Postponed together with the mobile app. Nothing in `web/` depends on it.
+Mobile development and the choice of mobile stack are deferred (Q1).
+
+## Product scope
+
+- The admin portal uses its own layout at `/admin` within the same web application (Q3).
+- Registration asks for email and password, with a client-side minimum of eight characters for the password. Checkout collects the attendee name (Q4).
 
 ## Other conventions
 

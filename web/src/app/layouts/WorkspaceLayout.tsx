@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Link, NavLink, Outlet } from 'react-router'
+import AccountNavigation from '@/app/layouts/AccountNavigation'
+import EmailVerificationBanner from '@/auth/EmailVerificationBanner'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 
 const organizerLinks = [
@@ -92,9 +94,11 @@ export default function WorkspaceLayout({
         <WorkspaceNavigation area={area} supportCount={supportCount} />
       </div>
       <div className="min-w-0">
-        <header className="flex justify-end border-b border-line bg-surface px-4 py-2">
+        <header className="flex flex-wrap items-center justify-end gap-2 border-b border-line bg-surface px-4 py-2">
+          <AccountNavigation />
           <LanguageSwitcher />
         </header>
+        <EmailVerificationBanner className="mx-auto mt-3 max-w-6xl px-4" />
         <Outlet />
       </div>
     </div>

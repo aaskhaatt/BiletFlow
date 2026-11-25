@@ -7,8 +7,18 @@ import RouteErrorPage from '@/pages/RouteErrorPage'
 
 function workspaceLayout(area: 'organizer' | 'admin') {
   return async () => {
-    const { default: WorkspaceLayout } = await import('@/app/layouts/WorkspaceLayout')
-    return { element: <WorkspaceLayout area={area} /> }
+    const [{ default: WorkspaceLayout }, { RequireAuth, RequireOrganizer, RequireAdmin }] =
+      await Promise.all([import('@/app/layouts/WorkspaceLayout'), import('@/auth/route-guards')])
+    const WorkspaceGuard = area === 'organizer' ? RequireOrganizer : RequireAdmin
+    return {
+      element: (
+        <RequireAuth>
+          <WorkspaceGuard>
+            <WorkspaceLayout area={area} />
+          </WorkspaceGuard>
+        </RequireAuth>
+      ),
+    }
   }
 }
 
@@ -18,9 +28,6 @@ function stub(id: string) {
 }
 
 /*
- * Every page of the app. Guards (RequireAuth, RequireOrganizer, RequireAdmin)
- * arrive in W3.11.
- *
  * The backend puts some of these addresses in emails and QR codes, so they must
  * not change: /verify-email, /reset-password, /orders/:orderId, /events/:eventId
  * (also with ?campaign=C-...), /support/:caseId.
@@ -38,27 +45,56 @@ export const routes: RouteObject[] = [
     errorElement: <RouteErrorPage />,
     children: [
       {
+        path: 'login',
+        lazy: async () => ({ Component: (await import('@/pages/AuthPage')).LoginPage }),
+      },
+      {
+        path: 'register',
+        lazy: async () => ({ Component: (await import('@/pages/AuthPage')).RegisterPage }),
+      },
+      {
+        path: 'forgot-password',
+        lazy: async () => ({
+          Component: (await import('@/pages/PasswordRecoveryPage')).ForgotPasswordPage,
+        }),
+      },
+      {
+        path: 'verify-email',
+        lazy: async () => ({ Component: (await import('@/pages/VerifyEmailPage')).default }),
+      },
+      {
+        path: 'reset-password',
+        lazy: async () => ({
+          Component: (await import('@/pages/PasswordRecoveryPage')).ResetPasswordPage,
+        }),
+      },
+      {
         lazy: async () => ({ Component: (await import('@/app/layouts/PublicLayout')).default }),
         children: [
           // Public
           { index: true, ...stub('catalog') },
           { path: 'events/:eventId', ...stub('event') },
-          { path: 'login', ...stub('login') },
-          { path: 'register', ...stub('register') },
-          { path: 'forgot-password', ...stub('forgot-password') },
-          { path: 'verify-email', ...stub('verify-email') },
-          { path: 'reset-password', ...stub('reset-password') },
 
-          // Attendee (signed in)
-          { path: 'events/:eventId/checkout', ...stub('checkout') },
-          { path: 'orders/:orderId', ...stub('order') },
-          { path: 'tickets/:ticketId', ...stub('ticket') },
-          { path: 'my/tickets', ...stub('my-tickets') },
-          { path: 'my/orders', ...stub('my-orders') },
-          { path: 'support', ...stub('my-support-cases') },
-          { path: 'support/new', ...stub('new-support-case') },
-          { path: 'support/:caseId', ...stub('support-case') },
-          { path: 'become-organizer', ...stub('become-organizer') },
+          {
+            lazy: async () => ({ Component: (await import('@/auth/route-guards')).RequireAuth }),
+            children: [
+              // Attendee (signed in)
+              { path: 'events/:eventId/checkout', ...stub('checkout') },
+              { path: 'orders/:orderId', ...stub('order') },
+              { path: 'tickets/:ticketId', ...stub('ticket') },
+              { path: 'my/tickets', ...stub('my-tickets') },
+              { path: 'my/orders', ...stub('my-orders') },
+              { path: 'support', ...stub('my-support-cases') },
+              { path: 'support/new', ...stub('new-support-case') },
+              { path: 'support/:caseId', ...stub('support-case') },
+              {
+                path: 'become-organizer',
+                lazy: async () => ({
+                  Component: (await import('@/auth/route-guards')).BecomeOrganizerPage,
+                }),
+              },
+            ],
+          },
         ],
       },
 
