@@ -327,7 +327,7 @@ function Overview({
       <Kpis event={event} summary={summary} />
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22.5rem]">
         <TicketTypesCard event={event} />
-        {!done && <PaidSalesCard eventId={event.id} />}
+        <PaidSalesCard eventId={event.id} locked={done} />
       </div>
     </OrganizerPage>
   )

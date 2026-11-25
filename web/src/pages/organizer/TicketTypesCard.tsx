@@ -119,7 +119,7 @@ export default function TicketTypesCard({ event }: { event: EventResponse }) {
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-0.5">
-          <h2 id="ticket-types-title" className="type-card-title">
+          <h2 id="ticket-types-title" tabIndex={-1} className="scroll-mt-6 type-card-title">
             {t('ticketTypes.title')}
           </h2>
           {types.data && types.data.length > 0 && (

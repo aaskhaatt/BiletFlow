@@ -46,7 +46,7 @@ export default function PaidSalesBanner({ summaries }: { summaries: OrganizerEve
           })}
         </p>
         <Button asChild size="sm" className="bg-ink hover:bg-ink/90">
-          <Link to={`/organizer/events/${waiting.event_id}`}>
+          <Link to={`/organizer/events/${waiting.event_id}#paid-sales`}>
             {t('organizerEvents.banner.open')}
           </Link>
         </Button>

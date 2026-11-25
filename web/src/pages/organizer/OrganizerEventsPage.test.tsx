@@ -167,7 +167,7 @@ describe('organizer events list', () => {
     expect(banner).toHaveTextContent('Выполнено шагов: 2 из 5')
     expect(screen.getByRole('link', { name: 'Открыть чеклист' })).toHaveAttribute(
       'href',
-      '/organizer/events/1',
+      '/organizer/events/1#paid-sales',
     )
   })
 
