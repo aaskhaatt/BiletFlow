@@ -1,10 +1,21 @@
 import { useSyncExternalStore } from 'react'
 import type { RequestCredentials } from '@/api/access-token'
 import { ApiError, CLIENT_ERROR_CODES, isApiError } from '@/api/errors'
-import { authRefreshTokenRouter, authUserLogin } from '@/api/generated/endpoints/auth/auth'
-import type { RefreshTokenResponse, UserLogin } from '@/api/generated/model'
+import {
+  authRefreshTokenRouter,
+  authUserLogin,
+  authUserRegistration,
+} from '@/api/generated/endpoints/auth/auth'
+import type { RefreshTokenResponse, UserCreate, UserLogin } from '@/api/generated/model'
 
 const REFRESH_TOKEN_KEY = 'biletflow.refresh-token'
+
+export async function registerAccount(
+  credentials: UserCreate,
+  signal?: AbortSignal,
+): Promise<void> {
+  await authUserRegistration(credentials, { signal })
+}
 
 function readRefreshToken(): string | null {
   try {
@@ -96,9 +107,11 @@ export function createSessionStore() {
     return { generation, accessToken, expiresAt, canRefresh: refreshToken !== null }
   }
 
-  async function login(credentials: UserLogin): Promise<void> {
+  async function login(credentials: UserLogin, signal?: AbortSignal): Promise<void> {
+    signal?.throwIfAborted()
     const attempt = ++loginAttempt
-    const tokens = requireTokens(await authUserLogin(credentials))
+    const tokens = requireTokens(await authUserLogin(credentials, { signal }))
+    signal?.throwIfAborted()
     if (attempt !== loginAttempt) throw new DOMException('Login was superseded', 'AbortError')
     generation++
     refreshing = null

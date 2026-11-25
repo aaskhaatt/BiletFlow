@@ -47,13 +47,19 @@ export const routes: RouteObject[] = [
     errorElement: <RouteErrorPage />,
     children: [
       {
+        path: 'login',
+        lazy: async () => ({ Component: (await import('@/pages/AuthPage')).LoginPage }),
+      },
+      {
+        path: 'register',
+        lazy: async () => ({ Component: (await import('@/pages/AuthPage')).RegisterPage }),
+      },
+      {
         lazy: async () => ({ Component: (await import('@/app/layouts/PublicLayout')).default }),
         children: [
           // Public
           { index: true, ...stub('catalog') },
           { path: 'events/:eventId', ...stub('event') },
-          { path: 'login', ...stub('login') },
-          { path: 'register', ...stub('register') },
           { path: 'forgot-password', ...stub('forgot-password') },
           { path: 'verify-email', ...stub('verify-email') },
           { path: 'reset-password', ...stub('reset-password') },
