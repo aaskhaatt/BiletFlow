@@ -155,6 +155,7 @@ export const ru = {
       compact: 'Компактный бейдж',
       unknown: 'Неизвестный статус',
     },
+    demoPayment: 'Демо-оплата',
   },
   notFound: {
     title: 'Страница не найдена',
@@ -169,6 +170,9 @@ export const ru = {
   },
   money: {
     free: 'Бесплатно',
+  },
+  payment: {
+    demoBanner: 'Демо-режим: реальные деньги не списываются',
   },
   time: {
     astanaZone: 'Время Астаны (UTC+5)',

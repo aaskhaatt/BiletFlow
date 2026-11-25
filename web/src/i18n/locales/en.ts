@@ -70,6 +70,7 @@ export const en: Messages = {
       compact: 'Compact badge',
       unknown: 'Unknown status',
     },
+    demoPayment: 'Demo payment',
   },
   notFound: {
     title: 'Page not found',
@@ -84,6 +85,9 @@ export const en: Messages = {
   },
   money: {
     free: 'Free',
+  },
+  payment: {
+    demoBanner: 'Demo mode: no real money is charged',
   },
   time: {
     astanaZone: 'Astana time (UTC+5)',

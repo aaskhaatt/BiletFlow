@@ -74,6 +74,7 @@ export const kk: Messages = {
       compact: 'Шағын белгі',
       unknown: 'Белгісіз мәртебе',
     },
+    demoPayment: 'Демо төлем',
   },
   notFound: {
     title: 'Бет табылмады',
@@ -88,6 +89,9 @@ export const kk: Messages = {
   },
   money: {
     free: 'Тегін',
+  },
+  payment: {
+    demoBanner: 'Демо режим: нақты ақша алынбайды',
   },
   time: {
     astanaZone: 'Астана уақыты (UTC+5)',

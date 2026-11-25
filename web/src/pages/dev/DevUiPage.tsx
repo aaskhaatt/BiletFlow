@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { useEvents } from '@/api/hooks/events'
+import DemoBanner from '@/components/DemoBanner'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 import { getApiUrl } from '@/lib/env'
 import ButtonsSection from '@/pages/dev/ButtonsSection'
@@ -170,6 +171,11 @@ export default function DevUiPage() {
       <ControlsSection />
 
       <StatusBadgesSection />
+
+      <section className="max-w-lg space-y-4">
+        <h2 className="type-card-title">{t('dev.demoPayment')}</h2>
+        <DemoBanner />
+      </section>
 
       <PrimitivesSection />
     </main>
