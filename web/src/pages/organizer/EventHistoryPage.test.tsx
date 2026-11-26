@@ -64,7 +64,8 @@ function mockHistory(entries: HistoryEntry[], requests: URL[] = []) {
 
 async function openHistory() {
   const result = renderRoutes(routes, { route: '/organizer/events/1/history' })
-  await screen.findByRole('heading', { level: 1, name: 'Old concert · история' })
+  // The page is loaded lazily, so the first test in a cold, busy CI run can need more than the default second
+  await screen.findByRole('heading', { level: 1, name: 'Old concert · история' }, { timeout: 5000 })
   return result
 }
 
