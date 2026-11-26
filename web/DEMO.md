@@ -48,7 +48,7 @@ npm run dev                              # http://localhost:5173
 
 Keep port **5173**: the backend lets browsers call it only from `http://localhost:5173` (its `CORS_ORIGINS`). The web finds the API through `VITE_API_URL`, `http://localhost:8000` by default (see `web/.env.example`). Open <http://localhost:5173>: the catalog shows the demo events.
 
-Language: the switcher in the header offers Kazakh, Russian and English. The Kazakh texts have not been checked by a native speaker.
+Language: the switcher in the header offers Kazakh, Russian and English. The Kazakh texts were reviewed by the team on 2026-11-26.
 
 ## 3. Demo accounts
 
@@ -183,7 +183,7 @@ Before the presentation, record again from the tagged commit so that the label i
 - The Event Admin's mobile app is a separate app: this demo calls its scanning endpoint through the API instead of using the app.
 - No assigned seating, no GA4, no full calendar export (only a minimal `.ics` download on the event page).
 - One attendee name per order (not per ticket); no PDF of the campaign QR (PNG only).
-- The Kazakh texts are unreviewed. Long Kazakh and Russian strings were not checked on every screen.
+- Long Kazakh and Russian strings were not checked on every screen.
 - Not done from the quality list: long-string fit, contrast of status badges and the printed ticket, a state audit (loading, empty, error) of every screen, security hardening (there is no Content-Security-Policy: no nginx), build size and Lighthouse.
 - The web app is not in Docker Compose; it runs with `npm run dev`.
 - Admin screens were tested with mocked data and stubs, never against the real backend.
