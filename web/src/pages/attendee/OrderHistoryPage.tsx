@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 import { errorMessageKey } from '@/api/error-codes'
 import type { OrderResponse, TicketResponse } from '@/api/generated/model'
 import { useMyOrders } from '@/api/hooks/orders'
+import DemoBanner from '@/components/DemoBanner'
 import EmptyState from '@/components/EmptyState'
 import ErrorState from '@/components/ErrorState'
 import StatusBadge from '@/components/StatusBadge'
@@ -91,6 +92,7 @@ function HistoryGroups({
 
   return (
     <>
+      {kind === 'orders' && orders.some((order) => order.total_amount > 0) && <DemoBanner />}
       <HistoryGroup title={t('status.order.pending')} items={pending} />
       <HistoryGroup title={t('attendee.upcoming')} items={upcoming} />
       <HistoryGroup title={t('attendee.past')} items={past} />

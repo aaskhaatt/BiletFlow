@@ -156,6 +156,7 @@ function OrderDetails({ order, refresh }: { order: OrderResponse; refresh: () =>
             {statusText}
           </InlineAlert>
         )}
+        {status !== 'pending' && order.total_amount > 0 && <DemoBanner />}
         {status === 'expired' && (
           <Button asChild variant="outline">
             <Link to={`/events/${order.event_id}`}>{t('attendee.startAgain')}</Link>

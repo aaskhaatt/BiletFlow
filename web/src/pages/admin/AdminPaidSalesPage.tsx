@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
 import type { ActivationRecord } from '@/api/generated/model'
 import { useAdminPaidSales } from '@/api/hooks/admin'
+import DemoBanner from '@/components/DemoBanner'
 import type { TableColumn } from '@/components/ResponsiveTable'
 import StatusBadge from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'
@@ -118,6 +119,7 @@ export default function AdminPaidSalesPage() {
       title={t('adminZone.paidSales.title')}
       description={t('adminZone.paidSales.description')}
     >
+      <DemoBanner />
       <section
         aria-label={t('adminZone.paidSales.title')}
         className="overflow-hidden rounded-lg border border-line bg-surface"

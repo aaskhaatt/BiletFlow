@@ -9,6 +9,7 @@ import {
   type AdminListRows,
 } from '@/api/hooks/admin'
 import { apiCsv } from '@/api/http'
+import DemoBanner from '@/components/DemoBanner'
 import InlineAlert from '@/components/InlineAlert'
 import type { TableColumn } from '@/components/ResponsiveTable'
 import SelectField, { type SelectOption } from '@/components/SelectField'
@@ -61,6 +62,7 @@ export default function AdminListPage<Name extends AdminListName>({
   searchLabel,
   rowKey,
   showTime,
+  demo,
   children,
 }: {
   list: Name
@@ -69,6 +71,8 @@ export default function AdminListPage<Name extends AdminListName>({
   searchLabel: string
   rowKey: (row: AdminListRows[Name]) => number
   showTime?: boolean
+  /** The list shows money (orders, payments, refunds, campaigns): say that it is a demonstration. */
+  demo?: boolean
   children?: ReactNode
 }) {
   const { t } = useTranslation()
@@ -167,6 +171,7 @@ export default function AdminListPage<Name extends AdminListName>({
           {t(errorMessageKey(exportError))}
         </InlineAlert>
       )}
+      {demo && <DemoBanner />}
       <section
         aria-label={title}
         className="overflow-hidden rounded-lg border border-line bg-surface"

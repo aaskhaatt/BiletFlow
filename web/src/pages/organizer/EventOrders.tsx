@@ -10,6 +10,7 @@ import {
   type OrderFilters,
 } from '@/api/hooks/organizer-operations'
 import ConfirmDialog from '@/components/ConfirmDialog'
+import DemoBanner from '@/components/DemoBanner'
 import EmptyState from '@/components/EmptyState'
 import ErrorState from '@/components/ErrorState'
 import InlineAlert from '@/components/InlineAlert'
@@ -438,6 +439,7 @@ export default function EventOrders({
         <p role="status">{t('common.loading')}</p>
       ) : (
         <>
+          {refunded && orders.data.items.some((row) => row.is_simulated) && <DemoBanner />}
           {orders.data.items.length ? (
             <ResponsiveTable
               caption={t(refunded ? 'eventOperations.refunds' : 'eventOperations.orders')}

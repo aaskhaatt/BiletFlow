@@ -11,6 +11,7 @@ import { useMe } from '@/auth/use-me'
 import CheckboxField from '@/components/CheckboxField'
 import ErrorState from '@/components/ErrorState'
 import FormField from '@/components/FormField'
+import DemoBanner from '@/components/DemoBanner'
 import InlineAlert from '@/components/InlineAlert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -393,6 +394,7 @@ function CheckoutForm({
             </div>
           </dl>
         )}
+        {preview.data && !preview.isError && preview.data.total > 0 && <DemoBanner />}
         <Button
           type="submit"
           size="lg"
