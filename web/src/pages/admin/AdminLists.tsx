@@ -227,6 +227,7 @@ export function AdminOrdersPage() {
   return (
     <AdminListPage
       list="orders"
+      demo
       searchLabel={t('adminZone.searchBy.orders')}
       filters={filters}
       rowKey={rowId}
@@ -298,6 +299,7 @@ export function AdminPaymentsPage() {
   return (
     <AdminListPage
       list="payments"
+      demo
       searchLabel={t('adminZone.searchBy.payments')}
       filters={filters}
       rowKey={rowId}
@@ -369,6 +371,7 @@ export function AdminRefundsPage() {
   return (
     <AdminListPage
       list="refunds"
+      demo
       searchLabel={t('adminZone.searchBy.refunds')}
       rowKey={rowId}
       filters={[eventIdFilter(t('adminZone.eventId'))]}
@@ -432,6 +435,7 @@ export function AdminCampaignsPage() {
   return (
     <AdminListPage
       list="campaigns"
+      demo
       searchLabel={t('adminZone.searchBy.campaigns')}
       filters={filters}
       rowKey={rowId}
